@@ -95,9 +95,9 @@ export function TrustView({
           <button type="button" className="trust-action" onClick={() => window.confirm("Delete the saved journey from this browser?") && onDeleteJourney()}><Trash2 size={15} /> Delete current journey</button>
           <button type="button" className="trust-action" onClick={() => window.confirm("Clear feedback choices and opened-door counts from this browser?") && onClearSignals()}><Trash2 size={15} /> Clear feedback and activity</button>
           <button type="button" className="trust-action" onClick={() => window.confirm(`Remove all ${savedCount} saved door${savedCount === 1 ? "" : "s"} from this browser?`) && onDeleteSaved()}><Trash2 size={15} /> Delete saved doors ({savedCount})</button>
-          <button type="button" className="trust-action trust-action-danger" onClick={() => window.confirm("Clear the journey, saved doors, feedback, and opened-door history stored by Open Door in this browser? This cannot be undone.") && onClearAll()}><Trash2 size={15} /> Clear all Open Door data</button>
+          <button type="button" className="trust-action trust-action-danger" onClick={() => window.confirm("Clear the journey, saved doors, feedback, opened-door history, and all Discovery Lab checkpoints and branches stored by Open Door in this browser? This cannot be undone.") && onClearAll()}><Trash2 size={15} /> Clear all Open Door data</button>
         </div>
-        <p className="trust-footnote">Export is created on your device. The personalization setting is retained when you clear all data so that clearing storage does not silently turn personalization back on.</p>
+        <p className="trust-footnote">Export is created on your device and includes Discovery Lab checkpoints and branches. The Lab is explicitly browser-local and can be cleared separately there. The personalization toggle controls the original journey history, not the Lab's explicitly saved explorations. The setting is retained when you clear all data so that clearing storage does not silently turn personalization back on.</p>
       </section>
     </div>
 

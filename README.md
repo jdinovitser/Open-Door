@@ -65,6 +65,12 @@ The full endpoint, provenance, fallback, and verification notes are in [`docs/HA
 
 The current journey, saved doors, feedback, and opened-door activity are kept in this browser's local storage. Live discovery sends the fields needed for a Qloo request to the Open Door server; see the Trust page for browser controls and the exact external-service data flow.
 
+## Discovery Lab
+
+Use **Branch in Discovery Lab** on an original door, **Explore in Discovery Lab** on the three-door journey, or open `/lab`. Save a checkpoint, open one of six directions, and compare independent sibling branches. Continue from a result, fork it into a new checkpoint, or restore an earlier starting point without changing its siblings.
+
+Lab state is browser-local, separate from the original saved-door collection. It survives reloads; it is not synced across devices. Export before clearing browser data. Demo exercises are explicitly authored examples, not Qloo results, venue listings, social matches or verified itineraries. See [Discovery Lab workflow and provider boundary](docs/DISCOVERY_LAB.md).
+
 ## Running locally
 
 ```sh
@@ -79,6 +85,8 @@ npm run build
 ```
 
 Run the production server after building with `npm start`.
+
+Run `npm test` for server and Lab engine/provider tests. With the development app running, run `npm run test:browser` for the Discovery Lab browser journeys. Browser tests use the existing Chromium executable on Replit; elsewhere install Playwright Chromium first. `TEST_BASE_URL` can select a test origin. Generated reports and traces are kept out of source control and deployment in `generated-artifacts/`.
 
 ## Environment variables
 
@@ -123,6 +131,10 @@ Potential extensions include verified local venue data, a public judge deploymen
 - Qloo REST API (when configured)
 - CSS
 - Lucide React
+
+## Sound effects
+
+Use **Sound off / Sound on** in the header to enable gentle door, button and exploration cues. Sound is off by default, starts only after interaction, and the preference is saved in this browser. On small screens the speaker icon is the same control. Effects are synthesized locally with Web Audio: no audio downloads, recording, or microphone permission. Muting immediately stops audio; clearing all browser data resets the sound preference. Every interaction remains usable without sound.
 
 ## License
 

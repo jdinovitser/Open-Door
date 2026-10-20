@@ -1,13 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   ArrowDownRight, ArrowRight, Bookmark, BookOpen, Check, ChevronDown, Clock3, Compass,
-  HeartCrack, Info, MapPin, Plus, RotateCcw, Share2, Trash2, X,
+  HeartCrack, Info, MapPin, Plus, RotateCcw, Share2, Trash2, Volume2, VolumeX, X,
 } from "lucide-react";
 import { getAgentStatus, runAgentDiscovery, type AgentEvent, type AgentStatus, type DiscoveryRequest, type LiveDoor, type LiveJourney } from "./agentApi";
 import { DevSecurityTestView, TrustView } from "./TrustView";
 import { MascotArt } from "./MascotArt";
+import DiscoveryLab from "./lab/DiscoveryLab";
+import { createDemoProvider } from "./lab/demoProvider";
+import { createLiveProvider } from "./lab/liveProvider";
+import { journeyToLab } from "./lab/journeyAdapter";
+import { useDiscoveryLab } from "./lab/useDiscoveryLab";
+import { useSoundEffects, type SoundEffect } from "./useSoundEffects";
 
-type View = "discover" | "saved" | "how" | "trust";
+type View = "discover" | "saved" | "how" | "trust" | "lab";
 type Intent = "Find my people" | "Go deeper" | "Try something new";
 type Depth = "Close to home" | "A little further" | "Surprise me" | "Take me somewhere unexpected";
 type Category = "Film" | "Music" | "Food" | "Art" | "Books" | "Design" | "Outdoors" | "Experiences" | "Other";
@@ -256,15 +262,28 @@ function restoreSavedDoors(): SavedDoor[] {
   });
 }
 
+const labDemoProvider = createDemoProvider(snapshot => {
+  const categories = Object.fromEntries(Object.entries(snapshot.categories).map(([anchor, category]) => [
+    anchor, CATEGORIES.includes(category as Category) ? category as Category : /architecture|fashion/i.test(category) ? "Design" as Category : category === "Places" ? "Outdoors" as Category : inferredCategory(anchor),
+  ]));
+  const depth: Depth = { familiar: "Close to home" as const, adjacent: "A little further" as const, unexpected: "Take me somewhere unexpected" as const }[snapshot.settings.adventure];
+  return makeDoors(snapshot.settings.location, snapshot.anchors, categories, "Try something new", depth, {
+    time: snapshot.settings.time, budget: snapshot.settings.budget, movement: snapshot.settings.movement, conditions: snapshot.settings.conditions,
+  }, Object.values(snapshot.feedback).filter(item => item.action === "reject").map(item => item.reason), snapshot.history.length);
+});
+const labLiveProvider = createLiveProvider();
+
 export default function App() {
+  const sound = useSoundEffects();
   const [view, setView] = useState<View>(() =>
-    window.location.pathname === "/trust" ? "trust" : "discover",
+    window.location.pathname === "/trust" ? "trust" : window.location.pathname === "/lab" ? "lab" : "discover",
   );
   const [personalizationEnabled, setPersonalizationEnabled] = useState(() =>
     readStore<boolean>("opendoor.privacy.personalization", true),
   );
   const [journeyMode, setJourneyMode] = useState<"demo" | "live">("demo");
   const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null);
+  const lab = useDiscoveryLab(labDemoProvider, labLiveProvider, !!agentStatus?.qlooConfigured);
   const [statusError, setStatusError] = useState("");
   const [liveStages, setLiveStages] = useState<Extract<AgentEvent, { type: "stage" }>[]>([]);
   const [liveError, setLiveError] = useState("");
@@ -525,6 +544,7 @@ export default function App() {
       savedDoors: saved,
       explicitFeedback: feedback,
       openedDoorIds: openedIds,
+      discoveryLab: lab.state,
     };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -535,6 +555,8 @@ export default function App() {
     URL.revokeObjectURL(url);
   }
   function clearLocalData() {
+    lab.clear();
+    sound.reset();
     setJourney(null);
     setSaved([]);
     setFeedback({});
@@ -753,7 +775,7 @@ export default function App() {
     }} />;
   }
 
-  return <div className="app-shell">
+  return <div className="app-shell" onClickCapture={sound.onClickCapture}>
     <a className="skip-link" href="#main-content">Skip to main content</a>
     <header className="topbar">
       <button className="brand" onClick={() => setView("discover")} aria-label="Open Door, Discover">
@@ -762,11 +784,19 @@ export default function App() {
       </button>
       <nav className="nav" aria-label="Main navigation">
         <button className={`nav-btn ${view === "discover" ? "active" : ""}`} onClick={() => setView("discover")}>Discover</button>
+        <button className={`nav-btn lab-nav ${view === "lab" ? "active" : ""}`} onClick={() => setView("lab")}><span className="lab-nav-full">Discovery </span>Lab</button>
         <button className={`nav-btn ${view === "saved" ? "active" : ""}`} onClick={() => setView("saved")}>My Doors<span className="nav-count">{saved.length || ""}</span></button>
         <button className={`nav-btn ${view === "how" ? "active" : ""}`} onClick={() => setView("how")}>How it works</button>
         <button className={`nav-btn ${view === "trust" ? "active" : ""}`} onClick={() => setView("trust")}>Trust</button>
       </nav>
+      <button className="sound-toggle" type="button" data-sound="none" onClick={sound.toggle}
+        aria-pressed={sound.enabled} aria-label={`Sound effects: ${sound.enabled ? "on" : "off"}`}
+        title={sound.notice || (sound.enabled ? "Mute sound effects" : "Enable gentle sound effects")}>
+        {sound.enabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
+        <span>Sound {sound.enabled ? "on" : "off"}</span>
+      </button>
     </header>
+    {sound.notice && <p className="sound-notice" role="status">{sound.notice}</p>}
     <main className="page" id="main-content" tabIndex={-1}>
       {view === "discover" && <DiscoverView
         city={city} setCity={setCity} occasion={occasion} setOccasion={setOccasion} intent={intent} setIntent={setIntent}
@@ -775,6 +805,13 @@ export default function App() {
         categoryDraft={categoryDraft} setCategoryDraft={setCategoryDraft} anchorDraft={anchorDraft} setAnchorDraft={setAnchorDraft}
         addAnchor={addAnchor} removeAnchor={removeAnchor} submit={runJourney} journey={journey} savedIds={savedIds}
         toggleSave={toggleSave} feedback={feedback} setFeedback={setDoorFeedback} reset={resetJourney}
+        onLab={door => {
+          if (!journey) { setView("lab"); return; }
+          if (lab.state.current && !lab.state.activeBranchId && !lab.state.activeCheckpointId
+            && !window.confirm("Replace the current unsaved Lab starting point? Saved checkpoints and branches will remain.")) return;
+          const opened = lab.start(journeyToLab(journey, door?.id, feedback, groupMode ? participants.map(person => person.anchors).filter(Boolean).join("; ") : ""));
+          if (opened) { setView("lab"); window.scrollTo({ top: 0, behavior: "smooth" }); }
+        }}
         resetCompass={resetCompass} openNext={openNext} setView={setView} nodes={dnaNodes} selectedNode={selectedNode}
         setSelectedNode={setSelectedNode} onShare={shareStory} onDownloadStory={downloadStoryCard} storyCopied={storyCopied} openedCount={openedIds.length}
         openedCategories={openedCategories} openedTiers={openedTiers} savedCount={saved.length} groupMode={groupMode} setGroupMode={setGroupMode}
@@ -782,13 +819,14 @@ export default function App() {
         removeParticipant={removeParticipant} groupBuilt={groupBuilt} buildGroup={buildGroup}
         oneHour={oneHour} setOneHour={setOneHour} onStartDemo={startDemoJourney}
         onBuildDay={buildDayPlan}
-         entryPhase={entryPhase} onOpenEntry={openEntry}
+        entryPhase={entryPhase} onOpenEntry={openEntry} onSound={sound.play}
         exploreCategory={exploreCategory}
          journeyMode={journeyMode} setJourneyMode={setJourneyMode} agentStatus={agentStatus} statusError={statusError}
          liveStages={liveStages} liveError={liveError} isRunning={isRunning} showInspector={showInspector}
          setShowInspector={setShowInspector}
       />}
       {view === "saved" && <SavedView saved={saved} remove={id => { setSaved(current => current.filter(item => item.id !== id)); setToast("Door removed"); }} onDiscover={() => setView("discover")} explore={exploreSaved} />}
+      {view === "lab" && <DiscoveryLab lab={lab} qlooConfigured={!!agentStatus?.qlooConfigured} />}
       {view === "how" && <HowView agentStatus={agentStatus} />}
       {view === "trust" && <TrustView
         personalizationEnabled={personalizationEnabled}
@@ -807,6 +845,7 @@ export default function App() {
 }
 
 type DiscoverProps = {
+  onLab: (door?: Door) => void;
   city: string; setCity: (value: string) => void; occasion: string; setOccasion: (value: string) => void;
   intent: Intent; setIntent: (value: Intent) => void; depth: Depth; setDepth: (value: Depth) => void;
   context: Context; setContext: (value: Context) => void; anchors: string[]; categories: Record<string, Category>;
@@ -825,6 +864,7 @@ type DiscoverProps = {
   oneHour: boolean; setOneHour: (value: boolean) => void; onStartDemo: (behavior?: ScrollBehavior, allowLive?: boolean) => void;
   onBuildDay: (input: DayPlanInput) => void;
   entryPhase: "closed" | "opening" | "entered"; onOpenEntry: (runPreparedDemo?: boolean) => void;
+  onSound: (effect: SoundEffect) => void;
   exploreCategory: (category: Category) => void;
   journeyMode: "demo" | "live"; setJourneyMode: (value: "demo" | "live") => void; agentStatus: AgentStatus | null; statusError: string;
   liveStages: Extract<AgentEvent, { type: "stage" }>[]; liveError: string; isRunning: boolean; showInspector: boolean;
@@ -850,12 +890,13 @@ function DiscoverView(p: DiscoverProps) {
   useEffect(() => {
     if (!activeDoor) { returnFocusRef.current?.focus(); return; }
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !hallway) { setActiveDoor(null); setDoorOpening(false); }
+      if (event.key === "Escape" && !hallway) { p.onSound("door-close"); setActiveDoor(null); setDoorOpening(false); }
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [activeDoor, hallway]);
+  }, [activeDoor, hallway, p.onSound]);
   function continueThrough(door: Door) {
+    p.onSound("door-open");
     setHallway(true);
     window.setTimeout(() => {
       p.openNext(door);
@@ -864,6 +905,7 @@ function DiscoverView(p: DiscoverProps) {
     }, 760);
   }
   function openDoor(door: Door) {
+    p.onSound("door-open");
     returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setActiveDoor(door);
     setDoorOpening(true);
@@ -892,8 +934,8 @@ function DiscoverView(p: DiscoverProps) {
   return <>
     {p.entryPhase !== "entered" && <section className={`entry-scene ${p.entryPhase === "opening" ? "is-opening" : ""}`} aria-label="Open Door introduction">
       <div className="entry-copy"><span className="eyebrow">Open Door · a cultural field guide</span><p className="entry-index">FIELD NOTE 001 <span>—</span> ARRIVAL</p><h1>What’s behind<br /><em>your next door?</em></h1><p className="entry-deck">Start with the films, music, food, or books you love. Open three cultural directions—and choose where to go next.</p>
-        <button className="entry-action" type="button" onClick={() => p.onOpenEntry()} disabled={p.entryPhase === "opening"}><span>{p.entryPhase === "opening" ? "The room is opening" : "Open the door"}</span><ArrowRight size={17} /></button>
-        <button className="entry-demo-link" type="button" onClick={() => p.onOpenEntry(true)}>Open the prepared sample door</button>
+        <button className="entry-action" type="button" data-sound="door-open" onClick={() => p.onOpenEntry()} disabled={p.entryPhase === "opening"}><span>{p.entryPhase === "opening" ? "The room is opening" : "Open the door"}</span><ArrowRight size={17} /></button>
+        <button className="entry-demo-link" type="button" data-sound="door-open" onClick={() => p.onOpenEntry(true)}>Open the prepared sample door</button>
         <p className="entry-caveat">{p.agentStatus?.qlooConfigured ? "Qloo configured · only successful responses are labeled Live" : p.agentStatus ? "Illustrative demo paths · Qloo is not configured" : p.statusError ? "Qloo status unavailable · demo paths remain available" : "Checking Qloo configuration…"}</p>
       </div>
       <div className="entry-architecture" aria-hidden="true"><div className="entry-halo"></div><div className="entry-wall"><div className="entry-frame"><div className="entry-leaf"><i></i><span>OD</span></div><div className="entry-threshold"></div></div></div><div className="entry-companion"><img src="/mascot/map-guide-still.webp" alt="" width="400" height="225" decoding="async" /><span>Come along.</span></div><span className="entry-coordinate">A CULTURAL FIELD GUIDE</span><span className="entry-caption">A threshold, not a destination.</span></div>
@@ -975,11 +1017,11 @@ function DiscoverView(p: DiscoverProps) {
       </section>}
       {p.journey && <section className="journey-result" id="journey-result" aria-live="polite">
       <div className="result-top"><div><div className={`journey-badge ${p.journey.mode === "live" ? "live-badge" : ""}`}><Compass size={12} /> {p.journey.mode === "live" ? "Live Qloo · response received" : "Demo · authored sample"}</div><span className="eyebrow" style={{ display: "block", marginTop: 12 }}>{p.journey.occasion} · {p.journey.depth}</span><h2>Your {p.journey.doors.length} doors.</h2><div className="journey-city"><MapPin size={13} /> {p.journey.city} <span>·</span> {p.journey.intent} · {p.journey.mode === "live" ? "Qloo-backed current response" : "Demo path"}</div></div>
-         <div className="journey-tools"><button className="secondary-btn" type="button" onClick={() => p.setShowInspector(!p.showInspector)} aria-expanded={p.showInspector}><Info size={14} /> {p.showInspector ? "Close evidence" : "Under the Door"}</button><button className="secondary-btn" type="button" onClick={p.reset}><RotateCcw size={14} /> Reset the Compass</button></div></div>
+         <div className="journey-tools"><button className="secondary-btn" type="button" onClick={() => p.onLab()}>Explore in Discovery Lab <ArrowRight size={14} /></button><button className="secondary-btn" type="button" onClick={() => p.setShowInspector(!p.showInspector)} aria-expanded={p.showInspector}><Info size={14} /> {p.showInspector ? "Close evidence" : "Under the Door"}</button><button className="secondary-btn" type="button" onClick={p.reset}><RotateCcw size={14} /> Reset the Compass</button></div></div>
       {p.journey.notices?.map((notice, index) => <div className="demo-note live-note" role="status" key={`${notice}-${index}`}>{notice}</div>)}
       {!!p.journey.feedbackApplied?.length && <div className="feedback-applied" role="status"><strong>Your feedback changed {p.journey.mode === "live" ? "the search" : "the sample route"}.</strong><span>{p.journey.feedbackApplied.join(" · ")}. {p.journey.mode === "live" ? "The orchestrator adjusted the Qloo result types; price and opening hours remain unverified." : "This is deterministic Demo adaptation, not a Qloo response."}</span></div>}
       <div className="doors-grid" aria-label="Your discovery hallway">{p.journey.doors.map(door => <DoorCard key={door.id} door={door} city={p.journey!.city} anchors={p.journey!.anchors} mode={p.journey!.mode || "demo"}
-        saved={p.savedIds.has(door.id)} toggleSave={p.toggleSave} onOpenDoor={openDoor} feedback={p.feedback[door.id]} setFeedback={p.setFeedback} />)}</div>
+        saved={p.savedIds.has(door.id)} toggleSave={p.toggleSave} onOpenDoor={openDoor} onLab={p.onLab} feedback={p.feedback[door.id]} setFeedback={p.setFeedback} />)}</div>
       <div className="dna-strip"><div className="dna-title"><span>Your Discovery DNA</span><p>Changes as you explore</p></div><div className="dna-items">{p.journey.anchors.map((anchor, i) => <span className="dna-chip" key={anchor}><b>0{i + 1}</b> {anchor} · {p.journey?.categories[anchor] || inferredCategory(anchor)}</span>)}</div></div>
       <div className="dna-edit" aria-label="Edit Discovery DNA categories"><label>Edit explicit categories</label>{p.journey.anchors.map(anchor => <label key={anchor}>{anchor}<select className="dna-category" aria-label={`Category for ${anchor}`} value={p.journey?.categories[anchor] || inferredCategory(anchor)} onChange={event => p.setCategory({ anchor, value: event.target.value as Category })}>{CATEGORIES.map(category => <option key={category}>{category}</option>)}</select></label>)}</div>
 
@@ -1059,7 +1101,7 @@ function DiscoverView(p: DiscoverProps) {
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }}>
-      <button className="reveal-close" autoFocus type="button" onClick={() => { setActiveDoor(null); setDoorOpening(false); }} disabled={hallway} aria-label="Close this door"><X size={19} /></button>
+      <button className="reveal-close" autoFocus type="button" data-sound="door-close" onClick={() => { setActiveDoor(null); setDoorOpening(false); }} disabled={hallway} aria-label="Close this door"><X size={19} /></button>
       <div className="reveal-scene"><div className={`reveal-portal tier-${activeDoor.tier.toLowerCase()} category-${activeDoor.category.toLowerCase()}`}><div className="reveal-light"></div><div className="reveal-leaf"><span>OPEN DOOR</span></div></div><div className="reveal-threshold-label">A POSSIBLE WORLD · {activeDoor.tier.toUpperCase()}</div></div>
       <div className="reveal-content"><span className="eyebrow">{p.journey?.mode === "live" ? "A Qloo-returned cultural entity · not a listing" : activeDoor.tier === "Unexpected" ? "The door you wouldn't have searched for · demo" : "A direction, not a listing · sample path"}</span><h2 id="reveal-title">{activeDoor.title}</h2><p className="reveal-kind">{activeDoor.kind} <span>·</span> {activeDoor.category}</p>
         {p.journey?.mode === "live" ? <div className="reveal-chain" aria-label="Retrieved entity and source"><div><span>YOUR EXPLICIT ANCHORS</span><b>{p.journey.anchors.join(" · ")}</b></div><ArrowRight size={15} /><div><span>QLOO SOURCE</span><b>{activeDoor.source}</b></div><ArrowRight size={15} /><div><span>ENTITY TYPE</span><b>{activeDoor.entityType || "Not returned"}</b></div><ArrowRight size={15} /><div><span>ENTITY ID</span><b>{activeDoor.entityId || "Not returned"}</b></div></div> :
@@ -1074,12 +1116,12 @@ function DiscoverView(p: DiscoverProps) {
   </>;
 }
 
-function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, feedback, setFeedback }: {
+function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, onLab, feedback, setFeedback }: {
   door: Door; city: string; anchors: string[]; saved: boolean; toggleSave: (door: Door, city: string, anchors: string[]) => void;
-  onOpenDoor: (door: Door) => void; feedback?: string; setFeedback: (id: string, reason: string) => void; mode: "demo" | "live";
+  onOpenDoor: (door: Door) => void; onLab: (door: Door) => void; feedback?: string; setFeedback: (id: string, reason: string) => void; mode: "demo" | "live";
 }) {
   return <article className={`door-card ${feedback ? "dismissed" : ""} tier-${door.tier.toLowerCase()} category-${door.category.toLowerCase()}`}>
-    <button className="door-preview" type="button" onClick={() => onOpenDoor(door)} aria-label={`Open ${door.tier.toLowerCase()} door: ${door.title}`}>
+    <button className="door-preview" type="button" data-sound="none" onClick={() => onOpenDoor(door)} aria-label={`Open ${door.tier.toLowerCase()} door: ${door.title}`}>
       <span className="preview-number">{door.tier === "Familiar" ? "01" : door.tier === "Adjacent" ? "02" : "03"}</span>
       <span className="preview-architecture"><span className="preview-opening"><span className="preview-glint"></span><span className="preview-mark">{door.tier === "Familiar" ? "NEAR" : door.tier === "Adjacent" ? "BESIDE" : "BEYOND"}</span></span></span>
       <span className="preview-invite">{door.tier === "Unexpected" ? "OPEN THE WILDCARD" : "OPEN THIS DOOR"} <ArrowDownRight size={14} /></span>
@@ -1095,6 +1137,7 @@ function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, fe
     </div>
     <div className="door-actions"><button className={`icon-action ${saved ? "saved" : ""}`} type="button" onClick={() => toggleSave(door, city, anchors)} aria-label={saved ? `Remove ${door.title} from My Doors` : `Save ${door.title}`}><Bookmark size={15} fill={saved ? "currentColor" : "none"} /> {saved ? "Saved" : "Save"}</button>
       <button className="secondary-btn" type="button" onClick={() => onOpenDoor(door)}>{door.tier === "Unexpected" ? "Open the wildcard" : "Open this door"} <ArrowDownRight size={14} /></button>
+      <button className="icon-action" type="button" onClick={() => onLab(door)}>Branch in Discovery Lab <ArrowRight size={14} /></button>
       <button className="icon-action" type="button" onClick={() => setFeedback(door.id, feedback ? "" : "choose")} aria-label={`Give feedback on ${door.title}`}><HeartCrack size={15} /> Not for me</button>
     </div>
      {feedback && <div className="feedback-panel"><p>What didn’t fit? Your selected reason will be sent with the next live exploration.</p>{feedback === "choose" ? <div className="feedback-options">{REASONS.map(reason => <button key={reason} type="button" className="feedback-chip" onClick={() => setFeedback(door.id, reason)}>{reason}</button>)}</div> : <div><span className="feedback-confirm"><Check size={14} /> Noted: {feedback}</span><button className="text-button" type="button" onClick={() => setFeedback(door.id, "choose")}>Change</button><button className="text-button" type="button" onClick={() => setFeedback(door.id, "")}>Clear</button></div>}</div>}
