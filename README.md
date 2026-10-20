@@ -1,12 +1,14 @@
 # Open Door
 
+**Public repository:** [jdinovitser/Open-Door](https://github.com/jdinovitser/Open-Door)
+
 **Submission review:** [official criteria and evidence](docs/JUDGING_CRITERIA.md) · [remaining submission gates](docs/SUBMISSION_READINESS.md) · [Devpost draft](docs/DEVPOST_DRAFT.md) · [why this product](docs/WHY_OPEN_DOOR.md).
 
-The app is not yet submission-ready: real Qloo responses, a public deployment, a public code repository, and the completed Devpost entry still need verification. A prepared Demo is not evidence of a live Qloo integration.
+Before submission, verify real Qloo responses, public deployment access, and the completed Devpost entry. A prepared Demo is not evidence of a live Qloo integration.
 
 **Find your way into a new place.**
 
-Open Door explores how cultural interests can become a starting point for discovering unfamiliar experiences. It is designed around a simple progression: what someone already loves, a visible cultural thread, and a few possible doors to open next.
+Open Door is a cultural discovery web app that turns personal interests into a starting point for exploring unfamiliar experiences. Its live discovery path uses Qloo Search and Insights to connect interests across cultural domains when configured. It is designed around a simple progression: what someone already loves, a visible cultural thread, and a few possible doors to open next.
 
 ## Project status
 
