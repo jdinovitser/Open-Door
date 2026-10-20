@@ -31,7 +31,7 @@ The Live path depends on Qloo entity resolution and cross-domain cultural retrie
 
 ## Challenges and limitations
 
-Provenance is as important as presentation. We separated sample content, Qloo evidence and user choices; bounded upstream responses; and avoided treating route labels as affinity scores. The project does not verify opening hours, prices, travel time, accessibility of venues or current availability. Build My Day is a sequence of possibilities, not a verified itinerary. There are no accounts, cross-device sync or persistent server-side user profiles.
+Provenance is as important as presentation. We separated sample content, Qloo evidence and user choices; bounded upstream responses; and avoided treating route labels as affinity scores. The project does not verify opening hours, prices, travel time, accessibility of venues or current availability. Build My Day is a sequence of possibilities, not a verified itinerary. Optional Replit-managed Clerk accounts now sync explicitly saved doors and personal reward progress across devices; full journey and Discovery Lab histories remain browser-local. Rewards are personal interaction tallies, not Qloo scores or verified real-world achievements.
 
 ## What is next
 

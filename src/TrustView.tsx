@@ -86,7 +86,7 @@ export function TrustView({
 
       <section className="trust-card trust-privacy">
         <div className="trust-card-heading"><h2>Your data controls</h2></div>
-        <p>Saved doors are stored in {savedStorageScope}. {signedIn ? "When signed in, the account sync includes the doors you choose to save and a small progress summary; it does not sync your city or Discovery Lab history." : "Sign in is optional; use Sign in in the header to sync the doors you choose to save across devices."} Personalization history, feedback choices, opened-door counts, and Discovery Lab data stay in this browser.</p>
+        <p>Saved doors are stored in {savedStorageScope}. {signedIn ? "When signed in, account sync includes the doors you choose to save and earned reward progress; it does not sync your full journey or Discovery Lab history." : "Sign in is optional; use Sign in in the header to sync the doors you choose to save across devices."} Full journey history, feedback choices, browser opened-door counts, and Discovery Lab data stay on this device.</p>
         <label className="trust-toggle">
           <input
             type="checkbox"
@@ -102,7 +102,7 @@ export function TrustView({
           <button type="button" className="trust-action" onClick={() => window.confirm(`Remove all ${savedCount} saved door${savedCount === 1 ? "" : "s"} from ${savedStorageScope}?`) && onDeleteSaved()}><Trash2 size={15} /> Delete saved doors ({savedCount})</button>
           <button type="button" className="trust-action trust-action-danger" onClick={() => window.confirm(`Clear this browser’s current journey, feedback, opened-door activity, and Discovery Lab checkpoints and branches? This cannot be undone.${signedIn ? " Account-saved doors and account progress remain unchanged." : " Guest-saved doors stored in this browser will also be deleted."}`) && onClearAll()}><Trash2 size={15} /> Clear browser journey, activity &amp; Lab data</button>
         </div>
-        <p className="trust-footnote">Export is created on your device and includes the saved doors currently loaded in this view plus local Discovery Lab checkpoints and branches. Account progress and the account login itself are not part of browser export. The Lab is browser-local; personalization controls do not change its saved explorations. Clearing browser data does not silently turn personalization back on.</p>
+        <p className="trust-footnote">Export is created on your device and includes the saved doors and account progress summary currently loaded in this view plus local Discovery Lab checkpoints and branches. It does not include login credentials. The Lab is browser-local; personalization controls do not change its saved explorations. Clearing browser data does not silently turn personalization back on.</p>
       </section>
     </div>
 
@@ -110,6 +110,7 @@ export function TrustView({
       <div className="trust-card-heading"><h2>What is sent where</h2></div>
       <div className="trust-table">
         <div><b>Open Door browser → Open Door server</b><span>Live discovery request fields: interests, selected categories, optional location, chosen discovery depth, and explicit feedback. No account or cookie is required.</span></div>
+        <div><b>Optional account storage</b><span>Replit-managed Clerk handles sign-in. Account-saved doors include the details you choose to save, such as their city and source interests; opened-door progress records use only the door ID, tier, and category. These records are linked to your authenticated account. Full journeys, feedback history, and Lab branches are not synced.</span></div>
         <div><b>Open Door server → Qloo</b><span>Live requests send entered interests for entity search, resolved Qloo entity IDs for insights, and location only for supported place/destination queries. Budget, schedule, and movement preferences are not sent to Qloo.</span></div>
         <div><b>Your browser → image host</b><span>Live result images may load from an HTTPS image URL returned with Qloo results. As with any remote image, that host can receive a network request from your browser. The page sends no referrer URL.</span></div>
         <div><b>Demo mode</b><span>Demo journeys are authored deterministic examples, not Qloo responses or real venue listings. They do not call Qloo.</span></div>
@@ -119,7 +120,7 @@ export function TrustView({
 
     <section className="trust-card trust-wide">
       <div className="trust-card-heading"><h2>Controls that are not implemented</h2></div>
-      <p>This project is a single-user prototype. It does not claim enterprise identity, role-based access, tamper-resistant audit, certified compliance, or production incident response.</p>
+      <p>This project has optional account sign-in and owner-scoped saved doors and progress. It does not claim enterprise identity, role-based access, tamper-resistant audit, certified compliance, or production incident response.</p>
       <div className="trust-planned">
         {["SSO and server-side authorization", "Persistent, access-controlled audit retention", "Admin policy and key rotation console", "Formal retention, backup, and deletion workflows", "Independent security review and compliance certification"].map(item =>
           <div key={item}><span>{item}</span><StatusPill tone="planned">Planned · not available</StatusPill></div>,
@@ -180,7 +181,7 @@ export function DevSecurityTestView({ onBack }: { onBack: () => void }) {
       next.push({
         label: "Account isolation / role authorization",
         result: "info",
-        detail: "Not applicable: this prototype has no accounts, roles, or protected administrative endpoints.",
+        detail: "Saved-door and progress APIs require a Clerk-authenticated account and scope database queries to its user ID. Server tests cover owner isolation. Role-based administrative endpoints are not implemented.",
       });
       setResults(next);
     } catch (caught) {

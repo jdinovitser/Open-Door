@@ -33,7 +33,7 @@ function shareCopy(tracks: Track[], totalStars: number, trophyLevel: Level) {
     .filter(Boolean);
   const trophy = trophyLevel === "none" ? "" : `Field Guide trophy: ${trophyLevel[0].toUpperCase()}${trophyLevel.slice(1)}`;
   const rewards = [...badges, ...(trophy ? [trophy] : [])];
-  const details = rewards.length ? ` My badges: ${rewards.join(" · ")}.` : " I’ve opened my first cultural door.";
+  const details = rewards.length ? ` My badges: ${rewards.join(" · ")}.` : " I’m building my own cultural field guide.";
   return `I’m exploring culture with Open Door and have earned ${totalStars} of 5 exploration stars.${details} Open a door of your own: ${window.location.origin}/`;
 }
 
@@ -170,7 +170,7 @@ export default function ProgressView({
       <div className="field-trophy-copy">
         <span className="eyebrow">The grand collection</span>
         <h2 id="trophy-title">{trophyLevel === "none" ? "Your Field Guide trophy is waiting." : `Your ${trophyLevel} Field Guide trophy.`}</h2>
-        <p>Earn a bronze trophy with a medal in all three tracks; collect 6 medal points for silver and 9 for gold.</p>
+        <p>Medals count 1 point for bronze, 2 for silver, and 3 for gold in each track. Collect 3 points for a bronze trophy, 6 for silver, and 9 for gold.</p>
       </div>
       <div className="trophy-levels" role="img" aria-label={trophyLevel === "none" ? "Bronze, silver and gold trophy levels are ready to earn" : `${trophyLevel} trophy earned`}>
         {LEVELS.map((level, index) => <span className={`trophy-level trophy-level-${level}${LEVELS.indexOf(trophyLevel) >= index ? " is-earned" : ""}`} key={level}>
@@ -198,6 +198,6 @@ export default function ProgressView({
       <p className="progress-share-status" role="status">{shareStatus}</p>
     </section>}
 
-    <p className="progress-footnote">A personal, just-for-fun progress record. Demo and Live paths count as Open Door exploration—not as Qloo scores or externally verified achievements. Progress events are counted once per distinct door on your account.</p>
+    <p className="progress-footnote">A personal, just-for-fun progress record. Main three-door journeys and saved-door exploration count; historical Guest activity and Discovery Lab branches stay browser-local. Demo and Live paths both count—not as Qloo scores or externally verified achievements. Each distinct door counts once per account.</p>
   </section>;
 }

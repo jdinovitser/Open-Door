@@ -3,7 +3,6 @@ import {
   ClerkProvider,
   SignIn,
   SignUp,
-  useClerk,
 } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
@@ -73,7 +72,7 @@ function SignInPage() {
     <div className="auth-panel">
       <span className="eyebrow">Open Door · a cultural field guide</span>
       <h1>Welcome back.</h1>
-      <p>Sign in to access your saved doors, or continue as a guest.</p>
+       <p>Keep your saved doors and rewards across devices. Guest-saved doors from this browser are added to your account when you sign in.</p>
       <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
       <ContinueAsGuest />
     </div>
@@ -89,7 +88,7 @@ function SignUpPage() {
     <div className="auth-panel">
       <span className="eyebrow">Open Door · a cultural field guide</span>
       <h1>Keep your doors.</h1>
-      <p>Create an account to save your cultural discoveries and see them on your other devices.</p>
+       <p>Keep your discoveries and rewards across devices. Guest-saved doors from this browser will be added to your account.</p>
       <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
       <ContinueAsGuest />
     </div>
@@ -98,10 +97,10 @@ function SignUpPage() {
 
 function ClerkRoutes() {
   const [, setLocation] = useLocation();
-  const { signOut } = useClerk();
   return <ClerkProvider
     publishableKey={clerkPubKey}
     proxyUrl={clerkProxyUrl}
+    telemetry={{ disabled: true }}
     appearance={clerkAppearance}
     signInUrl={`${basePath}/sign-in`}
     signUpUrl={`${basePath}/sign-up`}
@@ -113,10 +112,10 @@ function ClerkRoutes() {
     routerReplace={to => { setLocation(basePath && to.startsWith(basePath) ? to.slice(basePath.length) || "/" : to, { replace: true }); }}
   >
     <Switch>
-      <Route path="/" component={() => <App signOut={signOut} />} />
+      <Route path="/" component={App} />
       <Route path="/sign-in/*?" component={SignInPage} />
       <Route path="/sign-up/*?" component={SignUpPage} />
-      <Route component={() => <App signOut={signOut} />} />
+      <Route component={App} />
     </Switch>
   </ClerkProvider>;
 }

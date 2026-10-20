@@ -308,8 +308,9 @@ const labDemoProvider = createDemoProvider(snapshot => {
 });
 const labLiveProvider = createLiveProvider();
 
-export default function App({ signOut }: { signOut: ReturnType<typeof useClerk>["signOut"] }) {
+export default function App() {
   const sound = useSoundEffects();
+  const { signOut } = useClerk();
   const { isLoaded: authLoaded, isSignedIn, user } = useUser();
   const accountUserId = authLoaded && isSignedIn ? user?.id ?? null : null;
   const [view, setView] = useState<View>(() =>
@@ -383,6 +384,9 @@ export default function App({ signOut }: { signOut: ReturnType<typeof useClerk>[
     if (!authLoaded) return;
     let active = true;
     syncedAccountDoorsRef.current = null;
+    setAccountProgress(null);
+    setAccountProgressStatus("loading");
+    setAccountProgressError("");
 
     if (!isSignedIn || !accountUserId) {
       const previousOwner = readStore<string | null>(SAVED_OWNER_KEY, null);
@@ -428,12 +432,11 @@ export default function App({ signOut }: { signOut: ReturnType<typeof useClerk>[
           MAX_ACCOUNT_SAVED_DOORS - remoteDoors.length + pendingRemovedCount - pendingAddedCount,
         );
         const alreadySavedIds = new Set([...remoteIds, ...pendingIds]);
-        const guestToImport = guestDoors
-          .filter(door => !alreadySavedIds.has(door.id))
-          .slice(0, availableForGuestImport);
+        const guestCandidates = guestDoors.filter(door => !alreadySavedIds.has(door.id));
+        const guestToImport = guestCandidates.slice(0, availableForGuestImport);
         const mergedDoors = mergeAccountSavedDoors(remoteDoors, guestToImport, pending)
           .slice(0, MAX_ACCOUNT_SAVED_DOORS);
-        if (guestDoors.length > guestToImport.length) {
+        if (guestCandidates.length > guestToImport.length) {
           setAccountSaveNotice("Your account can hold up to 100 saved doors. The rest of your Guest collection remains in this browser.");
         }
         safeSetStore(SAVED_OWNER_KEY, accountUserId);
@@ -452,7 +455,13 @@ export default function App({ signOut }: { signOut: ReturnType<typeof useClerk>[
   }, [authLoaded, isSignedIn, accountUserId, accountSyncAttempt]);
 
   useEffect(() => {
-    if (!authLoaded) return;
+    if (!authLoaded) {
+      if (!readStore<string | null>(SAVED_OWNER_KEY, null)) {
+        safeSetStore("opendoor.saved", saved);
+        safeSetStore(GUEST_SAVED_KEY, saved);
+      }
+      return;
+    }
     if (!isSignedIn || !accountUserId) {
       if (accountSaveStatus === "guest") {
         safeSetStore("opendoor.saved", saved);
@@ -493,7 +502,7 @@ export default function App({ signOut }: { signOut: ReturnType<typeof useClerk>[
           throw await readAccountApiError(response, "Account saves could not be synced. Retry to keep your doors with your account.");
         }
         if (!active) return;
-        if (readStore<string | null>(pendingKey, null) === payload) safeRemoveStore(pendingKey);
+        if (JSON.stringify(pendingSavedDoorsFor(accountUserId)) === payload) safeRemoveStore(pendingKey);
         setAccountSaveNotice("");
         setAccountSaveStatus("ready");
       }).catch(error => {
@@ -560,16 +569,6 @@ export default function App({ signOut }: { signOut: ReturnType<typeof useClerk>[
     if (personalizationEnabled) safeSetStore("opendoor.journey", journey);
     else safeRemoveStore("opendoor.journey");
   }, [journey, personalizationEnabled]);
-  useEffect(() => {
-    if (!authLoaded) return;
-    if (!isSignedIn && accountSaveStatus === "guest") {
-      safeSetStore("opendoor.saved", saved);
-      safeSetStore(GUEST_SAVED_KEY, saved);
-    } else if (isSignedIn && accountSaveStatus === "ready"
-      && readStore<string | null>(SAVED_OWNER_KEY, null) === accountUserId) {
-      safeSetStore("opendoor.saved", saved);
-    }
-  }, [authLoaded, isSignedIn, accountUserId, accountSaveStatus, saved]);
   useEffect(() => {
     if (personalizationEnabled) safeSetStore("opendoor.feedback", feedback);
     else safeRemoveStore("opendoor.feedback");
@@ -858,7 +857,6 @@ export default function App({ signOut }: { signOut: ReturnType<typeof useClerk>[
     }
   }
   function openNext(door: Door) {
-    void recordProgressDoor(door);
     const nextAnchor = door.title;
     if (journeyMode === "live" && door.entityId) {
       const selectedFeedback = Object.values(feedback).filter(value => value && value !== "choose");
@@ -953,6 +951,7 @@ export default function App({ signOut }: { signOut: ReturnType<typeof useClerk>[
     setGroupBuilt(false);
   }
   function exploreSaved(item: SavedDoor) {
+    void recordProgressDoor(item);
     setCity(item.city); setAnchors([item.title]); setCategories({ [item.title]: item.category }); setIntent("Try something new"); setView("discover");
     setEntryPhase("entered");
     if (journeyMode === "live" && item.mode === "live" && item.entityId) {
@@ -1071,7 +1070,7 @@ export default function App({ signOut }: { signOut: ReturnType<typeof useClerk>[
           <UserButton appearance={{ elements: { avatarBox: { width: "32px", height: "32px" } } }} />
           <button type="button" className="account-sign-out" onClick={() => void signOut({ redirectUrl: "/" })}>Sign out</button>
         </div>
-        : authLoaded && <a className="account-sign-in" href="/sign-in">Sign in</a>}
+        : <a className="account-sign-in" href="/sign-in">Sign in</a>}
       <button className="sound-toggle" type="button" data-sound="none" onClick={sound.toggle}
         aria-pressed={sound.enabled} aria-label={`Sound effects: ${sound.enabled ? "on" : "off"}`}
         title={sound.notice || (sound.enabled ? "Mute sound effects" : "Enable gentle sound effects")}>
@@ -1098,7 +1097,7 @@ export default function App({ signOut }: { signOut: ReturnType<typeof useClerk>[
           const opened = lab.start(journeyToLab(journey, door?.id, feedback, groupMode ? participants.map(person => person.anchors).filter(Boolean).join("; ") : ""));
           if (opened) { setView("lab"); window.scrollTo({ top: 0, behavior: "smooth" }); }
         }}
-        resetCompass={resetCompass} openNext={openNext} setView={setView} nodes={dnaNodes} selectedNode={selectedNode}
+        resetCompass={resetCompass} openNext={openNext} onDoorOpened={recordProgressDoor} setView={setView} nodes={dnaNodes} selectedNode={selectedNode}
         setSelectedNode={setSelectedNode} onShare={shareStory} onDownloadStory={downloadStoryCard} storyCopied={storyCopied} openedCount={openedIds.length}
         openedCategories={openedCategories} openedTiers={openedTiers} savedCount={saved.length} groupMode={groupMode} setGroupMode={setGroupMode}
         participants={participants} updateParticipant={updateParticipant} addParticipant={addParticipant}
@@ -1111,9 +1110,9 @@ export default function App({ signOut }: { signOut: ReturnType<typeof useClerk>[
          liveStages={liveStages} liveError={liveError} isRunning={isRunning} showInspector={showInspector}
          setShowInspector={setShowInspector}
       />}
-      {view === "saved" && <SavedView saved={saved} remove={id => { setSaved(current => current.filter(item => item.id !== id)); setToast("Door removed"); }} onDiscover={() => setView("discover")} explore={exploreSaved} />}
+      {view === "saved" && <SavedView saved={saved} signedIn={!!isSignedIn} remove={id => { updateSavedDoors(current => current.filter(item => item.id !== id)); }} onDiscover={() => setView("discover")} explore={exploreSaved} />}
       {view === "progress" && (isSignedIn
-        ? <ProgressView summary={accountProgress} savedCount={saved.length} status={accountProgressStatus} error={accountProgressError} onRetry={() => setProgressSyncAttempt(attempt => attempt + 1)} />
+        ? <ProgressView summary={accountProgress} savedCount={saved.length} status={accountProgressStatus} error={accountProgressError} onRetry={() => { if (accountSaveStatus === "error") setAccountSyncAttempt(attempt => attempt + 1); setProgressSyncAttempt(attempt => attempt + 1); }} />
         : <section className="progress-login-prompt">
           <span className="eyebrow">Open Door · your account</span><h1>Sign in to see your progress.</h1>
           <p>Your saved doors and reward tracks belong to your account. Keep exploring as a guest, or sign in to see account progress.</p>
@@ -1131,7 +1130,7 @@ export default function App({ signOut }: { signOut: ReturnType<typeof useClerk>[
         onExport={exportLocalData}
         onDeleteJourney={() => { setJourney(null); setToast("Current journey deleted"); }}
         onClearSignals={() => { setFeedback({}); setOpenedIds([]); setToast("Feedback and activity cleared"); }}
-        onDeleteSaved={() => { setSaved([]); setToast("Saved doors deleted"); }}
+        onDeleteSaved={() => { updateSavedDoors(() => []); }}
         onClearAll={() => { clearLocalData(); setToast("Open Door data cleared from this browser"); }}
       />}
     </main>
@@ -1159,7 +1158,7 @@ type DiscoverProps = {
   submit: (event: FormEvent<HTMLFormElement>) => void; journey: Journey | null; savedIds: Set<string>;
   toggleSave: (door: Door, location: string, anchors: string[]) => void; feedback: Record<string, string>;
   setFeedback: (id: string, reason: string) => void; reset: () => void; resetCompass: (intent: Intent) => void;
-  openNext: (door: Door) => void; setView: (view: View) => void; nodes: { id: string; label: string; kind: string; category: Category; detail: string; result: string }[];
+  openNext: (door: Door) => void; onDoorOpened: (door: Door) => void; setView: (view: View) => void; nodes: { id: string; label: string; kind: string; category: Category; detail: string; result: string }[];
   selectedNode: string; setSelectedNode: (value: string) => void; onShare: () => void; onDownloadStory: () => void; storyCopied: boolean;
   openedCount: number; openedCategories: Set<string>; openedTiers: Record<string, number>; groupMode: boolean; setGroupMode: (value: boolean) => void;
   savedCount: number;
@@ -1209,6 +1208,7 @@ function DiscoverView(p: DiscoverProps) {
     }, 760);
   }
   function openDoor(door: Door) {
+    p.onDoorOpened(door);
     p.onSound("door-open");
     returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setActiveDoor(door);
@@ -1465,11 +1465,11 @@ function Passport({ openedCount, categories, tiers, savedCount }: { openedCount:
   </section>;
 }
 
-function SavedView({ saved, remove, onDiscover, explore }: { saved: SavedDoor[]; remove: (id: string) => void; onDiscover: () => void; explore: (item: SavedDoor) => void }) {
-  return <section><div className="section-heading"><div><span className="eyebrow">A small collection, gathered by you</span><h1>My Doors</h1><p>Threads worth keeping for another day. Stored only in this browser.</p></div><span className="step-label">{saved.length} SAVED</span></div>
+function SavedView({ saved, signedIn, remove, onDiscover, explore }: { saved: SavedDoor[]; signedIn: boolean; remove: (id: string) => void; onDiscover: () => void; explore: (item: SavedDoor) => void }) {
+  return <section><div className="section-heading"><div><span className="eyebrow">A small collection, gathered by you</span><h1>My Doors</h1><p>Threads worth keeping for another day. {signedIn ? "Saved with your account, across devices." : "Guest saves stay in this browser. Sign in to keep your doors across devices."}</p></div><span className="step-label">{saved.length} SAVED</span></div>
     {saved.length === 0 ? <div className="empty-state mascot-empty"><MascotArt scene="hello" /><h2>No doors saved yet.</h2><p>When a discovery stays with you, save it here. Your collection lives on this device.</p><button className="primary-btn" onClick={onDiscover}>Find your first door <ArrowRight size={15} /></button></div> :
        <div className="saved-list">{saved.map(item => <article className="saved-row" key={item.id}><MiniDoor className="saved-door-mark" /><div className="saved-copy"><span className="saved-meta">{item.tier} door · saved {item.savedAt} · {item.mode === "live" ? "Qloo response" : "Demo sample"}</span><h3>{item.title}</h3><p><MapPin size={12} /> {item.city} · from {item.anchors.join(", ")}</p><p style={{ marginTop: 8 }}>{item.why} <br />Connection: {item.evidence}</p></div><div className="saved-actions"><button className="secondary-btn" onClick={() => explore(item)}><BookOpen size={14} /> Open a new path</button><button className="icon-action" onClick={() => remove(item.id)} aria-label={`Remove ${item.title}`}><Trash2 size={15} /> Remove</button></div></article>)}</div>}
-    <p className="helper" style={{ marginTop: 20 }}>Saved doors and explicit feedback remain local to this browser. Nothing is sent to a server.</p>
+    <p className="helper" style={{ marginTop: 20 }}>{signedIn ? "Your saved doors sync with your account. Full journeys, explicit feedback, and Discovery Lab branches remain browser-local." : "Guest-saved doors and explicit feedback remain in this browser. Sign in to keep saved doors across devices."}</p>
   </section>;
 }
 

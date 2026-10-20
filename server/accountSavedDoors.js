@@ -89,6 +89,7 @@ export function createAccountSavedDoorStore(pool) {
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
+        await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))", [userId]);
         if (safeUpserts.length) {
           await client.query(
             `INSERT INTO open_door_saved_doors (clerk_user_id, door_id, door_data)
@@ -106,6 +107,15 @@ export function createAccountSavedDoorStore(pool) {
                 AND door_id = ANY($2::text[])`,
             [userId, safeRemovals],
           );
+        }
+        const countResult = await client.query(
+          "SELECT count(*)::integer AS total FROM open_door_saved_doors WHERE clerk_user_id = $1",
+          [userId],
+        );
+        if ((countResult.rows[0]?.total ?? 0) > MAX_SAVED_DOORS) {
+          const error = new Error("Saved-door limit reached.");
+          error.code = "SAVED_DOOR_LIMIT";
+          throw error;
         }
         await client.query("COMMIT");
       } catch (error) {
@@ -244,13 +254,10 @@ export function createAccountSavedDoorsRouter({ pool, getUserId }) {
     }
 
     try {
-      const existingCount = await store.count(request.accountUserId);
-      const existing = new Set((await store.list(request.accountUserId)).map(door => door.id));
-      const nextCount =
-        existingCount
-        - removals.filter(id => existing.has(id)).length
-        + upserts.filter(door => !existing.has(door.id) || removals.includes(door.id)).length;
-      if (nextCount > MAX_SAVED_DOORS) {
+      await store.applyChanges(request.accountUserId, upserts, removals);
+      response.status(204).end();
+    } catch (error) {
+      if (error?.code === "SAVED_DOOR_LIMIT") {
         response.status(409).json({
           code: "SAVED_DOOR_LIMIT",
           message: `An account can keep up to ${MAX_SAVED_DOORS} saved doors.`,
@@ -258,9 +265,6 @@ export function createAccountSavedDoorsRouter({ pool, getUserId }) {
         });
         return;
       }
-      await store.applyChanges(request.accountUserId, upserts, removals);
-      response.status(204).end();
-    } catch {
       response.status(503).json({
         code: "ACCOUNT_STORAGE_UNAVAILABLE",
         message: "Account-saved doors could not be synchronized. Please retry.",

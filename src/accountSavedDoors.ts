@@ -18,7 +18,7 @@ export function mergeAccountSavedDoors<T extends { id: string }>(
   for (const entry of order) {
     if (seen.has(entry.id) || removed.has(entry.id)) continue;
     seen.add(entry.id);
-    result.push(remoteById.get(entry.id) ?? pendingById.get(entry.id) ?? guestById.get(entry.id) ?? entry);
+    result.push(pendingById.get(entry.id) ?? remoteById.get(entry.id) ?? guestById.get(entry.id) ?? entry);
   }
   return result;
 }

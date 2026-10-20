@@ -1,9 +1,12 @@
 # Security
 
-Open Door is a single-user prototype, not a hosted multi-tenant service. It has no accounts, authentication, authorization roles, server-side user database, or durable audit log. Do not use it to store confidential or regulated information.
+Open Door offers public Guest exploration and optional Replit-managed Clerk sign-in. Account-saved doors and reward events are stored in PostgreSQL and scoped to the authenticated owner. It has no enterprise authorization roles or durable audit log. Do not use it to store confidential or regulated information.
 
 ## Controls implemented
 
+- Account APIs require a Clerk-authenticated session. Owner IDs come from server-side authentication, never request bodies. Saved-door and reward queries use parameterized SQL and explicit owner filters.
+- Saved-door writes use bounded field allowlists, per-account limits, owner-scoped delta updates, and a serialized transaction. Reward events are idempotent per account and door; rewards are personal tallies, not independently verified achievements.
+- Guest collections are kept separate from account caches. Guest-saved doors can be imported at sign-in; full journey, feedback, and Discovery Lab state remain browser-local.
 - The Qloo credential is read by the server and sent only in the server-to-Qloo `X-Api-Key` header. It is not included in status responses or browser code.
 - Qloo requests use a fixed HTTPS host and fixed routes. User values are URL-encoded parameters; they cannot choose a server-side destination.
 - Live discovery requests are limited to 24 KiB, at most five anchors, 20 requests per process-local 60-second window per socket address, and one Qloo request timeout of 12 seconds. Oversized Qloo responses are rejected at 2 MiB.
@@ -16,9 +19,9 @@ Open Door is a single-user prototype, not a hosted multi-tenant service. It has 
 
 ## Limitations and operator responsibilities
 
-The rate limit, audit buffer, and event sequence are process-local. They reset on restart, are not tamper-resistant, and are not a complete record of user activity. Standard output may be captured under the hosting platform’s own log-retention policy. There is no account isolation, administrator access control, persistent retention policy, backup, or automated incident alerting.
+The rate limit, audit buffer, and event sequence are process-local. They reset on restart, are not tamper-resistant, and are not a complete record of user activity. Standard output may be captured under the hosting platform’s own log-retention policy. Account isolation is implemented, but administrator roles, an application-level retention/backup policy, automatic account-deletion cleanup, and automated incident alerting are not.
 
-The app is public and unauthenticated. Do not expose private data or treat a request ID as an identity token. Do not put credentials in source files, browser storage, issue reports, or screenshots. Store real credentials in the workspace secret manager and rotate them there if exposed.
+Discovery is public; saved-door and progress APIs require authentication. Do not treat a request ID as an identity token. Do not put credentials in source files, browser storage, issue reports, or screenshots. Store real credentials in the workspace secret manager and rotate them there if exposed.
 
 The configured Qloo key status does not test the Qloo connection. A live request is the only connection attempt. API availability, rate limits, data accuracy, current venue status, and image availability are not guaranteed.
 

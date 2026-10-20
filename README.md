@@ -63,7 +63,21 @@ The full endpoint, provenance, fallback, and verification notes are in [`docs/HA
 5. Try Build My Day, group mode, the one-hour sample, and unopened-door choices.
 6. Review and share/copy the text story, or download its SVG share card. Interests you enter may still be personal, even though city and budget are omitted.
 
-The current journey, saved doors, feedback, and opened-door activity are kept in this browser's local storage. Live discovery sends the fields needed for a Qloo request to the Open Door server; see the Trust page for browser controls and the exact external-service data flow.
+Guest saves, the current journey, feedback, and browser opened-door history stay in local storage. Optional **Sign in** uses Replit-managed Clerk and syncs the doors a user chooses to save with PostgreSQL-backed account storage. Guest-saved doors are added to the account on sign-in; a browser-local Guest collection is retained. Full journey and Discovery Lab history are not synced.
+
+## Account progress and rewards
+
+Signed-in users can open `/progress` or **Progress** in the header. The supplied mascot reward concept art appears alongside three transparent tracks:
+
+- **Brave:** distinct Unexpected doors opened; bronze at 1, silver at 3, gold at 5.
+- **Explorer:** distinct categories among opened doors; bronze at 1, silver at 3, gold at 5.
+- **Door Collector:** account-saved doors; bronze at 1, silver at 5, gold at 10.
+- **Stars:** one through five stars at 1, 3, 6, 10, and 15 distinct opened doors.
+- **Field Guide trophies:** bronze, silver, and gold at 3, 6, and 9 medal points. Each track contributes 1/2/3 points for its bronze/silver/gold medal.
+
+Door opens are counted once per account and door ID. The main three-door journeys and saved-door exploration count; historical Guest actions and Discovery Lab branches are not imported as account progress. Demo and Live interactions both count toward these playful personal rewards; they are not Qloo scores or verified real-world achievements. Native sharing, X, LinkedIn, and copy controls share only reward summaries or the home-page URL, not saved interests or location.
+
+Account routes derive the owner from the Clerk session, not client-supplied IDs. Account saves are capped at 100 doors and use delta updates, retryable per-user pending changes, and transaction-level limit enforcement. PostgreSQL schema is recorded in `server/schema.sql`. Development schema changes are promoted by Replit’s Publish flow; do not run schema DDL at server startup.
 
 ## Discovery Lab
 
@@ -94,11 +108,11 @@ Run `npm test` for server and Lab engine/provider tests. With the development ap
 
 Do not place API keys in frontend code or commit them to the repository. Demo Mode does not require a key.
 
-See [`.env.example`](.env.example) for the placeholder-only setup file. The app does not currently use authentication or a server-side session, despite any workspace-level session secret being present.
+Replit-managed Clerk provisions `CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and `VITE_CLERK_PUBLISHABLE_KEY`; the platform supplies `VITE_CLERK_PROXY_URL` when needed. PostgreSQL uses the server-only `DATABASE_URL`. Never expose the secret key or database URL to browser code. `SESSION_SECRET` is not used by this Clerk integration. See [`.env.example`](.env.example) for placeholder-only setup notes.
 
 ## Security, privacy, and operations
 
-Open Door is an unauthenticated single-user prototype. It has no account isolation, server-side user database, durable audit trail, or enterprise admin console. Do not enter confidential or regulated information. The Trust view describes current status, third-party services, and browser-local export/deletion controls.
+Open Door remains usable without an account. Account-saved doors and reward events are private to the Clerk-authenticated user and stored in PostgreSQL; other history remains browser-local. It has no enterprise roles, durable audit trail, enterprise admin console, or completed independent security review. Do not enter confidential or regulated information. The Trust view describes storage boundaries and deletion/export controls.
 
 - [Security controls and limitations](docs/SECURITY.md)
 - [Compliance control inventory](docs/COMPLIANCE_CONTROLS.md)
