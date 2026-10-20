@@ -12,8 +12,9 @@ import { createLiveProvider } from "./lab/liveProvider";
 import { journeyToLab } from "./lab/journeyAdapter";
 import { useDiscoveryLab } from "./lab/useDiscoveryLab";
 import { useSoundEffects, type SoundEffect } from "./useSoundEffects";
+import JudgesGuide from "./JudgesGuide";
 
-type View = "discover" | "saved" | "how" | "trust" | "lab";
+type View = "discover" | "saved" | "how" | "trust" | "lab" | "judges";
 type Intent = "Find my people" | "Go deeper" | "Try something new";
 type Depth = "Close to home" | "A little further" | "Surprise me" | "Take me somewhere unexpected";
 type Category = "Film" | "Music" | "Food" | "Art" | "Books" | "Design" | "Outdoors" | "Experiences" | "Other";
@@ -276,8 +277,15 @@ const labLiveProvider = createLiveProvider();
 export default function App() {
   const sound = useSoundEffects();
   const [view, setView] = useState<View>(() =>
-    window.location.pathname === "/trust" ? "trust" : window.location.pathname === "/lab" ? "lab" : "discover",
+    /^\/judges\/?$/.test(window.location.pathname) ? "judges"
+      : window.location.pathname === "/trust" ? "trust" : window.location.pathname === "/lab" ? "lab" : "discover",
   );
+  useEffect(() => {
+    // Keep directly shareable screens correct when entered through an in-app tab.
+    const route = view === "judges" ? "/judges" : view === "lab" ? "/lab" : view === "trust" ? "/trust" : null;
+    if (route && window.location.pathname !== route) window.history.replaceState(null, "", route);
+    else if (!route && ["/judges", "/lab", "/trust"].includes(window.location.pathname)) window.history.replaceState(null, "", "/");
+  }, [view]);
   const [personalizationEnabled, setPersonalizationEnabled] = useState(() =>
     readStore<boolean>("opendoor.privacy.personalization", true),
   );
@@ -828,6 +836,7 @@ export default function App() {
       {view === "saved" && <SavedView saved={saved} remove={id => { setSaved(current => current.filter(item => item.id !== id)); setToast("Door removed"); }} onDiscover={() => setView("discover")} explore={exploreSaved} />}
       {view === "lab" && <DiscoveryLab lab={lab} qlooConfigured={!!agentStatus?.qlooConfigured} />}
       {view === "how" && <HowView agentStatus={agentStatus} />}
+      {view === "judges" && <JudgesGuide status={agentStatus} statusError={statusError} />}
       {view === "trust" && <TrustView
         personalizationEnabled={personalizationEnabled}
         savedCount={saved.length}
@@ -838,8 +847,16 @@ export default function App() {
         onDeleteSaved={() => { setSaved([]); setToast("Saved doors deleted"); }}
         onClearAll={() => { clearLocalData(); setToast("Open Door data cleared from this browser"); }}
       />}
-      <div className="footer-note">A FIELD GUIDE, NOT A CHECKLIST · OPEN DOOR · {journey?.mode === "live" ? "LIVE QLOO RESPONSE RECEIVED" : "DEMO PATHS ARE AUTHORED EXAMPLES"}</div>
     </main>
+    <footer className="site-footer">
+      <div className="footer-note">A FIELD GUIDE, NOT A CHECKLIST · OPEN DOOR · {journey?.mode === "live" ? "LIVE QLOO RESPONSE RECEIVED" : "DEMO PATHS ARE AUTHORED EXAMPLES"}</div>
+      <nav className="footer-nav" aria-label="Footer navigation">
+        <a href="/">Discover</a>
+        <a href="/lab">Discovery Lab</a>
+        <a href="/trust">Trust &amp; privacy</a>
+        <a href="/judges" aria-current={view === "judges" ? "page" : undefined}>Judge’s Guide</a>
+      </nav>
+    </footer>
     {toast && <div role="status" className="toast">{toast}</div>}
   </div>;
 }

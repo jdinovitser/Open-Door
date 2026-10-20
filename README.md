@@ -132,6 +132,10 @@ Potential extensions include verified local venue data, a public judge deploymen
 - CSS
 - Lucide React
 
+## Judge’s Guide
+
+The shareable five-minute walkthrough is available at **`/judges`** and linked from the footer navigation only. It explains live Qloo retrieval, entity-based continuation, branching and comparison, and evidence boundaries. It reports the server’s current Qloo configuration rather than claiming a successful live connection. Publish the latest build before sending judges the URL.
+
 ## Mascot animations
 
 The supplied mascot poses appear across the welcome screen, Discovery Lab, saved-door empty state, and How it works—including the cultural-interest gallery and Qloo architecture illustration. Animated WebP versions keep the original GIFs lightweight. Each animation can be paused, switches to a still when offscreen, and respects the browser’s reduced-motion preference.
