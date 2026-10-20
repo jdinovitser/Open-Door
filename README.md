@@ -132,6 +132,10 @@ Potential extensions include verified local venue data, a public judge deploymen
 - CSS
 - Lucide React
 
+## Mascot animations
+
+The supplied mascot poses appear across the welcome screen, Discovery Lab, saved-door empty state, and How it works—including the cultural-interest gallery and Qloo architecture illustration. Animated WebP versions keep the original GIFs lightweight. Each animation can be paused, switches to a still when offscreen, and respects the browser’s reduced-motion preference.
+
 ## Sound effects
 
 Use **Sound off / Sound on** in the header to enable gentle door, button and exploration cues. Sound is off by default, starts only after interaction, and the preference is saved in this browser. On small screens the speaker icon is the same control. Effects are synthesized locally with Web Audio: no audio downloads, recording, or microphone permission. Muting immediately stops audio; clearing all browser data resets the sound preference. Every interaction remains usable without sound.

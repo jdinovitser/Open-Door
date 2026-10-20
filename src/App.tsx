@@ -938,7 +938,7 @@ function DiscoverView(p: DiscoverProps) {
         <button className="entry-demo-link" type="button" data-sound="door-open" onClick={() => p.onOpenEntry(true)}>Open the prepared sample door</button>
         <p className="entry-caveat">{p.agentStatus?.qlooConfigured ? "Qloo configured · only successful responses are labeled Live" : p.agentStatus ? "Illustrative demo paths · Qloo is not configured" : p.statusError ? "Qloo status unavailable · demo paths remain available" : "Checking Qloo configuration…"}</p>
       </div>
-      <div className="entry-architecture" aria-hidden="true"><div className="entry-halo"></div><div className="entry-wall"><div className="entry-frame"><div className="entry-leaf"><i></i><span>OD</span></div><div className="entry-threshold"></div></div></div><div className="entry-companion"><img src="/mascot/map-guide-still.webp" alt="" width="400" height="225" decoding="async" /><span>Come along.</span></div><span className="entry-coordinate">A CULTURAL FIELD GUIDE</span><span className="entry-caption">A threshold, not a destination.</span></div>
+      <div className="entry-architecture"><div className="entry-halo" aria-hidden="true"></div><div className="entry-wall" aria-hidden="true"><div className="entry-frame"><div className="entry-leaf"><i></i><span>OD</span></div><div className="entry-threshold"></div></div></div><div className="entry-companion"><MascotArt scene="map" priority /><span>Come along.</span></div><span className="entry-coordinate" aria-hidden="true">A CULTURAL FIELD GUIDE</span><span className="entry-caption" aria-hidden="true">A threshold, not a destination.</span></div>
     </section>}
     {p.entryPhase === "entered" && <>
     <section className="mode-panel" aria-label="Journey data mode">
@@ -1163,7 +1163,7 @@ function Passport({ openedCount, categories, tiers, savedCount }: { openedCount:
 
 function SavedView({ saved, remove, onDiscover, explore }: { saved: SavedDoor[]; remove: (id: string) => void; onDiscover: () => void; explore: (item: SavedDoor) => void }) {
   return <section><div className="section-heading"><div><span className="eyebrow">A small collection, gathered by you</span><h1>My Doors</h1><p>Threads worth keeping for another day. Stored only in this browser.</p></div><span className="step-label">{saved.length} SAVED</span></div>
-    {saved.length === 0 ? <div className="empty-state"><div className="empty-icon"><Bookmark size={21} /></div><h2>No doors saved yet.</h2><p>When a discovery stays with you, save it here. Your collection lives on this device.</p><button className="primary-btn" onClick={onDiscover}>Find your first door <ArrowRight size={15} /></button></div> :
+    {saved.length === 0 ? <div className="empty-state mascot-empty"><MascotArt scene="hello" /><h2>No doors saved yet.</h2><p>When a discovery stays with you, save it here. Your collection lives on this device.</p><button className="primary-btn" onClick={onDiscover}>Find your first door <ArrowRight size={15} /></button></div> :
        <div className="saved-list">{saved.map(item => <article className="saved-row" key={item.id}><MiniDoor className="saved-door-mark" /><div className="saved-copy"><span className="saved-meta">{item.tier} door · saved {item.savedAt} · {item.mode === "live" ? "Qloo response" : "Demo sample"}</span><h3>{item.title}</h3><p><MapPin size={12} /> {item.city} · from {item.anchors.join(", ")}</p><p style={{ marginTop: 8 }}>{item.why} <br />Connection: {item.evidence}</p></div><div className="saved-actions"><button className="secondary-btn" onClick={() => explore(item)}><BookOpen size={14} /> Open a new path</button><button className="icon-action" onClick={() => remove(item.id)} aria-label={`Remove ${item.title}`}><Trash2 size={15} /> Remove</button></div></article>)}</div>}
     <p className="helper" style={{ marginTop: 20 }}>Saved doors and explicit feedback remain local to this browser. Nothing is sent to a server.</p>
   </section>;
@@ -1173,7 +1173,7 @@ function HowView({ agentStatus }: { agentStatus: AgentStatus | null }) {
   return <section>
      <div className="how-hero"><span className="eyebrow">A little more about the method</span><h1>Curiosity is a<br /><em>good compass.</em></h1><p>Open Door begins with the things you choose to share, then offers cultural threads to follow. It is an invitation to explore—not a verdict on who you are.</p><div className="journey-badge"><Info size={12} /> {agentStatus?.qlooConfigured ? "Live requests available · success required for a Live label" : "Demo available · Qloo not configured"}</div></div>
      <aside className="guide-illustration" aria-label="Open Door field guide">
-       <MascotArt scene="map" />
+       <MascotArt scene="explorer" />
        <p><span className="eyebrow">A field guide, not a verdict</span><span>Three directions to follow. The next step is yours.</span></p>
      </aside>
     <div className="steps">
@@ -1181,6 +1181,15 @@ function HowView({ agentStatus }: { agentStatus: AgentStatus | null }) {
       <div className="step"><span className="step-num">02 / CONNECT</span><h2>Follow a thread.</h2><p>In Live mode, actual Qloo Search and Insights responses supply entities and graph evidence. Demo Mode uses authored deterministic content. Familiar, adjacent, and unexpected are Open Door route labels, not Qloo scores.</p></div>
       <div className="step"><span className="step-num">03 / MAKE IT YOURS</span><h2>Keep what resonates.</h2><p>Save a door locally, open a Qloo-returned entity as a new anchor, or provide a reason it missed. Your explicit feedback is included in the next live request.</p></div>
     </div>
+    <section className="mascot-showcase" aria-labelledby="mascot-showcase-title">
+      <div><span className="eyebrow">Meet your field guide</span><h2 id="mascot-showcase-title">A door for every kind of curiosity.</h2><p>A little company for the music, art, and everyday moments you choose to explore.</p></div>
+      <div className="mascot-showcase-grid">
+        <figure><MascotArt scene="music" /><figcaption>A moment to listen</figcaption></figure>
+        <figure><MascotArt scene="artist" /><figcaption>A creative detour</figcaption></figure>
+        <figure><MascotArt scene="camera" /><figcaption>A new perspective</figcaption></figure>
+        <figure><MascotArt scene="curiosity" /><figcaption>A little wonder</figcaption></figure>
+      </div>
+    </section>
     <div className="trust-box"><Info size={20} /><div><h3>Evidence, without pretending</h3><p>{agentStatus?.qlooConfigured ? "A server-side Qloo key is configured, but configuration does not make results live; only a successful real Qloo-backed response earns the Live label." : "Qloo is not currently configured. Demo connections remain authored sample content, not retrieved results."} The API key stays on the server. External provider data and AI synthesis are absent unless explicitly evidenced.</p></div></div>
      <section className="architecture-section" aria-labelledby="architecture-title">
        <div className="architecture-heading">

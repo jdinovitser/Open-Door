@@ -1,0 +1,24 @@
+.mascot-visual { min-width:0; }
+.mascot-visual picture { overflow:hidden; border-radius:10px; }
+.mascot-motion-toggle:focus-visible { outline:3px solid var(--forest); outline-offset:3px; border-radius:4px; }
+.entry-companion .mascot-motion-toggle { margin:5px auto 0; padding:4px 6px; font-size:9px; }
+.mascot-empty { padding-top:24px; }
+.mascot-empty .mascot-visual { max-width:260px; margin:0 auto 22px; }
+.mascot-showcase { margin:34px 0; padding:26px 0; border-bottom:1px solid var(--line); }
+.mascot-showcase h2 { margin:9px 0; color:var(--forest-dark); font:600 clamp(22px,3vw,30px)/1.2 'DM Sans',sans-serif; letter-spacing:-.04em; }
+.mascot-showcase > div > p { margin:0 0 20px; max-width:600px; color:#68776b; font-size:13px; line-height:1.65; }
+.mascot-showcase-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+.mascot-showcase figure { margin:0; padding:8px 8px 16px; min-width:0; border:1px solid var(--line); border-radius:16px; background:#fffefa; box-shadow:var(--shadow-soft); }
+.mascot-showcase figcaption { margin-top:10px; text-align:center; color:var(--forest-dark); font-size:12px; font-weight:600; }
+.mascot-showcase .mascot-motion-toggle { font-size:9px; }
+.lab-welcome-guide { display:grid; grid-template-columns:minmax(0,1fr) 210px; gap:28px; align-items:center; margin-bottom:22px; }
+.lab-welcome-guide .form-heading { margin-bottom:25px; flex-wrap:wrap; gap:12px; }
+.lab-welcome-guide .lab-start-copy { margin-bottom:0; }
+.lab-welcome-guide > .mascot-visual { padding:8px; border:1px solid #e4dfd2; border-radius:16px; background:#fbf6eb; }
+@media(max-width:700px) {
+  .mascot-showcase-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+  .mascot-showcase figure { border-radius:12px; }
+  .lab-welcome-guide { grid-template-columns:minmax(0,1fr); gap:18px; }
+  .lab-welcome-guide > .mascot-visual { width:min(100%,220px); justify-self:center; }
+  .lab-welcome-guide .form-heading { margin-bottom:24px; }
+}

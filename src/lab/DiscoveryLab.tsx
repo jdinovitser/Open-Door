@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { AudioLines, GitBranch, MoveUpRight, Users, Sparkles, Map } from "lucide-react";
+import { MascotArt } from "../MascotArt";
 import { allDiscoveries, compareBranches } from "./engine.ts";
 import { DOMAINS, STRATEGIES, type Discovery, type LabSeed, type Settings, type Strategy } from "./model.ts";
 import type { LabController } from "./useDiscoveryLab.ts";
@@ -134,8 +135,10 @@ export default function DiscoveryLab({ lab, qlooConfigured }: Props) {
     {busy && <div className="lab-busy" role="status"><span className="lab-busy-mark" aria-hidden="true" /><div><strong>Looking through this door</strong><span>Your saved branches remain unchanged while this exploration runs.</span></div><button className="secondary-btn" type="button" onClick={lab.cancel}>Cancel exploration</button></div>}
 
     {!current && <section className="lab-start form-panel" aria-labelledby="start-title">
-      <div className="form-heading"><div><span className="eyebrow">Begin with what you love</span><h2 id="start-title">Set down a few anchors.</h2></div><span className="step-label">A new demo journey</span></div>
-      <p className="lab-start-copy">A person, place, sound, story, or practice is enough. Your saved checkpoints and branches stay available below.</p>
+      <div className="lab-welcome-guide"><div>
+        <div className="form-heading"><div><span className="eyebrow">Begin with what you love</span><h2 id="start-title">Set down a few anchors.</h2></div><span className="step-label">A new demo journey</span></div>
+        <p className="lab-start-copy">A person, place, sound, story, or practice is enough. Your saved checkpoints and branches stay available below.</p>
+      </div><MascotArt scene="coffee" /></div>
       <div className="field full"><label htmlFor="lab-anchor">Cultural interest</label><div className="anchor-input-row"><input id="lab-anchor" value={anchorDraft} onChange={event => setAnchorDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); addAnchor(); } }} placeholder="For example, experimental jazz" /><button className="text-button" type="button" onClick={addAnchor}>Add anchor</button></div>
         {!!anchors.length && <div className="anchor-pills">{anchors.map(anchor => <span className="anchor-pill" key={anchor}>{anchor}<button type="button" aria-label={`Remove ${anchor}`} onClick={() => setAnchors(items => items.filter(item => item !== anchor))}>×</button></span>)}</div>}
       </div>
