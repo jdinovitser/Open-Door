@@ -21,6 +21,10 @@ test("the intro door is keyboard and pointer accessible and plays the supplied a
       await closedDoor.click();
     }
     await expect(page.locator(".entry-scene")).toHaveAttribute("data-entry-phase", "opening");
+    await expect(page.locator(".entry-scene .entry-frame")).toBeVisible();
+    await expect(page.getByTestId("doorway-animation-image")).toHaveCount(0);
+    await expect(page.locator(".entry-scene .entry-leaf")).toHaveCSS("transition-duration", "1.05s");
+    await expect(page.locator(".entry-scene")).toHaveAttribute("data-entry-phase", "welcoming", { timeout: 2000 });
     const animatedImage = page.getByTestId("doorway-animation-image");
     await expect(animatedImage).toHaveAttribute("src", /welcome-opening\.webp\?play=0/);
     await expect(animatedImage).toHaveJSProperty("naturalWidth", 480);
@@ -58,6 +62,8 @@ test("prepared-sample flow retains red arched previews, reveal artwork, close, E
   await preview.click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();
+  await expect(dialog.locator(".reveal-swing-art")).toBeVisible();
+  await expect(dialog.locator(".reveal-swing-art .entry-leaf")).toHaveCSS("animation-name", "welcome-door-swing");
   await expect(dialog.getByTestId("doorway-animation-image")).toHaveJSProperty("naturalWidth", 480);
   await expect(dialog.getByTestId("doorway-animation-image")).toHaveAttribute("src", /welcome-opening\.webp/);
   await expect(dialog.locator(".reveal-content")).toBeVisible();

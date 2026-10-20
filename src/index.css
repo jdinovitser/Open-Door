@@ -1084,6 +1084,13 @@ button:disabled { cursor:not-allowed; }
 .entry-animation-art { width:min(100%,480px); }
 .hero-welcome-art { width:min(100%,440px); }
 .reveal-animation-art { width:min(100%,460px); }
+.reveal-swing-art { position:relative; width:min(100%,300px); height:410px; }
+.reveal-swing-art .entry-frame { left:50%; transform:translateX(-50%); }
+.reveal-swing-art .entry-leaf { animation:welcome-door-swing .68s cubic-bezier(.2,.72,.2,1) both; }
+@keyframes welcome-door-swing {
+  from { transform:perspective(800px) rotateY(0); }
+  to { transform:perspective(800px) rotateY(-73deg); }
+}
 
 .door-preview .preview-opening {
   border-color:#a95145;

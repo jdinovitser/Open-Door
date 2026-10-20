@@ -351,7 +351,7 @@ export default function App() {
   const [categoryDraft, setCategoryDraft] = useState<Category>("Experiences");
   const [anchorDraft, setAnchorDraft] = useState("");
   const [journey, setJourney] = useState<Journey | null>(() => restoreJourney());
-  const [entryPhase, setEntryPhase] = useState<"closed" | "opening" | "entered">("closed");
+  const [entryPhase, setEntryPhase] = useState<"closed" | "opening" | "welcoming" | "entered">("closed");
   const entryRunDemoRef = useRef(false);
   const [judgeDemo, setJudgeDemo] = useState(() => new URLSearchParams(window.location.search).get("demo") === "1");
   const [saved, setSaved] = useState<SavedDoor[]>(() => restoreSavedDoors());
@@ -764,6 +764,11 @@ export default function App() {
       startDemoJourney("instant");
     }
   }
+  useEffect(() => {
+    if (entryPhase !== "opening" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = window.setTimeout(() => setEntryPhase("welcoming"), 1050);
+    return () => window.clearTimeout(timer);
+  }, [entryPhase]);
   function openEntry(runPreparedDemo = false) {
     if (entryPhase !== "closed") return;
     setEntryPhase("opening");
@@ -1235,7 +1240,7 @@ type DiscoverProps = {
   addParticipant: () => void; removeParticipant: (index: number) => void; groupBuilt: boolean; buildGroup: () => void;
   oneHour: boolean; setOneHour: (value: boolean) => void; onStartDemo: (behavior?: ScrollBehavior, allowLive?: boolean) => void;
   onBuildDay: (input: DayPlanInput) => void;
-  entryPhase: "closed" | "opening" | "entered"; onOpenEntry: (runPreparedDemo?: boolean) => void;
+  entryPhase: "closed" | "opening" | "welcoming" | "entered"; onOpenEntry: (runPreparedDemo?: boolean) => void;
   onEntryAnimationComplete: () => void;
   onSound: (effect: SoundEffect) => void;
   exploreCategory: (category: Category) => void;
@@ -1358,15 +1363,15 @@ function DiscoverView(p: DiscoverProps) {
   return <>
     {p.entryPhase !== "entered" && <section className={`entry-scene ${p.entryPhase === "opening" ? "is-opening" : ""}`} data-entry-phase={p.entryPhase} aria-label="Open Door introduction">
       <div className="entry-copy"><span className="eyebrow">Open Door · a cultural field guide</span><p className="entry-index">FIELD NOTE 001 <span>—</span> ARRIVAL</p><h1>What’s behind<br /><em>your next door?</em></h1><p className="entry-deck">Start with the films, music, food, or books you love. Open three cultural directions—and choose where to go next.</p>
-        <button className="entry-action" type="button" data-sound="door-open" onClick={() => p.onOpenEntry()} disabled={p.entryPhase === "opening"}><span>{p.entryPhase === "opening" ? "The room is opening" : "Open the door"}</span><ArrowRight size={17} /></button>
-        <button className="entry-demo-link" type="button" data-sound="door-open" onClick={() => p.onOpenEntry(true)}>Open the prepared sample door</button>
+        <button className="entry-action" type="button" data-sound="door-open" onClick={() => p.onOpenEntry()} disabled={p.entryPhase !== "closed"}><span>{p.entryPhase !== "closed" ? "The room is opening" : "Open the door"}</span><ArrowRight size={17} /></button>
+        <button className="entry-demo-link" type="button" data-sound="door-open" onClick={() => p.onOpenEntry(true)} disabled={p.entryPhase !== "closed"}>Open the prepared sample door</button>
         <p className="entry-caveat">{p.agentStatus?.qlooConfigured ? "Qloo configured · only successful responses are labeled Live" : p.agentStatus ? "Illustrative demo paths · Qloo is not configured" : p.statusError ? "Qloo status unavailable · demo paths remain available" : "Checking Qloo configuration…"}</p>
       </div>
       <div className="entry-architecture" data-testid="entry-art">
-        {p.entryPhase === "opening" ? <DoorwayAnimationArt autoPlay onComplete={p.onEntryAnimationComplete} className="entry-animation-art" /> : <>
+        {p.entryPhase === "welcoming" ? <DoorwayAnimationArt autoPlay onComplete={p.onEntryAnimationComplete} className="entry-animation-art" /> : <>
           <div className="entry-halo" aria-hidden="true"></div>
           <div className="entry-wall">
-            <button className="entry-door-trigger" type="button" data-sound="door-open" aria-label="Open the illustrated door" onClick={() => p.onOpenEntry()}>
+            <button className="entry-door-trigger" type="button" data-sound="door-open" aria-label="Open the illustrated door" onClick={() => p.onOpenEntry()} disabled={p.entryPhase !== "closed"}>
               <DoorwayFrame />
             </button>
           </div>
@@ -1535,7 +1540,7 @@ function DiscoverView(p: DiscoverProps) {
       else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
     }}>
       <button className="reveal-close" autoFocus type="button" data-sound="door-close" onClick={() => { setActiveDoor(null); setDoorOpening(false); }} disabled={hallway} aria-label="Close this door"><X size={19} /></button>
-      <div className="reveal-scene"><DoorwayAnimationArt autoPlay className="reveal-animation-art" /><div className="reveal-threshold-label">A POSSIBLE WORLD · {activeDoor.tier.toUpperCase()}</div></div>
+      <div className="reveal-scene">{doorOpening ? <div className="reveal-swing-art" aria-hidden="true"><DoorwayFrame /></div> : <DoorwayAnimationArt autoPlay className="reveal-animation-art" />}<div className="reveal-threshold-label">A POSSIBLE WORLD · {activeDoor.tier.toUpperCase()}</div></div>
       <div className="reveal-content"><span className="eyebrow">{p.journey?.mode === "live" ? "A Qloo-returned cultural entity · not a listing" : activeDoor.tier === "Unexpected" ? "The door you wouldn't have searched for · demo" : "A direction, not a listing · sample path"}</span><h2 id="reveal-title">{activeDoor.title}</h2><p className="reveal-kind">{activeDoor.kind} <span>·</span> {activeDoor.category}</p>
         {p.journey?.mode === "live" ? <div className="reveal-chain" aria-label="Retrieved entity and source"><div><span>YOUR EXPLICIT ANCHORS</span><b>{p.journey.anchors.join(" · ")}</b></div><ArrowRight size={15} /><div><span>QLOO SOURCE</span><b>{activeDoor.source}</b></div><ArrowRight size={15} /><div><span>ENTITY TYPE</span><b>{activeDoor.entityType || "Not returned"}</b></div><ArrowRight size={15} /><div><span>ENTITY ID</span><b>{activeDoor.entityId || "Not returned"}</b></div></div> :
         <div className="reveal-chain" aria-label="The cultural thread in this illustrative demo"><div><span>YOUR EXPLICIT ANCHORS</span><b>{p.journey?.anchors.join(" · ") || "your chosen interests"}</b></div><ArrowRight size={15} /><div><span>ANCHOR USED IN THIS SAMPLE</span><b>{activeDoor.source}</b></div><ArrowRight size={15} /><div><span>DEMO BRIDGE</span><b>{activeDoor.thread}</b></div><ArrowRight size={15} /><div><span>BEHIND THIS DOOR</span><b>{activeDoor.title}</b></div></div>}
