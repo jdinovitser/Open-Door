@@ -4,7 +4,7 @@
 
 **Submission review:** [official criteria and evidence](docs/JUDGING_CRITERIA.md) · [remaining submission gates](docs/SUBMISSION_READINESS.md) · [Devpost draft](docs/DEVPOST_DRAFT.md) · [why this product](docs/WHY_OPEN_DOOR.md).
 
-Before submission, verify real Qloo responses, public deployment access, and the completed Devpost entry. A prepared Demo is not evidence of a live Qloo integration.
+Before submission, verify live Qloo discovery on the published site and the completed Devpost entry. A prepared Demo is not evidence of a live Qloo integration.
 
 **Find your way into a new place.**
 
@@ -12,7 +12,7 @@ Open Door is a cultural discovery web app that turns personal interests into a s
 
 ## Project status
 
-This workspace has a responsive Demo Mode and a server-side Qloo integration path. **The Qloo API key is not configured here, so no live Qloo request has yet been verified.** The authored sample journeys are not Qloo results, real venue or event listings, or statements about local availability.
+This workspace has a responsive Demo Mode and a server-side Qloo integration. **Live Qloo Search and Insights have been verified in development; the published site must be republished and checked separately.** The authored sample journeys are not Qloo results, real venue or event listings, or statements about local availability.
 
 ## Problem
 
@@ -52,7 +52,7 @@ flowchart LR
 
 ## Qloo integration
 
-The server calls only Qloo's documented hackathon endpoints: `GET /search` and `GET /v2/insights/`. Qloo's key is read from the server-side `QLOO_API_KEY` secret and is never sent to the browser. The current workspace has no Qloo key, so it remains in Demo Mode.
+The server calls only Qloo's documented hackathon endpoints: `GET /search` and `GET /v2/insights/` at `https://hackathon.api.qloo.com`, following the [hackathon developer guide](https://docs.qloo.com/reference/qloo-llm-hackathon-developer-guide). Qloo's key is read from the server-side `QLOO_API_KEY` secret and is never sent to the browser. Demo Mode remains an explicit, separate option.
 
 The full endpoint, provenance, fallback, and verification notes are in [`docs/HACKATHON_INTEGRATIONS.md`](docs/HACKATHON_INTEGRATIONS.md). Request a hackathon API key through Qloo's [official access form](https://forms.gle/zz12orkLHTAneLGz6); add the provisioned key through Replit Secrets as `QLOO_API_KEY`.
 
