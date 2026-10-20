@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useClerk, useUser, UserButton } from "@clerk/react";
 import {
   ArrowDownRight, ArrowRight, Bookmark, BookOpen, Check, ChevronDown, Clock3, Compass,
   HeartCrack, Info, MapPin, Plus, RotateCcw, Share2, Trash2, Volume2, VolumeX, X,
 } from "lucide-react";
-import { getAgentStatus, runAgentDiscovery, type AgentEvent, type AgentStatus, type DiscoveryRequest, type LiveDoor, type LiveJourney } from "./agentApi";
+import { getAgentStatus, runAgentDiscovery, type AgentEvent, type AgentStatus, type DiscoveryRequest, type LiveDoor, type LiveJourney, type ProgressSummary } from "./agentApi";
 import { DevSecurityTestView, TrustView } from "./TrustView";
 import { MascotArt } from "./MascotArt";
 import DiscoveryLab from "./lab/DiscoveryLab";
@@ -13,8 +14,10 @@ import { journeyToLab } from "./lab/journeyAdapter";
 import { useDiscoveryLab } from "./lab/useDiscoveryLab";
 import { useSoundEffects, type SoundEffect } from "./useSoundEffects";
 import JudgesGuide from "./JudgesGuide";
+import ProgressView from "./ProgressView";
+import { combinePendingSavedDoorChanges, diffAccountSavedDoors, isPendingDoorChanges, mergeAccountSavedDoors, type PendingSavedDoorChanges } from "./accountSavedDoors";
 
-type View = "discover" | "saved" | "how" | "trust" | "lab" | "judges";
+type View = "discover" | "saved" | "how" | "trust" | "lab" | "judges" | "progress";
 type Intent = "Find my people" | "Go deeper" | "Try something new";
 type Depth = "Close to home" | "A little further" | "Surprise me" | "Take me somewhere unexpected";
 type Category = "Film" | "Music" | "Food" | "Art" | "Books" | "Design" | "Outdoors" | "Experiences" | "Other";
@@ -38,6 +41,11 @@ type Participant = { name: string; anchors: string };
 type DayPlanInput = { startTime: string; endTime: string; location: string; budget: string; novelty: string };
 type StoredDoor = Partial<SavedDoor> & { id: string; title: string; tier: Door["tier"] };
 type StoredJourney = Partial<Journey> & { anchors?: string[]; doors?: StoredDoor[] };
+type AccountSaveSyncStatus = "loading" | "guest" | "ready" | "saving" | "error";
+type AccountProgressStatus = "loading" | "ready" | "error";
+const SAVED_OWNER_KEY = "opendoor.saved.owner.v1";
+const GUEST_SAVED_KEY = "opendoor.saved.guest.v1";
+const MAX_ACCOUNT_SAVED_DOORS = 100;
 const EXAMPLES = ["independent cinema", "Japanese breakfast", "live jazz"];
 const CATEGORIES: Category[] = ["Film", "Music", "Food", "Art", "Books", "Design", "Outdoors", "Experiences", "Other"];
 const DEPTHS: { value: Depth; note: string }[] = [
@@ -238,8 +246,16 @@ function restoreJourney(): Journey | null {
 }
 
 function restoreSavedDoors(): SavedDoor[] {
-  const entries = readStore<StoredDoor[]>("opendoor.saved", []);
-  return entries.flatMap((item): SavedDoor[] => {
+  const owner = readStore<string | null>(SAVED_OWNER_KEY, null);
+  const entries = owner
+    ? readStore<StoredDoor[]>(GUEST_SAVED_KEY, [])
+    : readStore<StoredDoor[]>("opendoor.saved", []);
+  return restoreSavedDoorEntries(entries);
+}
+
+function restoreSavedDoorEntries(entries: unknown): SavedDoor[] {
+  if (!Array.isArray(entries)) return [];
+  return (entries as StoredDoor[]).flatMap((item): SavedDoor[] => {
     if (!item || typeof item.id !== "string" || typeof item.title !== "string") return [];
     const kind = typeof item.kind === "string" ? item.kind : "Cultural experience";
     return [{
@@ -263,6 +279,24 @@ function restoreSavedDoors(): SavedDoor[] {
   });
 }
 
+function isAccountSavedDoor(value: unknown): value is SavedDoor {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const door = value as Partial<SavedDoor>;
+  return typeof door.id === "string" && door.id.length > 0 && door.id.length <= 256
+    && typeof door.title === "string"
+    && (door.tier === "Familiar" || door.tier === "Adjacent" || door.tier === "Unexpected");
+}
+
+function pendingSavedDoorsFor(userId: string): PendingSavedDoorChanges<SavedDoor> {
+  const saved = readStore<unknown>(`opendoor.saved.pending.${userId}`, null);
+  return isPendingDoorChanges(saved, isAccountSavedDoor) ? saved : { upserts: [], removals: [] };
+}
+
+async function readAccountApiError(response: Response, fallback: string): Promise<Error> {
+  const result = await response.json().catch(() => null);
+  return new Error(typeof result?.message === "string" ? result.message : fallback);
+}
+
 const labDemoProvider = createDemoProvider(snapshot => {
   const categories = Object.fromEntries(Object.entries(snapshot.categories).map(([anchor, category]) => [
     anchor, CATEGORIES.includes(category as Category) ? category as Category : /architecture|fashion/i.test(category) ? "Design" as Category : category === "Places" ? "Outdoors" as Category : inferredCategory(anchor),
@@ -274,17 +308,20 @@ const labDemoProvider = createDemoProvider(snapshot => {
 });
 const labLiveProvider = createLiveProvider();
 
-export default function App() {
+export default function App({ signOut }: { signOut: ReturnType<typeof useClerk>["signOut"] }) {
   const sound = useSoundEffects();
+  const { isLoaded: authLoaded, isSignedIn, user } = useUser();
+  const accountUserId = authLoaded && isSignedIn ? user?.id ?? null : null;
   const [view, setView] = useState<View>(() =>
     /^\/judges\/?$/.test(window.location.pathname) ? "judges"
+      : /^\/progress\/?$/.test(window.location.pathname) ? "progress"
       : window.location.pathname === "/trust" ? "trust" : window.location.pathname === "/lab" ? "lab" : "discover",
   );
   useEffect(() => {
     // Keep directly shareable screens correct when entered through an in-app tab.
-    const route = view === "judges" ? "/judges" : view === "lab" ? "/lab" : view === "trust" ? "/trust" : null;
+    const route = view === "judges" ? "/judges" : view === "progress" ? "/progress" : view === "lab" ? "/lab" : view === "trust" ? "/trust" : null;
     if (route && window.location.pathname !== route) window.history.replaceState(null, "", route);
-    else if (!route && ["/judges", "/lab", "/trust"].includes(window.location.pathname)) window.history.replaceState(null, "", "/");
+    else if (!route && ["/judges", "/progress", "/lab", "/trust"].includes(window.location.pathname)) window.history.replaceState(null, "", "/");
   }, [view]);
   const [personalizationEnabled, setPersonalizationEnabled] = useState(() =>
     readStore<boolean>("opendoor.privacy.personalization", true),
@@ -313,6 +350,15 @@ export default function App() {
   const [entryPhase, setEntryPhase] = useState<"closed" | "opening" | "entered">("closed");
   const [judgeDemo, setJudgeDemo] = useState(() => new URLSearchParams(window.location.search).get("demo") === "1");
   const [saved, setSaved] = useState<SavedDoor[]>(() => restoreSavedDoors());
+  const [accountSaveStatus, setAccountSaveStatus] = useState<AccountSaveSyncStatus>("loading");
+  const [accountSaveNotice, setAccountSaveNotice] = useState("");
+  const [accountSyncAttempt, setAccountSyncAttempt] = useState(0);
+  const syncedAccountDoorsRef = useRef<Map<string, SavedDoor> | null>(null);
+  const accountWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const [accountProgress, setAccountProgress] = useState<ProgressSummary | null>(null);
+  const [accountProgressStatus, setAccountProgressStatus] = useState<AccountProgressStatus>("loading");
+  const [accountProgressError, setAccountProgressError] = useState("");
+  const [progressSyncAttempt, setProgressSyncAttempt] = useState(0);
   const [feedback, setFeedback] = useState<Record<string, string>>(() =>
     personalizationEnabled ? restoreFeedback() : {},
   );
@@ -334,6 +380,175 @@ export default function App() {
     if (journey?.mode === "live") setJourneyMode("live");
   }, []);
   useEffect(() => {
+    if (!authLoaded) return;
+    let active = true;
+    syncedAccountDoorsRef.current = null;
+
+    if (!isSignedIn || !accountUserId) {
+      const previousOwner = readStore<string | null>(SAVED_OWNER_KEY, null);
+      const guestDoors = previousOwner
+        ? restoreSavedDoorEntries(readStore<StoredDoor[]>(GUEST_SAVED_KEY, []))
+        : restoreSavedDoors();
+      if (previousOwner) safeRemoveStore(SAVED_OWNER_KEY);
+      setSaved(guestDoors);
+      setAccountSaveNotice("");
+      setAccountSaveStatus("guest");
+      return () => { active = false; };
+    }
+
+    setAccountSaveStatus("loading");
+    setAccountSaveNotice("");
+    setSaved([]);
+    const previousOwner = readStore<string | null>(SAVED_OWNER_KEY, null);
+    const guestDoors = previousOwner ? [] : restoreSavedDoors();
+    if (!previousOwner) safeSetStore(GUEST_SAVED_KEY, guestDoors);
+    const pending = pendingSavedDoorsFor(accountUserId);
+    const controller = new AbortController();
+
+    void fetch("/api/account/saved-doors", {
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    })
+      .then(async response => {
+        if (!response.ok) {
+          throw await readAccountApiError(response, "Your account-saved doors could not be loaded. Retry the connection.");
+        }
+        return response.json();
+      })
+      .then(result => {
+        if (!active) return;
+        const remoteDoors = restoreSavedDoorEntries(result?.savedDoors);
+        const remoteIds = new Set(remoteDoors.map(door => door.id));
+        const pendingUpserts = pending.upserts.filter(door => !pending.removals.includes(door.id));
+        const pendingIds = new Set(pendingUpserts.map(door => door.id));
+        const pendingRemovedCount = pending.removals.filter(id => remoteIds.has(id)).length;
+        const pendingAddedCount = pendingUpserts.filter(door => !remoteIds.has(door.id)).length;
+        const availableForGuestImport = Math.max(
+          0,
+          MAX_ACCOUNT_SAVED_DOORS - remoteDoors.length + pendingRemovedCount - pendingAddedCount,
+        );
+        const alreadySavedIds = new Set([...remoteIds, ...pendingIds]);
+        const guestToImport = guestDoors
+          .filter(door => !alreadySavedIds.has(door.id))
+          .slice(0, availableForGuestImport);
+        const mergedDoors = mergeAccountSavedDoors(remoteDoors, guestToImport, pending)
+          .slice(0, MAX_ACCOUNT_SAVED_DOORS);
+        if (guestDoors.length > guestToImport.length) {
+          setAccountSaveNotice("Your account can hold up to 100 saved doors. The rest of your Guest collection remains in this browser.");
+        }
+        safeSetStore(SAVED_OWNER_KEY, accountUserId);
+        syncedAccountDoorsRef.current = new Map(remoteDoors.map(door => [door.id, door]));
+        setSaved(mergedDoors);
+        setAccountSaveStatus("ready");
+      })
+      .catch(error => {
+        if (!active || (error instanceof DOMException && error.name === "AbortError")) return;
+        setAccountSaveStatus("error");
+        setAccountSaveNotice(error instanceof Error
+          ? error.message
+          : "Account-saved doors couldn’t load. Retry the connection.");
+      });
+    return () => { active = false; controller.abort(); };
+  }, [authLoaded, isSignedIn, accountUserId, accountSyncAttempt]);
+
+  useEffect(() => {
+    if (!authLoaded) return;
+    if (!isSignedIn || !accountUserId) {
+      if (accountSaveStatus === "guest") {
+        safeSetStore("opendoor.saved", saved);
+        safeSetStore(GUEST_SAVED_KEY, saved);
+      }
+      return;
+    }
+    if (accountSaveStatus !== "ready"
+      || readStore<string | null>(SAVED_OWNER_KEY, null) !== accountUserId) return;
+    safeSetStore("opendoor.saved", saved);
+  }, [authLoaded, isSignedIn, accountUserId, saved, accountSaveStatus]);
+
+  useEffect(() => {
+    if (!authLoaded || !isSignedIn || !accountUserId || accountSaveStatus !== "ready"
+      || readStore<string | null>(SAVED_OWNER_KEY, null) !== accountUserId
+      || !syncedAccountDoorsRef.current) return;
+    let active = true;
+    const pendingKey = `opendoor.saved.pending.${accountUserId}`;
+    const previous = [...syncedAccountDoorsRef.current.values()];
+    const next = new Map(saved.map(door => [door.id, door]));
+    const changes = diffAccountSavedDoors(previous, [...next.values()]);
+    const pending = combinePendingSavedDoorChanges(pendingSavedDoorsFor(accountUserId), changes);
+    syncedAccountDoorsRef.current = next;
+    if (!pending.upserts.length && !pending.removals.length) return () => { active = false; };
+
+    const payload = JSON.stringify(pending);
+    safeSetStore(pendingKey, pending);
+    const timer = window.setTimeout(() => {
+      accountWriteQueueRef.current = accountWriteQueueRef.current.catch(() => {}).then(async () => {
+        if (!active) return;
+        setAccountSaveStatus("saving");
+        const response = await fetch("/api/account/saved-doors", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: payload,
+        });
+        if (!response.ok) {
+          throw await readAccountApiError(response, "Account saves could not be synced. Retry to keep your doors with your account.");
+        }
+        if (!active) return;
+        if (readStore<string | null>(pendingKey, null) === payload) safeRemoveStore(pendingKey);
+        setAccountSaveNotice("");
+        setAccountSaveStatus("ready");
+      }).catch(error => {
+        if (!active) return;
+        setAccountSaveNotice(error instanceof Error
+          ? error.message
+          : "Account saves could not be synced. Retry the connection.");
+        setAccountSaveStatus("error");
+      });
+    }, 220);
+    return () => { active = false; window.clearTimeout(timer); };
+  }, [saved, authLoaded, isSignedIn, accountUserId, accountSyncAttempt]);
+
+  useEffect(() => {
+    if (view !== "progress" || !authLoaded || !isSignedIn || !accountUserId) return;
+    if (accountSaveStatus !== "ready") {
+      setAccountProgressStatus(accountSaveStatus === "error" ? "error" : "loading");
+      setAccountProgressError(accountSaveStatus === "error"
+        ? "Your account-saved doors couldn’t be synchronized."
+        : "");
+      return;
+    }
+    let active = true;
+    setAccountProgressStatus("loading");
+    const controller = new AbortController();
+    void fetch("/api/account/progress", { headers: { Accept: "application/json" }, signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) {
+          throw await readAccountApiError(response, "Your progress couldn’t load. Retry the connection.");
+        }
+        return response.json();
+      })
+      .then(result => {
+        if (!active) return;
+        setAccountProgress({
+          doorsOpened: Number.isFinite(result?.doorsOpened) ? Math.max(0, result.doorsOpened) : 0,
+          braveDoorsOpened: Number.isFinite(result?.braveDoorsOpened) ? Math.max(0, result.braveDoorsOpened) : 0,
+          categories: Array.isArray(result?.categories)
+            ? result.categories.filter((item: unknown): item is string => typeof item === "string")
+            : [],
+        });
+        setAccountProgressStatus("ready");
+        setAccountProgressError("");
+      })
+      .catch(error => {
+        if (!active || (error instanceof DOMException && error.name === "AbortError")) return;
+        setAccountProgressStatus("error");
+        setAccountProgressError(error instanceof Error
+          ? error.message
+          : "Progress couldn’t load. Retry the connection.");
+      });
+    return () => { active = false; controller.abort(); };
+  }, [view, authLoaded, isSignedIn, accountUserId, accountSaveStatus, progressSyncAttempt]);
+
+  useEffect(() => {
     let active = true;
     getAgentStatus().then(status => { if (active) setAgentStatus(status); }).catch(error => {
       if (active) setStatusError(error instanceof Error ? error.message : "Configuration status is unavailable.");
@@ -345,7 +560,16 @@ export default function App() {
     if (personalizationEnabled) safeSetStore("opendoor.journey", journey);
     else safeRemoveStore("opendoor.journey");
   }, [journey, personalizationEnabled]);
-  useEffect(() => { safeSetStore("opendoor.saved", saved); }, [saved]);
+  useEffect(() => {
+    if (!authLoaded) return;
+    if (!isSignedIn && accountSaveStatus === "guest") {
+      safeSetStore("opendoor.saved", saved);
+      safeSetStore(GUEST_SAVED_KEY, saved);
+    } else if (isSignedIn && accountSaveStatus === "ready"
+      && readStore<string | null>(SAVED_OWNER_KEY, null) === accountUserId) {
+      safeSetStore("opendoor.saved", saved);
+    }
+  }, [authLoaded, isSignedIn, accountUserId, accountSaveStatus, saved]);
   useEffect(() => {
     if (personalizationEnabled) safeSetStore("opendoor.feedback", feedback);
     else safeRemoveStore("opendoor.feedback");
@@ -546,10 +770,14 @@ export default function App() {
   function exportLocalData() {
     const exportData = {
       exportedAt: new Date().toISOString(),
-      storage: "This export contains data stored in this browser by Open Door. It does not include server audit records or credentials.",
+      storage: isSignedIn
+        ? "This export includes the account-saved doors and account progress summary currently loaded in this browser, plus local browser data. It does not include server audit records, authentication credentials, or other account records."
+        : "This export includes data stored in this browser by Open Door. It does not include server audit records or credentials.",
       personalizationEnabled,
       currentJourney: journey,
       savedDoors: saved,
+      savedDoorsStoredIn: isSignedIn ? "signed-in account" : "this browser",
+      accountProgress: isSignedIn ? accountProgress : null,
       explicitFeedback: feedback,
       openedDoorIds: openedIds,
       discoveryLab: lab.state,
@@ -566,11 +794,15 @@ export default function App() {
     lab.clear();
     sound.reset();
     setJourney(null);
-    setSaved([]);
+    if (!isSignedIn) setSaved([]);
     setFeedback({});
     setOpenedIds([]);
-    for (const key of ["opendoor.journey", "opendoor.saved", "opendoor.feedback", "opendoor.opened"]) {
+    for (const key of ["opendoor.journey", "opendoor.feedback", "opendoor.opened"]) {
       safeRemoveStore(key);
+    }
+    if (!isSignedIn) {
+      safeRemoveStore("opendoor.saved");
+      safeRemoveStore(GUEST_SAVED_KEY);
     }
   }
   function resetCompass(nextIntent: Intent) {
@@ -587,14 +819,46 @@ export default function App() {
     setToast(`Compass reset: ${nextIntent.toLowerCase()}`);
   }
   function toggleSave(door: Door, location: string, chosenAnchors: string[]) {
+    if (isSignedIn && accountSaveStatus !== "ready") {
+      setToast("Wait for your account saves to sync before changing My Doors.");
+      return;
+    }
     if (savedIds.has(door.id)) {
       setSaved(current => current.filter(item => item.id !== door.id)); setToast("Removed from My Doors");
     } else {
+      if (isSignedIn && saved.length >= MAX_ACCOUNT_SAVED_DOORS) {
+        setToast("Your account has room for 100 saved doors. Remove one to save another.");
+        return;
+      }
       setSaved(current => [{ ...door, city: location, savedAt: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" }), anchors: chosenAnchors, mode: journey?.mode || "demo" }, ...current]);
       setToast("Saved to My Doors");
     }
   }
+  function updateSavedDoors(update: (current: SavedDoor[]) => SavedDoor[]) {
+    if (isSignedIn && accountSaveStatus !== "ready") {
+      setToast("Wait for your account saves to sync before changing My Doors.");
+      return;
+    }
+    setSaved(update);
+  }
+  async function recordProgressDoor(door: Door) {
+    if (!authLoaded || !isSignedIn || !accountUserId) return;
+    try {
+      const response = await fetch("/api/account/progress/doors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ doors: [{ id: door.id, tier: door.tier, category: door.category }] }),
+      });
+      if (!response.ok) {
+        throw await readAccountApiError(response, "This door’s progress could not be saved.");
+      }
+      if (view === "progress") setProgressSyncAttempt(attempt => attempt + 1);
+    } catch {
+      setToast("This door’s progress could not be synced. Retry by reopening the door while signed in.");
+    }
+  }
   function openNext(door: Door) {
+    void recordProgressDoor(door);
     const nextAnchor = door.title;
     if (journeyMode === "live" && door.entityId) {
       const selectedFeedback = Object.values(feedback).filter(value => value && value !== "choose");
@@ -796,7 +1060,18 @@ export default function App() {
         <button className={`nav-btn ${view === "saved" ? "active" : ""}`} onClick={() => setView("saved")}>My Doors<span className="nav-count">{saved.length || ""}</span></button>
         <button className={`nav-btn ${view === "how" ? "active" : ""}`} onClick={() => setView("how")}>How it works</button>
         <button className={`nav-btn ${view === "trust" ? "active" : ""}`} onClick={() => setView("trust")}>Trust</button>
+        {isSignedIn && <button className={`nav-btn progress-nav ${view === "progress" ? "active" : ""}`} onClick={() => setView("progress")}>Progress</button>}
       </nav>
+      {isSignedIn
+        ? <div className="account-control">
+          <span className="account-label" aria-live="polite">
+            {accountSaveStatus === "saving" ? "Syncing saves…" : accountSaveStatus === "error" ? "Sync needs attention" : accountSaveStatus === "ready" ? "Saved to your account" : "Loading your account…"}
+          </span>
+          {accountSaveStatus === "error" && <button type="button" className="account-retry" onClick={() => setAccountSyncAttempt(attempt => attempt + 1)}>Retry</button>}
+          <UserButton appearance={{ elements: { avatarBox: { width: "32px", height: "32px" } } }} />
+          <button type="button" className="account-sign-out" onClick={() => void signOut({ redirectUrl: "/" })}>Sign out</button>
+        </div>
+        : authLoaded && <a className="account-sign-in" href="/sign-in">Sign in</a>}
       <button className="sound-toggle" type="button" data-sound="none" onClick={sound.toggle}
         aria-pressed={sound.enabled} aria-label={`Sound effects: ${sound.enabled ? "on" : "off"}`}
         title={sound.notice || (sound.enabled ? "Mute sound effects" : "Enable gentle sound effects")}>
@@ -806,6 +1081,9 @@ export default function App() {
     </header>
     {sound.notice && <p className="sound-notice" role="status">{sound.notice}</p>}
     <main className="page" id="main-content" tabIndex={-1}>
+      {accountSaveNotice && isSignedIn && <p className={`account-sync-notice${accountSaveStatus === "error" ? " is-error" : ""}`} role={accountSaveStatus === "error" ? "alert" : "status"}>
+        {accountSaveNotice}{accountSaveStatus === "error" && <button type="button" onClick={() => setAccountSyncAttempt(attempt => attempt + 1)}>Retry account sync</button>}
+      </p>}
       {view === "discover" && <DiscoverView
         city={city} setCity={setCity} occasion={occasion} setOccasion={setOccasion} intent={intent} setIntent={setIntent}
         depth={depth} setDepth={setDepth} context={context} setContext={setContext} anchors={anchors} categories={categories}
@@ -834,12 +1112,21 @@ export default function App() {
          setShowInspector={setShowInspector}
       />}
       {view === "saved" && <SavedView saved={saved} remove={id => { setSaved(current => current.filter(item => item.id !== id)); setToast("Door removed"); }} onDiscover={() => setView("discover")} explore={exploreSaved} />}
+      {view === "progress" && (isSignedIn
+        ? <ProgressView summary={accountProgress} savedCount={saved.length} status={accountProgressStatus} error={accountProgressError} onRetry={() => setProgressSyncAttempt(attempt => attempt + 1)} />
+        : <section className="progress-login-prompt">
+          <span className="eyebrow">Open Door · your account</span><h1>Sign in to see your progress.</h1>
+          <p>Your saved doors and reward tracks belong to your account. Keep exploring as a guest, or sign in to see account progress.</p>
+          <div><a href="/sign-in" className="primary-btn">Sign in <ArrowRight size={16} /></a><button type="button" className="secondary-btn" onClick={() => setView("discover")}>Continue as guest</button></div>
+        </section>)}
       {view === "lab" && <DiscoveryLab lab={lab} qlooConfigured={!!agentStatus?.qlooConfigured} />}
       {view === "how" && <HowView agentStatus={agentStatus} />}
       {view === "judges" && <JudgesGuide status={agentStatus} statusError={statusError} />}
       {view === "trust" && <TrustView
         personalizationEnabled={personalizationEnabled}
         savedCount={saved.length}
+        signedIn={!!isSignedIn}
+        savedStorageScope={isSignedIn ? "your account" : "this browser"}
         onPersonalizationChange={updatePersonalization}
         onExport={exportLocalData}
         onDeleteJourney={() => { setJourney(null); setToast("Current journey deleted"); }}

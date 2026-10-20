@@ -1,0 +1,95 @@
+.progress-page { max-width:1180px; margin:0 auto; }
+.progress-hero { display:grid; grid-template-columns:1fr minmax(310px,.88fr); gap:clamp(26px,5vw,64px); align-items:center; margin:5px 0 40px; padding:clamp(26px,5vw,58px); border:1px solid #e1ddd0; border-radius:22px; background:linear-gradient(135deg,#fffefa,#eef3e9); box-shadow:var(--shadow-soft); }
+.progress-hero h1 { margin:17px 0 14px; color:var(--forest-dark); font:600 clamp(40px,6vw,66px)/1.03 'DM Sans',sans-serif; letter-spacing:-.06em; }
+.progress-hero-copy>p:not(.progress-next) { max-width:500px; color:#64736b; font-size:15px; line-height:1.75; }
+.progress-concept { margin:0; overflow:hidden; border:1px solid #eadfcd; border-radius:18px; background:#faf4ea; box-shadow:0 10px 25px rgba(59,47,31,.06); }
+.progress-concept img { display:block; width:100%; height:auto; }
+.progress-concept figcaption { padding:11px 14px 13px; color:#796e5c; font-size:11px; }
+.exploration-stars { display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin:25px 0 8px; color:#bc8b3b; }
+.exploration-star { display:inline-flex; }
+.exploration-stars strong { margin-left:8px; color:#705a35; font-size:13px; }
+.progress-next { min-height:22px; color:#778477; font-size:11px; }
+.progress-section-heading { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; margin:0 0 18px; }
+.progress-section-heading h2,.progress-share h2,.field-trophy-copy h2 { margin:7px 0 0; color:var(--forest-dark); font:600 clamp(22px,3vw,30px)/1.2 'DM Sans',sans-serif; letter-spacing:-.035em; }
+.progress-sync { display:inline-flex; align-items:center; gap:6px; padding:7px 11px; border:1px solid #ccdecf; border-radius:99px; background:#edf4e9; color:#35675a; font-size:11px; white-space:nowrap; }
+.progress-tracks { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.progress-track-card { min-width:0; padding:24px; border:1px solid var(--line); border-radius:17px; background:var(--white); box-shadow:var(--shadow-soft); }
+.track-symbol { display:grid; place-items:center; width:43px; height:43px; border:1px solid #e6d9c3; border-radius:14px; background:#faf2e3; color:#9d6c32; }
+.track-symbol-explorer { border-color:#cdddcf; background:#edf4e9; color:#35675a; }
+.track-symbol-collector { border-color:#dbcce1; background:#f3edf6; color:#775d83; }
+.track-eyebrow { margin:20px 0 4px; color:#899385; font:9px var(--mono); letter-spacing:.08em; }
+.progress-track-card h3 { margin:0; color:var(--forest-dark); font:600 23px 'DM Sans',sans-serif; letter-spacing:-.035em; }
+.track-description { min-height:40px; margin:8px 0 20px; color:#718075; font-size:12px; line-height:1.65; }
+.track-count { display:flex; align-items:baseline; gap:7px; margin:0 0 13px; color:#738174; font-size:11px; }
+.track-count strong { color:#2d5243; font:600 29px 'DM Sans',sans-serif; letter-spacing:-.05em; }
+.track-progress,.trophy-progress { height:7px; overflow:hidden; border-radius:20px; background:#eaebe3; }
+.track-progress span,.trophy-progress span { display:block; height:100%; border-radius:inherit; background:linear-gradient(90deg,#b99558,#d8b86b); transition:width .4s ease; }
+.track-symbol-explorer~.track-progress span { background:linear-gradient(90deg,#4c8069,#81a889); }
+.track-symbol-collector~.track-progress span { background:linear-gradient(90deg,#8b6c95,#b79ac3); }
+.track-unlocks { display:flex; justify-content:space-between; gap:8px; margin:8px 0 15px; color:#798579; font-size:10px; }
+.reward-medal-row { display:flex; gap:9px; align-items:center; }
+.reward-medal { position:relative; display:grid; place-items:center; width:37px; height:37px; border:1px solid #e2ded4; border-radius:50%; background:#f5f4ee; color:#9aa098; opacity:.53; }
+.reward-medal.is-earned { opacity:1; box-shadow:0 3px 9px rgba(38,59,53,.1); }
+.reward-medal-bronze.is-earned { border-color:#c39370; background:#f6e9df; color:#98603e; }
+.reward-medal-silver.is-earned { border-color:#bcc3c2; background:#eef0ed; color:#72807d; }
+.reward-medal-gold.is-earned { border-color:#d9bd7b; background:#faf2dc; color:#a88236; }
+.reward-medal small { position:absolute; top:11px; color:#fffefa; font:700 8px var(--mono); }
+.reward-medal-silver small { color:#fffefa; }
+.reward-medal-gold small { color:#fffefa; }
+.track-milestones { margin:12px 0 0; color:#92968d; font:9px var(--mono); }
+.progress-loading,.progress-error { padding:16px; border:1px solid var(--line); border-radius:12px; background:var(--white); color:#68776c; font-size:13px; }
+.progress-error { border-color:#e5bba7; background:#fff3e9; color:#764634; }
+.progress-error button { margin-left:8px; border:0; background:transparent; color:#35675a; font-weight:700; text-decoration:underline; cursor:pointer; }
+.field-guide-trophy { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:20px; margin:25px 0; padding:26px; border:1px solid #e0d8c5; border-radius:18px; background:linear-gradient(115deg,#faf4e8,#fffefa); }
+.field-trophy-icon { display:grid; place-items:center; width:61px; height:61px; border:1px solid #dad7cc; border-radius:18px; background:#efeee8; color:#86857e; }
+.field-trophy-icon.trophy-bronze { border-color:#c39370; background:#f6e9df; color:#98603e; }
+.field-trophy-icon.trophy-silver { border-color:#bcc3c2; background:#eef0ed; color:#72807d; }
+.field-trophy-icon.trophy-gold { border-color:#d9bd7b; background:#faf2dc; color:#a88236; }
+.field-trophy-copy p { margin:8px 0 0; color:#718075; font-size:12px; line-height:1.7; }
+.trophy-levels { display:flex; gap:8px; }
+.trophy-level { display:grid; justify-items:center; gap:5px; color:#9aa098; opacity:.5; }
+.trophy-level small { font:9px var(--mono); }
+.trophy-level.is-earned { opacity:1; }
+.trophy-level-bronze.is-earned { color:#98603e; }
+.trophy-level-silver.is-earned { color:#72807d; }
+.trophy-level-gold.is-earned { color:#a88236; }
+.trophy-progress { grid-column:2/-1; width:100%; }
+.progress-share { display:grid; grid-template-columns:minmax(240px,.8fr) 1.2fr; gap:18px 32px; align-items:center; margin:26px 0; padding:24px 26px; border:1px solid var(--line); border-radius:17px; background:var(--white); }
+.progress-share>div:first-child>p { margin:8px 0 0; color:#718075; font-size:12px; line-height:1.7; }
+.progress-share-actions { display:flex; justify-content:flex-end; flex-wrap:wrap; gap:9px; }
+.progress-share-actions .secondary-btn { display:inline-flex; min-height:39px; align-items:center; justify-content:center; gap:7px; padding:9px 12px; font-size:11px; text-decoration:none; white-space:nowrap; cursor:pointer; }
+.share-x { font:700 14px sans-serif; }
+.share-in { display:grid; place-items:center; width:16px; height:16px; border-radius:3px; background:#35675a; color:white; font:700 11px Arial,sans-serif; }
+.progress-share-status { grid-column:1/-1; min-height:18px; margin:0; color:#54715c; font-size:11px; }
+.progress-footnote { max-width:800px; margin:22px auto; color:#82877e; font-size:11px; line-height:1.8; text-align:center; }
+@media(max-width:900px) {
+  .progress-hero { grid-template-columns:1fr; }
+  .progress-concept { max-width:600px; }
+  .progress-tracks { grid-template-columns:1fr; }
+  .progress-track-card { display:grid; grid-template-columns:50px 1fr auto; column-gap:14px; align-items:center; }
+  .track-symbol { grid-row:1/3; }
+  .track-eyebrow { grid-column:2; margin:0; }
+  .progress-track-card h3 { grid-column:2; }
+  .track-description { grid-column:1/-1; min-height:0; margin:15px 0; }
+  .track-count { grid-column:1/-1; }
+  .track-progress,.track-unlocks,.reward-medal-row,.track-milestones { grid-column:1/-1; }
+  .progress-share { grid-template-columns:1fr; }
+  .progress-share-actions { justify-content:flex-start; }
+}
+@media(max-width:540px) {
+  .progress-hero { gap:18px; margin-top:0; padding:24px 18px; border-radius:17px; }
+  .progress-hero h1 { font-size:40px; }
+  .progress-concept { border-radius:12px; }
+  .progress-section-heading { align-items:flex-start; flex-direction:column; }
+  .progress-track-card { padding:19px; }
+  .field-guide-trophy { grid-template-columns:auto 1fr; gap:14px; padding:19px; }
+  .field-trophy-icon { width:49px; height:49px; }
+  .field-trophy-copy h2 { font-size:19px; }
+  .trophy-levels { grid-column:1/-1; justify-content:center; gap:24px; }
+  .trophy-progress { grid-column:1/-1; }
+  .progress-share { padding:20px; }
+  .progress-share-actions .secondary-btn { flex:1 0 44%; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .track-progress span,.trophy-progress span { transition:none; }
+}

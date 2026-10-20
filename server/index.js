@@ -3,8 +3,13 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import { createServer as createViteServer } from "vite";
+import { clerkMiddleware, getAuth } from "@clerk/express";
+import { publishableKeyFromHost } from "@clerk/shared/keys";
+import { Pool } from "pg";
 import { getAgentError, runDiscovery, validateDiscoveryRequest } from "./agent.js";
 import { createQlooClient } from "./qloo.js";
+import { createAccountSavedDoorsRouter } from "./accountSavedDoors.js";
+import { CLERK_PROXY_PATH, clerkProxyMiddleware, getClerkProxyHost } from "./middlewares/clerkProxyMiddleware.js";
 import { APP_POLICY, publicPolicy } from "./policy.js";
 import {
   attachRequestId,
@@ -20,12 +25,27 @@ const production = process.env.NODE_ENV === "production";
 const port = Number(process.env.PORT || 5000);
 const app = express();
 const httpServer = createHttpServer(app);
+const pool = process.env.DATABASE_URL
+  ? new Pool({ connectionString: process.env.DATABASE_URL, max: 5, connectionTimeoutMillis: 5000 })
+  : null;
 
 app.disable("x-powered-by");
 app.use(attachRequestId);
 app.use(securityHeaders);
 app.use(blockCrossSiteMutations);
+if (production) app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
+app.use("/api/account", express.json({ limit: "512kb" }));
 app.use(express.json({ limit: APP_POLICY.maxRequestBytes }));
+app.use(clerkMiddleware(request => ({
+  publishableKey: publishableKeyFromHost(
+    getClerkProxyHost(request) ?? "",
+    process.env.CLERK_PUBLISHABLE_KEY,
+  ),
+})));
+app.use("/api/account", createAccountSavedDoorsRouter({
+  pool,
+  getUserId: request => getAuth(request)?.userId || null,
+}));
 
 app.get("/api/status", (_request, response) => {
   response.setHeader("Cache-Control", "no-store");
@@ -33,12 +53,22 @@ app.get("/api/status", (_request, response) => {
     qlooConfigured: Boolean(process.env.QLOO_API_KEY),
     agent: "Open Door structured tool orchestration",
     demoAvailable: true,
+    authenticationConfigured: Boolean(process.env.CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY),
     policy: publicPolicy(),
   });
 });
 
-app.get("/api/health", (_request, response) => {
+app.get("/api/health", async (_request, response) => {
   response.setHeader("Cache-Control", "no-store");
+  let database = "not-configured";
+  if (pool) {
+    try {
+      await pool.query("SELECT 1");
+      database = "operational";
+    } catch {
+      database = "unavailable";
+    }
+  }
   response.json({
     status: "operational",
     checkedAt: new Date().toISOString(),
@@ -46,8 +76,8 @@ app.get("/api/health", (_request, response) => {
       api: "operational",
       agent: "available",
       qloo: process.env.QLOO_API_KEY ? "configured-not-probed" : "not-configured",
-      database: "not-used",
-      authentication: "not-used",
+      database,
+      authentication: process.env.CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY ? "configured" : "not-configured",
       analytics: "not-used",
       audit: "process-memory-only",
     },

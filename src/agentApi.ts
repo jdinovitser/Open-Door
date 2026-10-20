@@ -2,6 +2,7 @@ export type AgentStatus = {
   qlooConfigured: boolean;
   agent: string;
   demoAvailable: boolean;
+  authenticationConfigured?: boolean;
   policy?: PolicyStatus;
 };
 
@@ -34,6 +35,12 @@ export type AgentHealth = {
   checkedAt: string;
   components: Record<string, string>;
   policy: PolicyStatus;
+};
+
+export type ProgressSummary = {
+  doorsOpened: number;
+  braveDoorsOpened: number;
+  categories: string[];
 };
 
 export type AgentStageEvent = {

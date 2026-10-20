@@ -5,6 +5,8 @@ import { getAgentHealth, type AgentHealth } from "./agentApi";
 type TrustViewProps = {
   personalizationEnabled: boolean;
   savedCount: number;
+  signedIn: boolean;
+  savedStorageScope: string;
   onPersonalizationChange: (enabled: boolean) => void;
   onExport: () => void;
   onDeleteJourney: () => void;
@@ -20,6 +22,8 @@ function StatusPill({ children, tone = "neutral" }: { children: string; tone?: "
 export function TrustView({
   personalizationEnabled,
   savedCount,
+  signedIn,
+  savedStorageScope,
   onPersonalizationChange,
   onExport,
   onDeleteJourney,
@@ -49,7 +53,7 @@ export function TrustView({
     <div className="trust-hero">
       <span className="eyebrow">Open Door · Trust &amp; privacy</span>
       <h1>Clear about what happens to your data.</h1>
-      <p>Open Door keeps saved journeys in this browser. Live discovery sends only the inputs needed to retrieve Qloo results; this app does not have accounts, analytics, or a server-side user database.</p>
+      <p>Guest journeys, feedback, opened-door history, and Discovery Lab checkpoints stay in this browser. Optional Replit-managed sign-in syncs saved doors and personal reward progress with your account. Live discovery sends only the inputs needed to retrieve Qloo results.</p>
     </div>
 
     <div className="trust-grid">
@@ -58,7 +62,8 @@ export function TrustView({
         {healthError ? <p role="status">{healthError}</p> : <>
           <div className="trust-status-row"><span>Open Door API</span><StatusPill tone={health?.status === "operational" ? "good" : "neutral"}>{health?.status === "operational" ? "Responding" : "Checking"}</StatusPill></div>
           <div className="trust-status-row"><span>Qloo</span><StatusPill>{qlooStatus}</StatusPill></div>
-          <div className="trust-status-row"><span>User accounts / server database</span><StatusPill>Not used</StatusPill></div>
+          <div className="trust-status-row"><span>Sign-in</span><StatusPill tone={health?.components?.authentication === "configured" ? "good" : "neutral"}>{health?.components?.authentication === "configured" ? "Optional · Replit-managed Clerk" : "Checking"}</StatusPill></div>
+          <div className="trust-status-row"><span>Account storage (saved doors &amp; progress)</span><StatusPill tone={health?.components?.database === "operational" ? "good" : "neutral"}>{health?.components?.database === "operational" ? "Connected" : health?.components?.database === "unavailable" ? "Unavailable" : "Checking"}</StatusPill></div>
           <div className="trust-status-row"><span>Analytics / advertising trackers</span><StatusPill>Not used</StatusPill></div>
           <div className="trust-status-row"><span>Audit events</span><StatusPill>Process memory only</StatusPill></div>
           {health?.policy?.limits && <div className="trust-limits">
@@ -80,24 +85,24 @@ export function TrustView({
       </section>
 
       <section className="trust-card trust-privacy">
-        <div className="trust-card-heading"><h2>Controls for this browser</h2></div>
-        <p>Saved doors are stored locally for your collection. Personalization history includes the current journey, feedback choices, and opened-door counts.</p>
+        <div className="trust-card-heading"><h2>Your data controls</h2></div>
+        <p>Saved doors are stored in {savedStorageScope}. {signedIn ? "When signed in, the account sync includes the doors you choose to save and a small progress summary; it does not sync your city or Discovery Lab history." : "Sign in is optional; use Sign in in the header to sync the doors you choose to save across devices."} Personalization history, feedback choices, opened-door counts, and Discovery Lab data stay in this browser.</p>
         <label className="trust-toggle">
           <input
             type="checkbox"
             checked={personalizationEnabled}
             onChange={event => onPersonalizationChange(event.target.checked)}
           />
-          <span><strong>Save personalization history on this device</strong><small>Turn off to remove its stored history and stop future saves. Current in-memory work remains until you leave this page.</small></span>
+            <span><strong>Save personalization history on this device</strong><small>Turn off to remove browser-stored journey history and stop future saves. Account-saved doors and earned account progress are separate.</small></span>
         </label>
         <div className="trust-actions">
           <button type="button" className="trust-action" onClick={onExport}><Download size={15} /> Export browser data</button>
           <button type="button" className="trust-action" onClick={() => window.confirm("Delete the saved journey from this browser?") && onDeleteJourney()}><Trash2 size={15} /> Delete current journey</button>
           <button type="button" className="trust-action" onClick={() => window.confirm("Clear feedback choices and opened-door counts from this browser?") && onClearSignals()}><Trash2 size={15} /> Clear feedback and activity</button>
-          <button type="button" className="trust-action" onClick={() => window.confirm(`Remove all ${savedCount} saved door${savedCount === 1 ? "" : "s"} from this browser?`) && onDeleteSaved()}><Trash2 size={15} /> Delete saved doors ({savedCount})</button>
-          <button type="button" className="trust-action trust-action-danger" onClick={() => window.confirm("Clear the journey, saved doors, feedback, opened-door history, and all Discovery Lab checkpoints and branches stored by Open Door in this browser? This cannot be undone.") && onClearAll()}><Trash2 size={15} /> Clear all Open Door data</button>
+          <button type="button" className="trust-action" onClick={() => window.confirm(`Remove all ${savedCount} saved door${savedCount === 1 ? "" : "s"} from ${savedStorageScope}?`) && onDeleteSaved()}><Trash2 size={15} /> Delete saved doors ({savedCount})</button>
+          <button type="button" className="trust-action trust-action-danger" onClick={() => window.confirm(`Clear this browser’s current journey, feedback, opened-door activity, and Discovery Lab checkpoints and branches? This cannot be undone.${signedIn ? " Account-saved doors and account progress remain unchanged." : " Guest-saved doors stored in this browser will also be deleted."}`) && onClearAll()}><Trash2 size={15} /> Clear browser journey, activity &amp; Lab data</button>
         </div>
-        <p className="trust-footnote">Export is created on your device and includes Discovery Lab checkpoints and branches. The Lab is explicitly browser-local and can be cleared separately there. The personalization toggle controls the original journey history, not the Lab's explicitly saved explorations. The setting is retained when you clear all data so that clearing storage does not silently turn personalization back on.</p>
+        <p className="trust-footnote">Export is created on your device and includes the saved doors currently loaded in this view plus local Discovery Lab checkpoints and branches. Account progress and the account login itself are not part of browser export. The Lab is browser-local; personalization controls do not change its saved explorations. Clearing browser data does not silently turn personalization back on.</p>
       </section>
     </div>
 

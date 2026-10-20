@@ -1,0 +1,33 @@
+.auth-screen {
+  display:flex;
+  min-height:100dvh;
+  justify-content:center;
+  align-items:center;
+  padding:32px 18px;
+  background:
+    radial-gradient(ellipse at 15% 12%, rgba(217,192,147,.2), transparent 30%),
+    radial-gradient(ellipse at 90% 88%, rgba(113,156,129,.16), transparent 34%),
+    #f5f4ee;
+}
+.auth-panel { width:min(100%,460px); }
+.auth-panel > .eyebrow { display:inline-block; margin:0 0 18px; color:#748174; font:10px var(--mono); letter-spacing:.1em; text-transform:uppercase; }
+.auth-panel > h1 { margin:0 0 10px; color:var(--forest-dark); font:600 clamp(34px,7vw,48px)/1.05 'DM Sans',sans-serif; letter-spacing:-.05em; }
+.auth-panel > p:not(.auth-guest) { margin:0 0 25px; color:#617168; font-size:14px; line-height:1.7; }
+.auth-panel .cl-rootBox { width:100%; }
+.auth-panel .cl-cardBox { width:100%; }
+.auth-guest { margin:20px 0 0; text-align:center; font-size:13px; }
+.auth-guest a { color:var(--forest); font-weight:600; }
+.account-control { display:flex; flex:0 0 auto; align-items:center; gap:9px; }
+.account-label { max-width:128px; overflow:hidden; color:#5b6d60; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+.account-sign-in { display:inline-flex; min-height:36px; align-items:center; justify-content:center; padding:0 12px; border:1px solid var(--line); border-radius:10px; background:var(--white); color:var(--forest); font-size:12px; font-weight:600; text-decoration:none; white-space:nowrap; }
+.account-sign-in:hover { border-color:#afc1b1; background:#edf2e9; }
+.account-sync-notice { max-width:1000px; margin:0 auto 14px; padding:11px 14px; border:1px solid #e5bba7; border-radius:12px; background:#fff3e9; color:#764634; font-size:12px; line-height:1.6; }
+.account-sync-notice button { margin-left:8px; border:0; background:transparent; color:#35675a; font-weight:700; text-decoration:underline; cursor:pointer; }
+.account-storage-note { color:#68776c; font-size:12px; }
+@media(max-width:760px) {
+  .account-label { display:none; }
+}
+@media(max-width:560px) {
+  .account-control { gap:6px; }
+  .account-sign-in { min-height:34px; padding-inline:9px; font-size:11px; }
+}
