@@ -1,0 +1,58 @@
+[
+  {
+    "id": "01-intro",
+    "duration": 18,
+    "title": "A new address. A personal beginning.",
+    "kicker": "OPEN DOOR · FIND YOUR PLACE",
+    "label": "Illustrative opening",
+    "voice": "You can move your whole life into a new house. But finding your place in a community takes longer. I didn't want another list of popular attractions. I wanted a starting point that felt like me."
+  },
+  {
+    "id": "02-start",
+    "duration": 22,
+    "title": "Start with what you love.",
+    "kicker": "01 / YOUR STARTING POINT",
+    "label": "Real app capture · Authored Demo",
+    "voice": "That's the idea behind Open Door: cultural discovery that starts with what you love. I choose where I'm exploring, the kind of day I have, and a few interests: films, music, books, or coffee. Open Door gives me different threads to follow."
+  },
+  {
+    "id": "03-doors",
+    "duration": 20,
+    "title": "Three doors. Your choice.",
+    "kicker": "02 / FOLLOW A THREAD",
+    "label": "Authored sample paths · Not venue listings",
+    "voice": "There are three doors: Familiar, Adjacent, and Unexpected. I can stay close to my tastes, try something nearby, or take a bigger leap. Each door has an explanation, and I decide what to open, save, or explore further."
+  },
+  {
+    "id": "04-qloo",
+    "duration": 28,
+    "title": "Where cultural intelligence fits.",
+    "kicker": "03 / THE QLOO INTEGRATION",
+    "label": "Architecture walkthrough · No live Qloo response shown",
+    "voice": "Qloo is central to the live integration. The server resolves chosen interests through Qloo Search, then requests cross-domain recommendations through Qloo Insights. Open Door organizes the returned candidates into explained choices. This recording uses clearly labeled sample paths, not live Qloo recommendations, and keeps the architecture separate from the demo content."
+  },
+  {
+    "id": "05-lab",
+    "duration": 20,
+    "title": "Curiosity can branch.",
+    "kicker": "04 / DISCOVERY LAB",
+    "label": "Real app capture · Lab history stays in this browser",
+    "voice": "Sometimes I don't want to choose just one direction. In Discovery Lab, I can save a checkpoint, branch into different possibilities, and compare them. I can return to an earlier starting point without losing the other paths. Curiosity doesn't have to be linear."
+  },
+  {
+    "id": "06-progress",
+    "duration": 37,
+    "title": "Keep your doors. Celebrate curiosity.",
+    "kicker": "05 / MY DOORS + PROGRESS",
+    "label": "Guest saves + real sign-in screen · Rewards UI preview uses sample milestones",
+    "voice": "I can explore as a guest, with saved doors kept in this browser. Or I can sign in to keep my saved doors and progress across devices. Brave celebrates opening Unexpected doors. Explorer recognizes different categories. Door Collector tracks saved doors. Medals, trophies, and stars make those milestones playful. They reflect activity in the app, not verified visits or community scores. And I can share a reward summary without sharing my saved interests or location."
+  },
+  {
+    "id": "07-outro",
+    "duration": 20,
+    "title": "Find your place. Find your people.",
+    "kicker": "OPEN DOOR",
+    "label": "Explore the app · Judge’s Guide in the footer",
+    "voice": "Open Door doesn't promise instant belonging. It gives us a more personal way to begin: something familiar, something adjacent, something unexpected. A new place becomes less unfamiliar, one choice at a time. Open Door. Find your place. Find your people."
+  }
+]
