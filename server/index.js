@@ -3,12 +3,13 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import { clerkMiddleware, getAuth } from "@clerk/express";
+import { clerkMiddleware, getAuth, clerkClient } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
 import { Pool } from "pg";
 import { getAgentError, runDiscovery, validateDiscoveryRequest } from "./agent.js";
 import { createQlooClient } from "./qloo.js";
 import { createAccountSavedDoorsRouter } from "./accountSavedDoors.js";
+import { startAccountCleanup } from "./accountLifecycle.js";
 import { CLERK_PROXY_PATH, clerkProxyMiddleware, getClerkProxyHost } from "./middlewares/clerkProxyMiddleware.js";
 import { APP_POLICY, publicPolicy } from "./policy.js";
 import {
@@ -45,7 +46,10 @@ app.use(clerkMiddleware(request => ({
 app.use("/api/account", createAccountSavedDoorsRouter({
   pool,
   getUserId: request => getAuth(request)?.userId || null,
+  users: clerkClient.users,
 }));
+
+if (pool) startAccountCleanup(pool, clerkClient.users);
 
 app.get("/api/status", (_request, response) => {
   response.setHeader("Cache-Control", "no-store");

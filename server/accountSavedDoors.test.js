@@ -48,6 +48,7 @@ test("account storage queries are parameterized and all reads and deletes are ow
   const client = {
     async query(sql, params = []) {
       calls.push({ sql: String(sql), params });
+      if (sql.includes("SELECT revision")) return { rows: [{ revision: 0, status: "active" }] };
       return { rows: [{ door_data: validDoor() }] };
     },
     release() { calls.push({ released: true }); },
@@ -80,7 +81,17 @@ test("account routes reject unauthenticated reads before accessing account data"
   const app = express();
   app.use(express.json());
   app.use("/api/account", createAccountSavedDoorsRouter({
-    pool: { async query() { queries++; return { rows: [] }; } },
+    pool: {
+      async connect() {
+        return {
+          async query(sql) {
+            queries++;
+            return { rows: sql.includes("SELECT revision") ? [{ revision: 0, status: "active" }] : [] };
+          },
+          release() {},
+        };
+      },
+    },
     getUserId: request => request.headers["x-test-user"],
   }));
   const server = createHttpServer(app);
@@ -96,7 +107,7 @@ test("account routes reject unauthenticated reads before accessing account data"
       headers: { "x-test-user": "user_from_signed_session" },
     });
     assert.equal(authorized.status, 200);
-    assert.equal(queries, 1);
+    assert.equal(queries, 6);
   } finally {
     await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   }

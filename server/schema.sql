@@ -24,3 +24,11 @@ CREATE TABLE open_door_progress_events (
 
 CREATE INDEX open_door_progress_by_owner
   ON open_door_progress_events (clerk_user_id, tier, category);
+
+-- Minimal lifecycle marker: blocks stale writes after erasure/closure.
+CREATE TABLE open_door_account_state (
+  clerk_user_id text PRIMARY KEY,
+  revision integer NOT NULL DEFAULT 0,
+  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'closing', 'closed')),
+  checked_at timestamptz
+);

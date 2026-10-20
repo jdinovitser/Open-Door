@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { useClerk, useUser, UserButton } from "@clerk/react";
+import { useClerk, useUser } from "@clerk/react";
+import { requestAccountDeletion } from "./accountDeletion";
 import {
   ArrowDownRight, ArrowRight, Bookmark, BookOpen, Check, ChevronDown, Clock3, Compass,
   HeartCrack, Info, MapPin, Plus, RotateCcw, Share2, Trash2, Volume2, VolumeX, X,
@@ -313,6 +314,8 @@ export default function App() {
   const { signOut } = useClerk();
   const { isLoaded: authLoaded, isSignedIn, user } = useUser();
   const accountUserId = authLoaded && isSignedIn ? user?.id ?? null : null;
+  const currentAccountRef = useRef(accountUserId);
+  currentAccountRef.current = accountUserId;
   const [view, setView] = useState<View>(() =>
     /^\/judges\/?$/.test(window.location.pathname) ? "judges"
       : /^\/progress\/?$/.test(window.location.pathname) ? "progress"
@@ -356,6 +359,11 @@ export default function App() {
   const [accountSyncAttempt, setAccountSyncAttempt] = useState(0);
   const syncedAccountDoorsRef = useRef<Map<string, SavedDoor> | null>(null);
   const accountWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const accountRevisionRef = useRef<number | null>(null);
+  const cloudBusyRef = useRef(false);
+  const [cloudBusy, setCloudBusy] = useState(false);
+  const [cloudMessage, setCloudMessage] = useState("");
+  const [cloudError, setCloudError] = useState(false);
   const [accountProgress, setAccountProgress] = useState<ProgressSummary | null>(null);
   const [accountProgressStatus, setAccountProgressStatus] = useState<AccountProgressStatus>("loading");
   const [accountProgressError, setAccountProgressError] = useState("");
@@ -381,9 +389,10 @@ export default function App() {
     if (journey?.mode === "live") setJourneyMode("live");
   }, []);
   useEffect(() => {
-    if (!authLoaded) return;
+    if (!authLoaded || cloudBusy) return;
     let active = true;
     syncedAccountDoorsRef.current = null;
+    accountRevisionRef.current = null;
     setAccountProgress(null);
     setAccountProgressStatus("loading");
     setAccountProgressError("");
@@ -406,7 +415,6 @@ export default function App() {
     const previousOwner = readStore<string | null>(SAVED_OWNER_KEY, null);
     const guestDoors = previousOwner ? [] : restoreSavedDoors();
     if (!previousOwner) safeSetStore(GUEST_SAVED_KEY, guestDoors);
-    const pending = pendingSavedDoorsFor(accountUserId);
     const controller = new AbortController();
 
     void fetch("/api/account/saved-doors", {
@@ -421,6 +429,13 @@ export default function App() {
       })
       .then(result => {
         if (!active) return;
+        if (!Number.isSafeInteger(result.revision)) throw new Error("Account version could not be loaded.");
+        accountRevisionRef.current = result.revision;
+        const revisionKey = `opendoor.saved.revision.${accountUserId}`;
+        const storedRevision = readStore<number>(revisionKey, 0);
+        if (storedRevision !== result.revision) safeRemoveStore(`opendoor.saved.pending.${accountUserId}`);
+        safeSetStore(revisionKey, result.revision);
+        const pending = pendingSavedDoorsFor(accountUserId);
         const remoteDoors = restoreSavedDoorEntries(result?.savedDoors);
         const remoteIds = new Set(remoteDoors.map(door => door.id));
         const pendingUpserts = pending.upserts.filter(door => !pending.removals.includes(door.id));
@@ -452,7 +467,7 @@ export default function App() {
           : "Account-saved doors couldn’t load. Retry the connection.");
       });
     return () => { active = false; controller.abort(); };
-  }, [authLoaded, isSignedIn, accountUserId, accountSyncAttempt]);
+  }, [authLoaded, isSignedIn, accountUserId, accountSyncAttempt, cloudBusy]);
 
   useEffect(() => {
     if (!authLoaded) {
@@ -475,7 +490,7 @@ export default function App() {
   }, [authLoaded, isSignedIn, accountUserId, saved, accountSaveStatus]);
 
   useEffect(() => {
-    if (!authLoaded || !isSignedIn || !accountUserId || accountSaveStatus !== "ready"
+    if (cloudBusy || !authLoaded || !isSignedIn || !accountUserId || accountSaveStatus !== "ready"
       || readStore<string | null>(SAVED_OWNER_KEY, null) !== accountUserId
       || !syncedAccountDoorsRef.current) return;
     let active = true;
@@ -491,12 +506,12 @@ export default function App() {
     safeSetStore(pendingKey, pending);
     const timer = window.setTimeout(() => {
       accountWriteQueueRef.current = accountWriteQueueRef.current.catch(() => {}).then(async () => {
-        if (!active) return;
+        if (!active || cloudBusyRef.current) return;
         setAccountSaveStatus("saving");
         const response = await fetch("/api/account/saved-doors", {
           method: "PATCH",
           headers: { "Content-Type": "application/json", Accept: "application/json" },
-          body: payload,
+          body: JSON.stringify({ ...pending, revision: accountRevisionRef.current }),
         });
         if (!response.ok) {
           throw await readAccountApiError(response, "Account saves could not be synced. Retry to keep your doors with your account.");
@@ -514,10 +529,10 @@ export default function App() {
       });
     }, 220);
     return () => { active = false; window.clearTimeout(timer); };
-  }, [saved, authLoaded, isSignedIn, accountUserId, accountSyncAttempt]);
+  }, [saved, authLoaded, isSignedIn, accountUserId, accountSyncAttempt, cloudBusy]);
 
   useEffect(() => {
-    if (view !== "progress" || !authLoaded || !isSignedIn || !accountUserId) return;
+    if (cloudBusy || view !== "progress" || !authLoaded || !isSignedIn || !accountUserId) return;
     if (accountSaveStatus !== "ready") {
       setAccountProgressStatus(accountSaveStatus === "error" ? "error" : "loading");
       setAccountProgressError(accountSaveStatus === "error"
@@ -555,7 +570,7 @@ export default function App() {
           : "Progress couldn’t load. Retry the connection.");
       });
     return () => { active = false; controller.abort(); };
-  }, [view, authLoaded, isSignedIn, accountUserId, accountSaveStatus, progressSyncAttempt]);
+  }, [view, authLoaded, isSignedIn, accountUserId, accountSaveStatus, progressSyncAttempt, cloudBusy]);
 
   useEffect(() => {
     let active = true;
@@ -804,6 +819,44 @@ export default function App() {
       safeRemoveStore(GUEST_SAVED_KEY);
     }
   }
+  async function deleteCloudData(scope: "progress" | "saved-doors" | "all" | "close") {
+    if (!accountUserId || cloudBusyRef.current) return;
+    cloudBusyRef.current = true;
+    setCloudBusy(true);
+    setCloudMessage("");
+    setCloudError(false);
+    try {
+      // Settle writes already sent before issuing the destructive operation.
+      await accountWriteQueueRef.current.catch(() => {});
+      if (currentAccountRef.current !== accountUserId) throw new Error("Your signed-in account changed. No deletion was requested. Reload to continue.");
+      const result = await requestAccountDeletion(scope);
+      if (currentAccountRef.current !== accountUserId) return;
+      safeRemoveStore(`opendoor.saved.pending.${accountUserId}`);
+      if (scope !== "progress") {
+        setSaved([]);
+        syncedAccountDoorsRef.current = new Map();
+        safeSetStore("opendoor.saved", []);
+        // Keep the owner marker so this empty account cache is not Guest data.
+      }
+      if (scope !== "saved-doors") setAccountProgress({ doorsOpened: 0, braveDoorsOpened: 0, categories: [] });
+      if (scope === "close") {
+        setCloudMessage("Account closed. Cloud saved doors and rewards erased. Signing out…");
+        try { await signOut({ redirectUrl: "/" }); }
+        catch { throw new Error("Account closed and cloud data erased, but sign-out could not finish. Reload this page to leave the old session."); }
+      } else {
+        accountRevisionRef.current = result.revision;
+        safeSetStore(`opendoor.saved.revision.${accountUserId}`, result.revision);
+        setCloudMessage("Selected cloud data erased. Your login, Guest collection, browser journey, and Discovery Lab data are unchanged.");
+      }
+    } catch (error) {
+      setCloudError(true);
+      setCloudMessage(error instanceof Error ? error.message : "Deletion could not be confirmed. Retry.");
+    } finally {
+      cloudBusyRef.current = false;
+      setCloudBusy(false);
+      setAccountSyncAttempt(attempt => attempt + 1);
+    }
+  }
   function resetCompass(nextIntent: Intent) {
     setIntent(nextIntent);
     const selectedFeedback = Object.values(feedback).filter(value => value && value !== "choose");
@@ -818,6 +871,7 @@ export default function App() {
     setToast(`Compass reset: ${nextIntent.toLowerCase()}`);
   }
   function toggleSave(door: Door, location: string, chosenAnchors: string[]) {
+    if (cloudBusyRef.current) return;
     if (isSignedIn && accountSaveStatus !== "ready") {
       setToast("Wait for your account saves to sync before changing My Doors.");
       return;
@@ -834,6 +888,7 @@ export default function App() {
     }
   }
   function updateSavedDoors(update: (current: SavedDoor[]) => SavedDoor[]) {
+    if (cloudBusyRef.current) return;
     if (isSignedIn && accountSaveStatus !== "ready") {
       setToast("Wait for your account saves to sync before changing My Doors.");
       return;
@@ -841,12 +896,15 @@ export default function App() {
     setSaved(update);
   }
   async function recordProgressDoor(door: Door) {
-    if (!authLoaded || !isSignedIn || !accountUserId) return;
+    if (cloudBusyRef.current || !authLoaded || !isSignedIn || !accountUserId || accountRevisionRef.current === null) return;
+    const revision = accountRevisionRef.current;
+    const write = accountWriteQueueRef.current.catch(() => {}).then(async () => {
+    if (cloudBusyRef.current) return;
     try {
       const response = await fetch("/api/account/progress/doors", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ doors: [{ id: door.id, tier: door.tier, category: door.category }] }),
+        body: JSON.stringify({ doors: [{ id: door.id, tier: door.tier, category: door.category }], revision }),
       });
       if (!response.ok) {
         throw await readAccountApiError(response, "This door’s progress could not be saved.");
@@ -855,6 +913,9 @@ export default function App() {
     } catch {
       setToast("This door’s progress could not be synced. Retry by reopening the door while signed in.");
     }
+    });
+    accountWriteQueueRef.current = write;
+    await write;
   }
   function openNext(door: Door) {
     const nextAnchor = door.title;
@@ -1067,8 +1128,8 @@ export default function App() {
             {accountSaveStatus === "saving" ? "Syncing saves…" : accountSaveStatus === "error" ? "Sync needs attention" : accountSaveStatus === "ready" ? "Saved to your account" : "Loading your account…"}
           </span>
           {accountSaveStatus === "error" && <button type="button" className="account-retry" onClick={() => setAccountSyncAttempt(attempt => attempt + 1)}>Retry</button>}
-          <UserButton appearance={{ elements: { avatarBox: { width: "32px", height: "32px" } } }} />
-          <button type="button" className="account-sign-out" onClick={() => void signOut({ redirectUrl: "/" })}>Sign out</button>
+          <button type="button" className="account-sign-out" onClick={() => setView("trust")}>Account &amp; privacy</button>
+          <button type="button" className="account-sign-out" disabled={cloudBusy} onClick={() => void signOut({ redirectUrl: "/" })}>Sign out</button>
         </div>
         : <a className="account-sign-in" href="/sign-in">Sign in</a>}
       <button className="sound-toggle" type="button" data-sound="none" onClick={sound.toggle}
@@ -1126,6 +1187,10 @@ export default function App() {
         savedCount={saved.length}
         signedIn={!!isSignedIn}
         savedStorageScope={isSignedIn ? "your account" : "this browser"}
+        cloudBusy={cloudBusy}
+        cloudMessage={cloudMessage}
+        cloudError={cloudError}
+        onDeleteCloud={scope => void deleteCloudData(scope)}
         onPersonalizationChange={updatePersonalization}
         onExport={exportLocalData}
         onDeleteJourney={() => { setJourney(null); setToast("Current journey deleted"); }}

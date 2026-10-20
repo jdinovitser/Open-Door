@@ -15,18 +15,22 @@ test("progress events are bounded, validated, and omit client-supplied owner fie
 
 test("progress queries are owner-scoped and duplicate door events are idempotent", async () => {
   const calls = [];
-  const store = createAccountProgressStore({
+  const client = {
     async query(sql, params) {
       calls.push({ sql, params });
+      if (sql.includes("SELECT revision")) return { rows: [{ revision: 0, status: "active" }] };
       return { rows: [{ opened_count: 3, brave_count: 1, categories: ["Art", "Music"] }] };
     },
-  });
+    release() {},
+  };
+  const store = createAccountProgressStore({ ...client, async connect() { return client; } });
   assert.deepEqual(await store.summary("signed-user"), { doorsOpened: 3, braveDoorsOpened: 1, categories: ["Art", "Music"] });
   await store.addDoors("signed-user", [{ id: "door-a", tier: "Unexpected", category: "Art" }]);
   assert.match(calls[0].sql, /WHERE clerk_user_id = \$1/);
   assert.deepEqual(calls[0].params, ["signed-user"]);
-  assert.match(calls[1].sql, /ON CONFLICT \(clerk_user_id, door_id\) DO NOTHING/);
-  assert.equal(calls[1].params[0], "signed-user");
+  const insert = calls.find(call => call.sql.includes("INSERT INTO open_door_progress_events"));
+  assert.match(insert.sql, /ON CONFLICT \(clerk_user_id, door_id\) DO NOTHING/);
+  assert.equal(insert.params[0], "signed-user");
 });
 
 test("account-save capacity is enforced inside a serialized transaction and rolls back over-limit writes", async () => {
@@ -34,6 +38,7 @@ test("account-save capacity is enforced inside a serialized transaction and roll
   const client = {
     async query(sql, params) {
       calls.push({ sql, params });
+      if (sql.includes("SELECT revision")) return { rows: [{ revision: 0, status: "active" }] };
       return { rows: sql.includes("count(*)") ? [{ total: 101 }] : [] };
     },
     release() { calls.push({ released: true }); },
@@ -52,9 +57,14 @@ test("protected progress routes reject guests and ignore forged owner IDs", asyn
   app.use(express.json());
   app.use("/api/account", createAccountSavedDoorsRouter({
     pool: {
-      async query(_sql, params) {
-        owners.push(params[0]);
-        return { rows: [{ opened_count: 0, brave_count: 0, categories: [] }] };
+      async connect() {
+        return {
+          async query(sql, params) {
+            if (sql.includes("INSERT INTO open_door_progress_events")) owners.push(params[0]);
+            return { rows: sql.includes("SELECT revision") ? [{ revision: 0, status: "active" }] : [] };
+          },
+          release() {},
+        };
       },
     },
     getUserId: request => request.headers["x-test-session-user"],
@@ -72,7 +82,7 @@ test("protected progress routes reject guests and ignore forged owner IDs", asyn
     const response = await fetch(`${origin}/api/account/progress/doors`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-test-session-user": "actual-session-user" },
-      body: JSON.stringify({ userId: "forged-owner", doors: [{ id: "a", tier: "Familiar", category: "Music", clerk_user_id: "forged-owner" }] }),
+      body: JSON.stringify({ userId: "forged-owner", revision: 0, doors: [{ id: "a", tier: "Familiar", category: "Music", clerk_user_id: "forged-owner" }] }),
     });
     assert.equal(response.status, 204);
     assert.deepEqual(owners, ["actual-session-user"]);

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { createRateLimiter } from "./security.js";
+import { assertAccountWritable, eraseAccountData, finishAccountClosure, withAccountTransaction } from "./accountLifecycle.js";
 
 export const MAX_SAVED_DOORS = 100;
 const MAX_DOOR_BYTES = 24_000;
@@ -79,17 +80,15 @@ export function createAccountSavedDoorStore(pool) {
       return result.rows[0]?.total ?? 0;
     },
 
-    async applyChanges(userId, upserts, removals) {
+    async applyChanges(userId, upserts, removals, revision = 0) {
       const safeUpserts = normalizeSavedDoors(upserts);
       const safeRemovals = normalizeRemovalIds(removals);
       if (!safeUpserts || !safeRemovals || safeUpserts.some(door => safeRemovals.includes(door.id))) {
         throw new TypeError("Invalid saved-door changes.");
       }
       if (!safeUpserts.length && !safeRemovals.length) return;
-      const client = await pool.connect();
-      try {
-        await client.query("BEGIN");
-        await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))", [userId]);
+      return withAccountTransaction(pool, userId, async (client, state) => {
+        assertAccountWritable(state, revision);
         if (safeUpserts.length) {
           await client.query(
             `INSERT INTO open_door_saved_doors (clerk_user_id, door_id, door_data)
@@ -117,13 +116,7 @@ export function createAccountSavedDoorStore(pool) {
           error.code = "SAVED_DOOR_LIMIT";
           throw error;
         }
-        await client.query("COMMIT");
-      } catch (error) {
-        await client.query("ROLLBACK").catch(() => {});
-        throw error;
-      } finally {
-        client.release();
-      }
+      });
     },
   };
 }
@@ -147,20 +140,23 @@ export function createAccountProgressStore(pool) {
       };
     },
 
-    async addDoors(userId, doors) {
+    async addDoors(userId, doors, revision = 0) {
       if (!doors.length) return;
-      await pool.query(
+      return withAccountTransaction(pool, userId, async (client, state) => {
+        assertAccountWritable(state, revision);
+        await client.query(
         `INSERT INTO open_door_progress_events (clerk_user_id, door_id, tier, category)
          SELECT $1, item.value->>'id', item.value->>'tier', item.value->>'category'
            FROM jsonb_array_elements($2::jsonb) AS item(value)
          ON CONFLICT (clerk_user_id, door_id) DO NOTHING`,
         [userId, JSON.stringify(doors)],
-      );
+        );
+      });
     },
   };
 }
 
-export function createAccountSavedDoorsRouter({ pool, getUserId }) {
+export function createAccountSavedDoorsRouter({ pool, getUserId, users }) {
   const router = Router();
   router.use((request, response, next) => {
     response.setHeader("Cache-Control", "no-store");
@@ -197,6 +193,47 @@ export function createAccountSavedDoorsRouter({ pool, getUserId }) {
   const store = pool ? createAccountSavedDoorStore(pool) : null;
   const progressStore = pool ? createAccountProgressStore(pool) : null;
 
+  function stateConflict(error, response) {
+    if (error?.code !== "ACCOUNT_STATE_CHANGED") return false;
+    response.status(409).json({ code: error.code, message: error.message });
+    return true;
+  }
+
+  router.delete("/data", async (request, response) => {
+    const { scope, confirmation } = request.body || {};
+    if (!["progress", "saved-doors", "all"].includes(scope) || confirmation !== "ERASE") {
+      return response.status(400).json({ code: "CONFIRMATION_REQUIRED", message: "Confirm which cloud data to erase." });
+    }
+    try {
+      const revision = await eraseAccountData(pool, request.accountUserId, scope);
+      response.json({ erased: scope, revision });
+    } catch (error) {
+      if (stateConflict(error, response)) return;
+      response.status(503).json({ code: "ERASURE_UNCONFIRMED", message: "Cloud erasure could not be confirmed. Retry; do not assume your data was erased." });
+    }
+  });
+
+  router.delete("/", async (request, response) => {
+    if (request.body?.confirmation !== "CLOSE") {
+      return response.status(400).json({ code: "CONFIRMATION_REQUIRED", message: "Confirm account closure." });
+    }
+    if (!users) return response.status(503).json({ code: "CLOSURE_UNAVAILABLE", message: "Account closure is unavailable. Try again later." });
+    let erased = false;
+    try {
+      await eraseAccountData(pool, request.accountUserId, "close");
+      erased = true;
+      await finishAccountClosure(pool, request.accountUserId, users);
+      response.json({ closed: true });
+    } catch {
+      response.status(503).json({
+        code: erased ? "CLOSURE_PENDING" : "CLOSURE_UNCONFIRMED",
+        message: erased
+          ? "Cloud doors and rewards were erased and new cloud saves are blocked. Account closure is not confirmed yet; automatic retries are scheduled. You can also retry here."
+          : "Account closure could not be confirmed. Retry; do not assume your account or cloud data was deleted.",
+      });
+    }
+  });
+
   router.get("/progress", async (request, response) => {
     try {
       response.json(await progressStore.summary(request.accountUserId));
@@ -219,9 +256,10 @@ export function createAccountSavedDoorsRouter({ pool, getUserId }) {
       return;
     }
     try {
-      await progressStore.addDoors(request.accountUserId, doors);
+      await progressStore.addDoors(request.accountUserId, doors, request.body?.revision ?? null);
       response.status(204).end();
-    } catch {
+    } catch (error) {
+      if (stateConflict(error, response)) return;
       response.status(503).json({
         code: "ACCOUNT_STORAGE_UNAVAILABLE",
         message: "Progress could not be synchronized. Please try again.",
@@ -232,8 +270,13 @@ export function createAccountSavedDoorsRouter({ pool, getUserId }) {
 
   router.get("/saved-doors", async (request, response) => {
     try {
-      response.json({ savedDoors: await store.list(request.accountUserId) });
-    } catch {
+      const result = await withAccountTransaction(pool, request.accountUserId, async (client, state) => {
+        assertAccountWritable(state, state.revision);
+        return { savedDoors: await createAccountSavedDoorStore(client).list(request.accountUserId), revision: state.revision };
+      });
+      response.json(result);
+    } catch (error) {
+      if (stateConflict(error, response)) return;
       response.status(503).json({
         code: "ACCOUNT_STORAGE_UNAVAILABLE",
         message: "Account-saved doors could not be loaded. Please try again.",
@@ -254,9 +297,10 @@ export function createAccountSavedDoorsRouter({ pool, getUserId }) {
     }
 
     try {
-      await store.applyChanges(request.accountUserId, upserts, removals);
+      await store.applyChanges(request.accountUserId, upserts, removals, request.body?.revision ?? null);
       response.status(204).end();
     } catch (error) {
+      if (stateConflict(error, response)) return;
       if (error?.code === "SAVED_DOOR_LIMIT") {
         response.status(409).json({
           code: "SAVED_DOOR_LIMIT",

@@ -7,6 +7,10 @@ type TrustViewProps = {
   savedCount: number;
   signedIn: boolean;
   savedStorageScope: string;
+  cloudBusy: boolean;
+  cloudMessage: string;
+  cloudError: boolean;
+  onDeleteCloud: (scope: "progress" | "saved-doors" | "all" | "close") => void;
   onPersonalizationChange: (enabled: boolean) => void;
   onExport: () => void;
   onDeleteJourney: () => void;
@@ -24,6 +28,10 @@ export function TrustView({
   savedCount,
   signedIn,
   savedStorageScope,
+  cloudBusy,
+  cloudMessage,
+  cloudError,
+  onDeleteCloud,
   onPersonalizationChange,
   onExport,
   onDeleteJourney,
@@ -99,10 +107,27 @@ export function TrustView({
           <button type="button" className="trust-action" onClick={onExport}><Download size={15} /> Export browser data</button>
           <button type="button" className="trust-action" onClick={() => window.confirm("Delete the saved journey from this browser?") && onDeleteJourney()}><Trash2 size={15} /> Delete current journey</button>
           <button type="button" className="trust-action" onClick={() => window.confirm("Clear feedback choices and opened-door counts from this browser?") && onClearSignals()}><Trash2 size={15} /> Clear feedback and activity</button>
-          <button type="button" className="trust-action" onClick={() => window.confirm(`Remove all ${savedCount} saved door${savedCount === 1 ? "" : "s"} from ${savedStorageScope}?`) && onDeleteSaved()}><Trash2 size={15} /> Delete saved doors ({savedCount})</button>
+          {!signedIn && <button type="button" className="trust-action" onClick={() => window.confirm(`Remove all ${savedCount} Guest-saved doors from this browser?`) && onDeleteSaved()}><Trash2 size={15} /> Delete Guest-saved doors ({savedCount})</button>}
           <button type="button" className="trust-action trust-action-danger" onClick={() => window.confirm(`Clear this browser’s current journey, feedback, opened-door activity, and Discovery Lab checkpoints and branches? This cannot be undone.${signedIn ? " Account-saved doors and account progress remain unchanged." : " Guest-saved doors stored in this browser will also be deleted."}`) && onClearAll()}><Trash2 size={15} /> Clear browser journey, activity &amp; Lab data</button>
         </div>
         <p className="trust-footnote">Export is created on your device and includes the saved doors and account progress summary currently loaded in this view plus local Discovery Lab checkpoints and branches. It does not include login credentials. The Lab is browser-local; personalization controls do not change its saved explorations. Clearing browser data does not silently turn personalization back on.</p>
+        {signedIn && <div>
+          <h3>Cloud data &amp; account closure</h3>
+          <p>These actions cannot be undone. Cloud erasure affects your account across devices, not your Guest collection, browser journey, feedback, or Discovery Lab. Other devices must reload before saving again. Closing your account also deletes your sign-in account and signs you out.</p>
+          <div className="trust-actions">
+            {([
+              ["progress", "Erase cloud rewards", "Erase all cloud reward events and reset Brave and Explorer progress? Saved doors, the Door Collector tally, and your login remain."],
+              ["saved-doors", "Erase cloud saved doors", "Erase all account-saved doors across devices? Reward events and your login remain. The Door Collector track will reflect the empty collection."],
+              ["all", "Erase all cloud progress & doors", "Erase all account-saved doors and reward events across devices? Your login remains."],
+              ["close", "Close account permanently", "Permanently close your sign-in account and erase all account-saved doors and reward events? This cannot be undone. If closure is interrupted, cloud saves are blocked and closure is retried automatically."],
+            ] as const).map(([scope, label, warning]) => <button key={scope} type="button" className="trust-action trust-action-danger" disabled={cloudBusy} onClick={() => {
+              if (window.confirm(`${warning} Guest and Discovery Lab data on this browser are not deleted.`)) onDeleteCloud(scope);
+            }}><Trash2 size={15} />{label}</button>)}
+          </div>
+          {cloudBusy && <p role="status">Processing your request. Please keep this page open…</p>}
+          <p className="trust-footnote">Accounts deleted outside Open Door are checked automatically while the server is running. Cleanup is asynchronous; service outages can delay it. A minimal account ID and deletion marker are retained to prevent old devices from restoring erased data. Backups and platform logs follow their own retention policies.</p>
+        </div>}
+        {cloudMessage && <p role={cloudError ? "alert" : "status"}>{cloudMessage}</p>}
       </section>
     </div>
 
