@@ -3,12 +3,17 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 const out = path.resolve("generated-artifacts/demo-video");
+const variant = process.argv[2] || "";
+if (variant && !/^[a-z0-9-]+$/.test(variant)) throw new Error("Use a simple lowercase variant name.");
+const suffix = variant ? `-${variant}` : "";
+const voiceDirectory = variant ? `${out}/${variant}-voice` : out;
+const renderDirectory = `${out}/rendered${suffix}`;
 const plan = JSON.parse(readFileSync("scripts/demo-video/plan.json", "utf8"));
 const captures = JSON.parse(readFileSync(`${out}/captures.json`, "utf8"));
 const font = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf";
 const bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
 const serif = "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf";
-mkdirSync(`${out}/rendered`, { recursive: true });
+mkdirSync(renderDirectory, { recursive: true });
 function run(command, args) {
   const result = spawnSync(command, args, { encoding: "utf8", maxBuffer: 16 * 1024 * 1024 });
   if (result.status !== 0) throw new Error(`${command} failed:\n${result.stderr}`);
@@ -60,10 +65,11 @@ const report = [];
 const sceneFiles = [];
 for (const [index, scene] of plan.entries()) {
   console.log(`Rendering ${scene.id}`);
-  const voice = `${out}/${scene.id}.mp3`;
+  const voice = `${voiceDirectory}/${scene.id}.mp3`;
   const voiceDuration = duration(voice);
-  const speed = Math.max(0.84, Math.min(1.18, voiceDuration / (scene.duration - 2)));
+  const speed = Math.max(variant === "upbeat" ? 0.96 : 0.84, Math.min(variant === "upbeat" ? 1.4 : 1.18, voiceDuration / (scene.duration - 2)));
   const spokenDuration = voiceDuration / speed;
+  if (spokenDuration > scene.duration - 0.9) throw new Error(`${scene.id}: narration is too long for its scene.`);
   const captionChunks = chunks(scene.voice);
   const weights = captionChunks.map(value => value.length);
   const sum = weights.reduce((a, b) => a + b, 0);
@@ -75,7 +81,7 @@ for (const [index, scene] of plan.entries()) {
     srt.push(`${srt.length + 1}\n${stamp(offset + captionStart)} --> ${stamp(offset + end)}\n${value}\n`);
     captionStart = end;
   });
-  const assFile = `${out}/${scene.id}.ass`;
+  const assFile = `${out}/${scene.id}${suffix}.ass`;
   writeFileSync(assFile, `[Script Info]
 ScriptType: v4.00+
 PlayResX: 1920
@@ -109,7 +115,7 @@ ${lines.join("\n")}\n`);
     base = `[0:v]fps=24,scale=1440:810:flags=lanczos,setsar=1,tpad=stop_mode=clone:stop_duration=3,trim=duration=${scene.duration},pad=1920:1080:240:170:color=0xf4f3eb,drawbox=x=232:y=162:w=1456:h=826:color=0xCCD3C8:t=2,${draw(kickerFile, 240, 26, 18, "0x947233", bold)},${draw(titleFile, 238, 62, 48, "0x173e33", serif)},${draw(labelFile, 240, 128, scene.id === "06-progress" ? 18 : 20, "0x66746B")}[base]`;
   }
   const filter = `${base};[base]drawbox=x=0:y=990:w=1920:h=90:color=0x173e33:t=fill,ass='${assFile}',fade=t=in:st=0:d=0.3,fade=t=out:st=${scene.duration - 0.3}:d=0.3,format=yuv420p[v];[${voiceIndex}:a]atempo=${speed},loudnorm=I=-16:TP=-1.5:LRA=7,adelay=800:all=1,apad,atrim=duration=${scene.duration},aresample=48000[a]`;
-  const output = `${out}/rendered/${scene.id}.mp4`;
+  const output = `${renderDirectory}/${scene.id}.mp4`;
   run("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", ...inputArgs,
     "-filter_complex", filter, "-map", "[v]", "-map", "[a]", "-t", String(scene.duration),
     "-c:v", "libx264", "-preset", "veryfast", "-crf", "21", "-threads", "2",
@@ -118,12 +124,12 @@ ${lines.join("\n")}\n`);
   report.push({ scene: scene.id, start: offset, duration: scene.duration, voiceDuration, speed, spokenDuration });
   offset += scene.duration;
 }
-writeFileSync(`${out}/Open-Door-Captions.srt`, srt.join("\n"));
-writeFileSync(`${out}/render-report.json`, JSON.stringify(report, null, 2));
-writeFileSync(`${out}/concat.txt`, sceneFiles.map(file => `file '${file}'`).join("\n"));
+writeFileSync(`${out}/Open-Door-Captions${suffix}.srt`, srt.join("\n"));
+writeFileSync(`${out}/render-report${suffix}.json`, JSON.stringify(report, null, 2));
+writeFileSync(`${out}/concat${suffix}.txt`, sceneFiles.map(file => `file '${file}'`).join("\n"));
 console.log("Mixing original music, narration, and door chimes");
 run("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y",
-  "-f", "concat", "-safe", "0", "-i", `${out}/concat.txt`,
+  "-f", "concat", "-safe", "0", "-i", `${out}/concat${suffix}.txt`,
   "-i", `${out}/music.mp3`, "-i", `${out}/door-chime.mp3`,
   "-filter_complex",
   "[1:a]loudnorm=I=-29:TP=-6:LRA=7,afade=t=in:d=3,afade=t=out:st=159:d=6[music];" +
@@ -133,5 +139,5 @@ run("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y",
   "-t", "165", "-movflags", "+faststart",
   "-metadata", "title=Open Door — Find Your Place. Find Your People.",
   "-metadata", "comment=Authored Demo footage; no live Qloo response shown. Rewards sequence is a labeled component UI preview. AI narration and illustrative opening.",
-  `${out}/Open-Door-Demo.mp4`]);
-console.log("Finished: generated-artifacts/demo-video/Open-Door-Demo.mp4");
+  `${out}/Open-Door-Demo${suffix}.mp4`]);
+console.log(`Finished: generated-artifacts/demo-video/Open-Door-Demo${suffix}.mp4`);

@@ -19,6 +19,11 @@ All generated recordings, speech, music, and renders live in the ignored
 5. Inspect the output before sharing. The script also writes a render report
    and `Open-Door-Captions.srt`.
 
+For a different narrator, generate matching MP3 filenames under a named
+`<variant>-voice/` subdirectory, then run `node scripts/demo-video/render.mjs <variant>`.
+This preserves the original export and writes variant-specific scenes, captions,
+and MP4. The `upbeat` variant preserves a more energetic natural speaking pace.
+
 ## Evidence boundaries
 
 - The opening image and narrator are AI-generated illustrative material, not
