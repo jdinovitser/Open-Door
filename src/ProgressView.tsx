@@ -1,28 +1,9 @@
 import { useMemo, useState } from "react";
 import { ArrowRight, Check, Copy, Medal, Share2, Star, Trophy } from "lucide-react";
 import type { ProgressSummary } from "./agentApi";
+import { earnedLevel, LEVELS, progressRewards, STAR_MILESTONES, type Level, type Track } from "./rewards/model";
+import RewardCard from "./rewards/RewardCard";
 import "./progress.css";
-
-type Level = "none" | "bronze" | "silver" | "gold";
-type Track = {
-  name: "Brave" | "Explorer" | "Door Collector";
-  description: string;
-  count: number;
-  unit: string;
-  milestones: [number, number, number];
-  icon: "brave" | "explorer" | "collector";
-};
-
-const LEVELS: Level[] = ["bronze", "silver", "gold"];
-const STAR_MILESTONES = [1, 3, 6, 10, 15];
-const TROPHY_MILESTONE = { bronze: 3, silver: 6, gold: 9 } as const;
-
-function earnedLevel(count: number, milestones: readonly number[]): Level {
-  if (count >= milestones[2]) return "gold";
-  if (count >= milestones[1]) return "silver";
-  if (count >= milestones[0]) return "bronze";
-  return "none";
-}
 
 function shareCopy(tracks: Track[], totalStars: number, trophyLevel: Level) {
   const badges = tracks
@@ -63,19 +44,8 @@ export default function ProgressView({
   onRetry: () => void;
 }) {
   const [shareStatus, setShareStatus] = useState("");
-  const tracks: Track[] = useMemo(() => [
-    { name: "Brave", description: "Unexpected doors you choose to open.", count: summary?.braveDoorsOpened ?? 0, unit: "unexpected doors opened", milestones: [1, 3, 5], icon: "brave" },
-    { name: "Explorer", description: "Different cultural categories you explore.", count: summary?.categories.length ?? 0, unit: "categories explored", milestones: [1, 3, 5], icon: "explorer" },
-    { name: "Door Collector", description: "Doors you’ve saved to your account.", count: savedCount, unit: "doors saved", milestones: [1, 5, 10], icon: "collector" },
-  ], [summary, savedCount]);
-  const starsEarned = STAR_MILESTONES.filter(threshold => (summary?.doorsOpened ?? 0) >= threshold).length;
-  const medalPoints = tracks.reduce((total, track) => {
-    const level = earnedLevel(track.count, track.milestones);
-    return total + (level === "gold" ? 3 : level === "silver" ? 2 : level === "bronze" ? 1 : 0);
-  }, 0);
-  const trophyLevel: Level = medalPoints >= TROPHY_MILESTONE.gold ? "gold"
-    : medalPoints >= TROPHY_MILESTONE.silver ? "silver"
-      : medalPoints >= TROPHY_MILESTONE.bronze ? "bronze" : "none";
+  const { tracks, starsEarned, medalPoints, trophyLevel, card } = useMemo(
+    () => progressRewards(summary, savedCount), [summary, savedCount]);
   const title = summary ? shareCopy(tracks, starsEarned, trophyLevel) : "";
 
   async function copyProgress() {
@@ -196,6 +166,7 @@ export default function ProgressView({
         <button type="button" className="secondary-btn" onClick={() => void copyProgress()}><Copy size={15} /> Copy summary</button>
       </div>
       <p className="progress-share-status" role="status">{shareStatus}</p>
+      {summary && <RewardCard data={card} />}
     </section>}
 
     <p className="progress-footnote">A personal, just-for-fun progress record. Main three-door journeys and saved-door exploration count; historical Guest activity and Discovery Lab branches stay browser-local. Demo and Live paths both count—not as Qloo scores or externally verified achievements. Each distinct door counts once per account.</p>
