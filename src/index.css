@@ -1033,3 +1033,79 @@ button:disabled { cursor:not-allowed; }
   html { scroll-behavior:auto; }
   .journey-result { animation:none; }
 }
+
+/* Supplied welcome animation, paired with a red arched closed-door trigger. */
+.entry-door-trigger {
+  position:absolute;
+  z-index:1;
+  inset:0;
+  width:100%;
+  height:100%;
+  padding:0;
+  border:0;
+  background:transparent;
+  cursor:pointer;
+}
+.entry-door-trigger:focus-visible { outline-offset:-7px; }
+.entry-companion { pointer-events:none; }
+.entry-companion .mascot-motion-toggle { pointer-events:auto; }
+.entry-door-trigger .entry-frame { left:50%; transform:translateX(-50%); }
+.entry-frame {
+  border-color:#994b40;
+  border-radius:120px 120px 0 0;
+  background:#b95e50;
+  box-shadow:0 0 0 4px #cda18f,0 0 32px 8px #d2b57555,inset 0 0 24px #dfc78344;
+}
+.entry-leaf {
+  z-index:2;
+  border-color:#d99a83;
+  border-radius:100px 100px 0 0;
+  background:linear-gradient(105deg,#b95348 0%,#c96b5b 72%,#91443e 100%);
+  box-shadow:inset -13px 0 24px #f0c5a855;
+}
+.entry-leaf:before { border-color:#e9b3a0; border-radius:80px 80px 0 0; }
+.entry-leaf:after { border-color:#f1c27f; }
+.entry-threshold { z-index:3; background:#914b40; }
+
+.doorway-animation-art {
+  width:min(100%,440px);
+  margin:0 auto;
+  position:relative;
+  z-index:1;
+}
+.doorway-animation-art img {
+  display:block;
+  width:100%;
+  height:auto;
+  aspect-ratio:16/9;
+  object-fit:contain;
+}
+.doorway-animation-art .mascot-motion-toggle { margin-top:7px; }
+.entry-animation-art { width:min(100%,480px); }
+.hero-welcome-art { width:min(100%,440px); }
+.reveal-animation-art { width:min(100%,460px); }
+
+.door-preview .preview-opening {
+  border-color:#a95145;
+  border-radius:70px 70px 0 0;
+  background:#b95e50;
+  box-shadow:0 0 0 3px #d1a596;
+}
+.door-preview .preview-opening:before {
+  border-color:#e1a48e;
+  border-radius:60px 60px 0 0;
+  background:linear-gradient(120deg,#cf7563,#ad5147 74%,#99453f);
+}
+.door-preview .preview-opening:after { background:#914b40; }
+.door-preview .preview-glint { z-index:2; }
+
+@media(max-width:700px) {
+  .entry-animation-art { width:min(100%,420px); }
+  .hero-welcome-art { width:min(100%,390px); }
+  .reveal-animation-art { width:min(100%,420px); }
+}
+@media(prefers-reduced-motion:reduce) {
+  .entry-door-trigger:hover .entry-leaf { transform:none; }
+  .door-preview:hover .preview-opening:before,
+  .door-preview:focus-visible .preview-opening:before { transform:none; transition:none; }
+}

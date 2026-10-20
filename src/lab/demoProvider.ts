@@ -1,4 +1,5 @@
 import { DOMAINS, STRATEGIES, type Compatibility, type DiscoveryProvider, type Domain, type Snapshot, type Strategy } from "./model.ts";
+import { adaptToScenario } from "./scenarios.ts";
 
 // These are authored exercises, not real people, venues, products or cultural graph edges.
 const CATALOG: Record<Domain, string[]> = {
@@ -86,7 +87,7 @@ export function createDemoProvider(baseDiscovery: DemoBase): DiscoveryProvider {
           ] : undefined,
         };
       }).filter(item => item !== null);
-      return { mode: "demo", discoveries, notices: discoveries.length ? ["Illustrative demo exercises only. No live Qloo connection."] : ["No unseen exercises remain for these settings. Change domain or mood, or open a discovery as the next anchor."] };
+      return { mode: "demo", discoveries: discoveries.map(item => adaptToScenario(item, snapshot.settings)), notices: discoveries.length ? ["Illustrative demo exercises only. No live Qloo connection."] : ["No unseen exercises remain for these settings. Change domain or mood, or open a discovery as the next anchor."] };
     },
   };
 }

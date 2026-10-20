@@ -126,7 +126,7 @@ test("phone layout has no horizontal overflow and keeps core controls accessible
   await page.setViewportSize({ width: 402, height: 874 });
   await begin(page);
   await branch(page, "Make It Real");
-  await expect(page.getByText("Demo discovery mode — Qloo credentials pending.", { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Demo discovery mode — (Qloo credentials pending|authored sample data)\.$/)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
   await expect(page.locator(".lab-discovery").first().getByRole("button", { name: "Tell me more", exact: true })).toBeVisible();
   await page.locator(".lab-discovery").first().getByRole("button", { name: "Tell me more", exact: true }).click();
@@ -146,6 +146,10 @@ test("finite demo results have a useful empty state and unavailable browser stor
   await expect(page.getByText(/This Lab is only in memory/)).toBeVisible();
 });
 test("historical live fixture cannot run while credentials are pending and never falls back to demo", async ({ page }) => {
+  await page.route("**/api/status", async route => {
+    const response = await route.fetch();
+    await route.fulfill({ json: { ...await response.json(), qlooConfigured: false } });
+  });
   await begin(page);
   await branch(page, "Stay in Your World");
   await page.evaluate(key => {

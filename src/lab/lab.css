@@ -1,3 +1,7 @@
+.lab-scenario-fields { display:grid; gap:12px; margin:18px 0; }
+.lab-scenario-fields textarea { width:100%; min-height:100px; resize:vertical; padding:12px; border:1px solid var(--line); border-radius:10px; background:var(--paper, #fffefa); color:var(--forest-dark); font:inherit; line-height:1.6; }
+.lab-scenario-fields textarea:focus-visible { outline:2px solid var(--forest); outline-offset:2px; }
+.lab-scenario-fields .helper { margin:0; line-height:1.6; }
 .discovery-lab { max-width:1120px; margin:0 auto; }
 .lab-heading { display:flex; align-items:center; justify-content:space-between; gap:25px; padding:13px 1% 34px; }
 .lab-heading h1 { margin:13px 0 12px; max-width:720px; font:500 clamp(47px,7vw,78px)/.96 var(--serif); letter-spacing:-.055em; }

@@ -66,6 +66,24 @@ test("real door opening and mouse/keyboard closing synthesize distinct effects",
   expect(await page.evaluate(() => window.soundMetrics.tones)).toBe(10);
 });
 
+test("the clickable illustrated door plays one opening effect and keeps the mute preference", async ({ page }) => {
+  await measureSound(page);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Sound effects: off" }).click();
+  await expect.poll(() => page.evaluate(() => window.soundMetrics.tones)).toBe(4);
+  const door = page.getByRole("button", { name: "Open the illustrated door", exact: true });
+  await door.focus();
+  await page.keyboard.press("Enter");
+  await expect.poll(() => page.evaluate(() => window.soundMetrics.noises)).toBe(1);
+  await expect.poll(() => page.evaluate(() => window.soundMetrics.tones)).toBe(6);
+  await expect(page.getByTestId("doorway-animation-image")).toBeVisible();
+  await page.getByRole("button", { name: "Sound effects: on" }).click();
+  await page.getByRole("button", { name: "Pause welcome illustration" }).click();
+  await page.getByRole("button", { name: "Play welcome illustration" }).click();
+  expect(await page.evaluate(() => window.soundMetrics.noises)).toBe(1);
+  expect(await page.evaluate(() => localStorage.getItem("opendoor.sound.enabled"))).toBe("false");
+});
+
 test("mobile navigation and sound remain accessible without horizontal overflow", async ({ page }) => {
   await page.setViewportSize({ width: 402, height: 874 });
   await page.goto("/lab");

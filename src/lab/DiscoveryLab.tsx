@@ -5,6 +5,7 @@ import { allDiscoveries, compareBranches } from "./engine.ts";
 import { DOMAINS, STRATEGIES, type Discovery, type LabSeed, type Settings, type Strategy } from "./model.ts";
 import type { LabController } from "./useDiscoveryLab.ts";
 import "./lab.css";
+import { ScenarioFields } from "./ScenarioFields.tsx";
 
 type Props = { lab: LabController; qlooConfigured: boolean };
 
@@ -39,6 +40,7 @@ export default function DiscoveryLab({ lab, qlooConfigured }: Props) {
   const [anchors, setAnchors] = useState<string[]>([]);
   const [anchorDraft, setAnchorDraft] = useState("");
   const [location, setLocation] = useState("");
+  const [scenario, setScenario] = useState<Pick<Settings, "scenario" | "scenarioCategory">>({});
   const [selectedStrategy, setSelectedStrategy] = useState<Strategy>("stay");
   const [destination, setDestination] = useState<string>("Art");
   const [compareCheckpoint, setCompareCheckpoint] = useState("");
@@ -63,7 +65,10 @@ export default function DiscoveryLab({ lab, qlooConfigured }: Props) {
   function startDemo() {
     if (!anchors.length) return;
     const categories = Object.fromEntries(anchors.map(anchor => [anchor, "User interest"]));
-    const seed: LabSeed = { anchors, categories, location: location.trim(), context: {}, mode: "demo", discoveries: [], feedback: {} };
+    const seed: LabSeed = { anchors, categories, location: location.trim(), context: {
+      ...(scenario.scenario ? { scenario: scenario.scenario } : {}),
+      ...(scenario.scenarioCategory ? { scenarioCategory: scenario.scenarioCategory } : {}),
+    }, mode: "demo", discoveries: [], feedback: {} };
     lab.start(seed);
   }
   function saveCheckpoint() {
@@ -143,6 +148,7 @@ export default function DiscoveryLab({ lab, qlooConfigured }: Props) {
         {!!anchors.length && <div className="anchor-pills">{anchors.map(anchor => <span className="anchor-pill" key={anchor}>{anchor}<button type="button" aria-label={`Remove ${anchor}`} onClick={() => setAnchors(items => items.filter(item => item !== anchor))}>×</button></span>)}</div>}
       </div>
       <div className="field lab-start-location"><label htmlFor="lab-location">Place (optional)</label><input id="lab-location" value={location} onChange={event => setLocation(event.target.value)} placeholder="City, neighborhood, or leave blank" /></div>
+      <ScenarioFields value={scenario} onChange={setScenario} disabled={!!loadError} />
       <div className="lab-start-footer"><span className="helper">This starts in Demo mode. No live request is made by this form.</span><button type="button" className="primary-btn" data-sound="start" onClick={startDemo} disabled={!anchors.length || !!loadError}>Start exploring <span aria-hidden="true">→</span></button></div>
     </section>}
 
@@ -163,6 +169,7 @@ export default function DiscoveryLab({ lab, qlooConfigured }: Props) {
 
       <section className="lab-settings" aria-labelledby="settings-title">
         <div className="module-heading"><div><span className="eyebrow">Your field conditions</span><h3 id="settings-title">Set the conditions</h3></div><p>These choices shape the next Explore action only. Changing them never regenerates results by itself.</p></div>
+        <ScenarioFields value={current.settings} onChange={lab.settings} disabled={busy} />
         <div className="lab-settings-grid">
           <label className="field"><span>Adventure</span><select value={current.settings.adventure} onChange={event => updateSetting("adventure", event.target.value as Settings["adventure"])}>{optionSets.adventure.map(value => <option key={value} value={value}>{value[0].toUpperCase() + value.slice(1)}</option>)}</select></label>
           <label className="field"><span>Time available</span><select value={current.settings.time} onChange={event => updateSetting("time", event.target.value as Settings["time"])}>{optionSets.time.map(value => <option key={value}>{value}</option>)}</select></label>

@@ -1,4 +1,5 @@
 import { STRATEGIES, DOMAINS, type Branch, type Discovery, type DiscoveryResult, type LabSeed, type LabState, type Settings, type Snapshot, type Strategy } from "./model.ts";
+import { SCENARIOS } from "./scenarios.ts";
 
 const copy = <T,>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 export const emptyLab = (): LabState => ({
@@ -11,6 +12,9 @@ export function seedLab(state: LabState, seed: LabSeed): LabState {
     adventure: "adjacent", time: "Afternoon", mood: "Creative", domain: "Any",
     occasion: "Solo outing", location: seed.location, budget: seed.context.budget || "Flexible",
     movement: seed.context.movement || "", conditions: seed.context.conditions || "", groupInterests: "",
+    ...(seed.context.scenario ? { scenario: seed.context.scenario } : {}),
+    ...(SCENARIOS.some(item => item.id === seed.context.scenarioCategory)
+      ? { scenarioCategory: seed.context.scenarioCategory as Settings["scenarioCategory"] } : {}),
   };
   if (seed.context.depth === "Close to home") settings.adventure = "familiar";
   if (seed.context.depth === "Take me somewhere unexpected" || seed.context.depth === "Surprise me") settings.adventure = "unexpected";
@@ -129,7 +133,9 @@ export function parseLab(raw: string | null): LabState {
     && ["Quick discovery", "Afternoon", "Full day", "Weekend"].includes(s.time)
     && ["Creative", "Cozy", "Social", "Adventurous", "Unusual"].includes(s.mood)
     && ["Any", ...DOMAINS].includes(s.domain) && ["Solo outing", "Date", "Family activity", "Social gathering"].includes(s.occasion)
-    && ["location", "budget", "movement", "conditions", "groupInterests"].every(key => typeof s[key as keyof Settings] === "string");
+    && ["location", "budget", "movement", "conditions", "groupInterests"].every(key => typeof s[key as keyof Settings] === "string")
+    && (s.scenario === undefined || typeof s.scenario === "string" && s.scenario.length <= 1000)
+    && (s.scenarioCategory === undefined || SCENARIOS.some(item => item.id === s.scenarioCategory));
   const snapshot = (s: Snapshot) => record(s) && strings(s.originalAnchors) && strings(s.anchors) && strings(s.shownIds) && stringRecord(s.categories) && stringRecord(s.originalContext)
     && settings(s.settings) && ["demo", "live"].includes(s.mode) && (s.selected === undefined || discovery(s.selected))
     && Array.isArray(s.candidates) && s.candidates.every(discovery) && record(s.feedback) && Object.values(s.feedback).every(f => record(f) && ["keep", "reject"].includes(f.action) && typeof f.reason === "string")

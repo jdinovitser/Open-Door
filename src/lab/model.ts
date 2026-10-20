@@ -20,6 +20,8 @@ export type Settings = {
   movement: string;
   conditions: string;
   groupInterests: string;
+  scenarioCategory?: import("./scenarios.ts").ScenarioCategory;
+  scenario?: string;
 };
 export type Compatibility = { constraint: string; value: string; status: "Planning input" | "Unverified"; detail: string };
 export type Discovery = {

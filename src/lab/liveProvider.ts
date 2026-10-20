@@ -1,5 +1,6 @@
 import { runAgentDiscovery, type LiveJourney } from "../agentApi.ts";
 import { constraintNotes } from "./demoProvider.ts";
+import { adaptToScenario } from "./scenarios.ts";
 import { type DiscoveryProvider, type Snapshot, type Strategy } from "./model.ts";
 
 const depths = { familiar: "Close to home", adjacent: "A little further", unexpected: "Take me somewhere unexpected" };
@@ -35,14 +36,14 @@ export function createLiveProvider(
         || snapshot.settings.domain === "Places" && (door.category === "Outdoors" || door.category === "Experiences"));
       return {
         mode: "live", notices: [...journey.notices, "Requested mood, time, budget and occasion are context—not verified compatibility. Domain filters use the existing normalized categories; Design cannot distinguish Fashion from Architecture. No social matches or itinerary availability are verified."],
-        discoveries: candidates.map(door => ({
+        discoveries: candidates.map(door => adaptToScenario({
           id: door.id, title: door.title, domain: door.category, description: door.description,
           connection: door.why, originalConnection: `Original anchors: ${snapshot.originalAnchors.join(", ")}. Current query anchors: ${snapshot.anchors.join(", ")}. Only the returned evidence below is provider-backed; ancestry alone is not a Qloo relationship.`,
           evidence: door.evidence || "No relationship explanation returned.", mode: "live", source: door.source,
           selection: `${strategy} strategy; Open Door selected ${door.tier.toLowerCase()} route. ${door.thread}`,
           entityId: door.entityId, entityType: door.entityType, constraints: constraintNotes(snapshot),
           plan: strategy === "real" ? [`Planning suggestion: investigate “${door.title}” in ${snapshot.settings.location}.`, `Check access, prices, opening hours and travel yourself before committing your ${snapshot.settings.time.toLowerCase()}.`] : undefined,
-        })),
+        }, snapshot.settings)),
       };
     },
   };
