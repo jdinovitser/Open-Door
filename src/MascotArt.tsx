@@ -14,7 +14,7 @@ const SCENES = {
   qloo: {
     image: "/mascot/qloo-guide.webp",
     still: "/mascot/qloo-guide-still.webp",
-    alt: "The Open Door mascot points to a tablet showing a simple Qloo data-flow diagram.",
+    alt: "The Open Door mascot holds a tablet displaying the Qloo wordmark.",
   },
 };
 

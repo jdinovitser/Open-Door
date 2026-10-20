@@ -757,7 +757,7 @@ export default function App() {
     <a className="skip-link" href="#main-content">Skip to main content</a>
     <header className="topbar">
       <button className="brand" onClick={() => setView("discover")} aria-label="Open Door, Discover">
-        <span className="brand-mark"><img src="/mascot/door-greeting-still.webp" alt="" width="480" height="320" /></span>
+        <span className="brand-mark"><img src="/mascot/qloo-guide-still.webp" alt="" width="400" height="225" /></span>
         <span><span className="brand-name">open door</span><span className="brand-caption">a cultural field guide</span></span>
       </button>
       <nav className="nav" aria-label="Main navigation">
