@@ -13,7 +13,9 @@ export class QlooApiError extends Error {
 }
 
 function responseEntities(payload) {
-  const entities = payload?.results?.entities ?? payload?.entities ?? [];
+  const entities = Array.isArray(payload?.results)
+    ? payload.results
+    : payload?.results?.entities ?? payload?.entities ?? [];
   return Array.isArray(entities) ? entities.slice(0, 50) : [];
 }
 

@@ -32,6 +32,16 @@ test("Qloo Search uses the documented hackathon host, route, query, and entity t
   assert.equal(entities[0].entity_id, "entity-1");
 });
 
+test("Qloo Search accepts the live API's results array", async () => {
+  const expected = [{ entity_id: "entity-1", name: "The Beatles" }];
+  const client = createQlooClient({
+    apiKey: "unit-test-key",
+    fetchImpl: async () => jsonResponse({ results: expected }),
+  });
+
+  assert.deepEqual(await client.searchEntities("The Beatles", "artist"), expected);
+});
+
 test("Qloo Insights sends each resolved entity and explainability, and only applies location to supported types", async () => {
   const requests = [];
   const client = createQlooClient({
