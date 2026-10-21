@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } 
 import { useClerk, useUser } from "@clerk/react";
 import { requestAccountDeletion } from "./accountDeletion";
 import {
-  ArrowDownRight, ArrowRight, Bookmark, BookOpen, Check, ChevronDown, Clock3, Compass,
+  ArrowDownRight, ArrowRight, Bookmark, BookOpen, Check, ChevronDown, Compass,
   HeartCrack, Info, MapPin, Plus, RotateCcw, Share2, Trash2, Volume2, VolumeX, X,
 } from "lucide-react";
 import { getAgentStatus, runAgentDiscovery, type AgentEvent, type AgentStatus, type DiscoveryRequest, type LiveDoor, type LiveJourney, type ProgressSummary } from "./agentApi";
@@ -19,6 +19,8 @@ import ProgressView from "./ProgressView";
 import { combinePendingSavedDoorChanges, diffAccountSavedDoors, isPendingDoorChanges, mergeAccountSavedDoors, type PendingSavedDoorChanges } from "./accountSavedDoors";
 import { ScenarioFields } from "./lab/ScenarioFields";
 import { SCENARIOS, scenarioGuidance, type ScenarioCategory } from "./lab/scenarios";
+import { DayPlanner, mapsSearch, RecommendationTools } from "./RecommendationTools";
+import PreferencesMemory, { type PreferenceValues } from "./PreferencesMemory";
 
 type View = "discover" | "saved" | "how" | "trust" | "lab" | "judges" | "progress";
 type Intent = "Find my people" | "Go deeper" | "Try something new";
@@ -825,7 +827,7 @@ export default function App() {
     const exportData = {
       exportedAt: new Date().toISOString(),
       storage: isSignedIn
-        ? "This export includes the account-saved doors and account progress summary currently loaded in this browser, plus local browser data. It does not include server audit records, authentication credentials, or other account records."
+        ? "This export includes the account-saved doors and account progress summary currently loaded in this browser, plus local browser data. Account preference memory is not included. It does not include server audit records, authentication credentials, or other account records."
         : "This export includes data stored in this browser by Open Door. It does not include server audit records or credentials.",
       personalizationEnabled,
       currentJourney: journey,
@@ -835,6 +837,7 @@ export default function App() {
       explicitFeedback: feedback,
       openedDoorIds: openedIds,
       discoveryLab: lab.state,
+      accountPreferences: "Not included in this export. Manage optional account preference memory from the discovery form.",
     };
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -1211,6 +1214,9 @@ export default function App() {
         onBuildDay={buildDayPlan}
         entryPhase={entryPhase} onOpenEntry={openEntry} onEntryAnimationComplete={completeEntryAnimation} onSound={sound.play}
         exploreCategory={exploreCategory}
+        accountUserId={accountUserId} signedIn={!!isSignedIn}
+        judgeDemo={judgeDemo}
+        onPreferenceRevisionChanged={() => setAccountSyncAttempt(attempt => attempt + 1)}
          journeyMode={journeyMode} setJourneyMode={setJourneyMode} agentStatus={agentStatus} statusError={statusError}
          liveStages={liveStages} liveError={liveError} isRunning={isRunning} showInspector={showInspector}
          setShowInspector={setShowInspector}
@@ -1275,6 +1281,8 @@ type DiscoverProps = {
   addParticipant: () => void; removeParticipant: (index: number) => void; groupBuilt: boolean; buildGroup: () => void;
   oneHour: boolean; setOneHour: (value: boolean) => void; onStartDemo: (behavior?: ScrollBehavior, preserveScenario?: boolean) => void;
   onBuildDay: (input: DayPlanInput) => void;
+  accountUserId: string | null; signedIn: boolean; onPreferenceRevisionChanged: () => void;
+  judgeDemo: boolean;
   entryPhase: "closed" | "opening" | "welcoming" | "entered"; onOpenEntry: (runPreparedDemo?: boolean) => void;
   onEntryAnimationComplete: () => void;
   onSound: (effect: SoundEffect) => void;
@@ -1339,17 +1347,16 @@ function DiscoverView(p: DiscoverProps) {
   const resultHeadingRef = useRef<HTMLHeadingElement | null>(null);
   const openTriggerRef = useRef<HTMLButtonElement | null>(null);
   const openedVisitsRef = useRef(new Set(p.openedIds));
-  const [planStart, setPlanStart] = useState(p.context.startTime || "10:00");
-  const [planEnd, setPlanEnd] = useState(p.context.endTime || "17:00");
-  const [planLocation, setPlanLocation] = useState(p.city);
-  const [planBudget, setPlanBudget] = useState(p.context.budget);
-  const [planNovelty, setPlanNovelty] = useState("Balanced");
-  useEffect(() => setPlanLocation(p.city), [p.city]);
-  useEffect(() => setPlanBudget(p.context.budget), [p.context.budget]);
+  const [preferenceFormEdited, setPreferenceFormEdited] = useState(false);
+  const previousPreferenceOwner = useRef(p.accountUserId);
   useEffect(() => {
-    if (p.context.startTime) setPlanStart(p.context.startTime);
-    if (p.context.endTime) setPlanEnd(p.context.endTime);
-  }, [p.context.startTime, p.context.endTime]);
+    if (previousPreferenceOwner.current === p.accountUserId) return;
+    previousPreferenceOwner.current = p.accountUserId;
+    setPreferenceFormEdited(false);
+    p.setIntent("Try something new");
+    p.setDepth("A little further");
+    p.setContext({ ...p.context, budget: "Flexible", movement: "Mostly seated" });
+  }, [p.accountUserId]);
   useEffect(() => {
     if (activeDoorId) resultHeadingRef.current?.focus();
   }, [activeDoorId]);
@@ -1374,13 +1381,6 @@ function DiscoverView(p: DiscoverProps) {
   const latitudes = qlooCoordinateNodes.map(node => node.coordinates!.latitude);
   const longitudes = qlooCoordinateNodes.map(node => node.coordinates!.longitude);
   const latMin = Math.min(...latitudes), latMax = Math.max(...latitudes), lonMin = Math.min(...longitudes), lonMax = Math.max(...longitudes);
-  const planCandidates = [...(p.journey?.doors || [])].sort((a, b) => {
-    const order: Record<string, number> = planNovelty === "Familiar first"
-      ? { Familiar: 0, Adjacent: 1, Unexpected: 2 }
-      : planNovelty === "Unexpected first" ? { Unexpected: 0, Adjacent: 1, Familiar: 2 }
-        : { Adjacent: 0, Familiar: 1, Unexpected: 2 };
-    return (order[a.tier] ?? 9) - (order[b.tier] ?? 9);
-  });
   const wildcardDoor = p.journey?.doors.find(door => door.tier === "Unexpected") || p.journey?.doors[p.journey.doors.length - 1];
   const groupTokens = p.participants.map(person => person.anchors.split(",").map(token => token.trim()).filter(Boolean));
   const overlap = groupTokens.length ? groupTokens[0].filter(token => groupTokens.every(tokens => tokens.some(value => value.toLowerCase() === token.toLowerCase()))) : [];
@@ -1439,13 +1439,13 @@ function DiscoverView(p: DiscoverProps) {
       <div className="form-grid">
         <div className="field"><label htmlFor="city">Place you’re exploring</label><input id="city" value={p.city} onChange={event => p.setCity(event.target.value)} placeholder="City, neighborhood, or region" required /></div>
         <div className="field"><label htmlFor="occasion">Time and occasion</label><select id="occasion" value={p.occasion} onChange={event => { p.setOccasion(event.target.value); setContextValue("time", event.target.value); }}><option>A free Saturday</option><option>A quiet weeknight</option><option>My first week here</option><option>A solo afternoon</option><option>A day with a friend</option><option>Just passing through</option><option>Something else, soon</option></select></div>
-        <div className="field full"><span className="label-text">What are you hoping to find?</span><div className="intent-options">{INTENTS.map(choice => <label key={choice} className={`intent-option ${p.intent === choice ? "selected" : ""}`}><input type="radio" name="intent" checked={p.intent === choice} onChange={() => p.setIntent(choice)} />{choice}</label>)}</div></div>
+        <div className="field full"><span className="label-text">What are you hoping to find?</span><div className="intent-options">{INTENTS.map(choice => <label key={choice} className={`intent-option ${p.intent === choice ? "selected" : ""}`}><input type="radio" name="intent" checked={p.intent === choice} onChange={() => { setPreferenceFormEdited(true); p.setIntent(choice); }} />{choice}</label>)}</div></div>
          <div className="field full exploration-control"><span className="label-text">How far do you want to go?</span><p>{p.journeyMode === "live" ? "The selection changes the documented Qloo result types Open Door requests; this route label is not a Qloo score." : "The selection changes the kind of cultural bridge the deterministic sample path explores—not a score."}</p>
-          <div className="depth-options" role="radiogroup" aria-label="Exploration depth">{DEPTHS.map(item => <label key={item.value} className={`depth-option ${p.depth === item.value ? "selected" : ""}`}><input className="visually-hidden" type="radio" name="depth" checked={p.depth === item.value} onChange={() => p.setDepth(item.value)} /><strong>{item.value}</strong><span>{item.note}</span></label>)}</div>
+          <div className="depth-options" role="radiogroup" aria-label="Exploration depth">{DEPTHS.map(item => <label key={item.value} className={`depth-option ${p.depth === item.value ? "selected" : ""}`}><input className="visually-hidden" type="radio" name="depth" checked={p.depth === item.value} onChange={() => { setPreferenceFormEdited(true); p.setDepth(item.value); }} /><strong>{item.value}</strong><span>{item.note}</span></label>)}</div>
         </div>
         <div className="field full"><span className="label-text">Your explicit context</span><div className="context-grid">
-          <div className="field"><label htmlFor="budget">Budget</label><select id="budget" value={p.context.budget} onChange={event => setContextValue("budget", event.target.value)}><option>Flexible</option><option>Free or low-cost</option><option>Moderate</option><option>Open to a splurge</option></select></div>
-          <div className="field"><label htmlFor="movement">Movement preference</label><select id="movement" value={p.context.movement} onChange={event => setContextValue("movement", event.target.value)}><option>Mostly seated</option><option>Easy walking</option><option>Active and moving</option><option>Transit is fine</option></select></div>
+          <div className="field"><label htmlFor="budget">Budget</label><select id="budget" value={p.context.budget} onChange={event => { setPreferenceFormEdited(true); setContextValue("budget", event.target.value); }}><option>Flexible</option><option>Free or low-cost</option><option>Moderate</option><option>Open to a splurge</option></select></div>
+          <div className="field"><label htmlFor="movement">Movement preference</label><select id="movement" value={p.context.movement} onChange={event => { setPreferenceFormEdited(true); setContextValue("movement", event.target.value); }}><option>Mostly seated</option><option>Easy walking</option><option>Active and moving</option><option>Transit is fine</option></select></div>
           <div className="field"><label htmlFor="conditions">Conditions / energy</label><select id="conditions" value={p.context.conditions} onChange={event => setContextValue("conditions", event.target.value)}><option>Open to anything</option><option>Rainy day</option><option>Low energy</option><option>High energy</option><option>Quiet setting</option><option>Social setting</option><option>Early morning</option><option>Late evening</option></select></div>
           <div className="field"><label htmlFor="mode">Journey mode</label><select id="mode" value={p.groupMode ? "group" : "solo"} onChange={event => p.setGroupMode(event.target.value === "group")}><option value="solo">Solo journey</option><option value="group">Small group / couples</option></select></div>
         </div></div>
@@ -1472,6 +1472,21 @@ function DiscoverView(p: DiscoverProps) {
          <div className="submit-row"><span className="helper">{p.journeyMode === "demo" ? "Your words shape an illustrative sample. With no anchors, three clearly identified demo examples are used." : "Your stated interests and context are sent to the Open Door server, which calls Qloo. No browser-side Qloo request is made."}</span><button className="primary-btn" type="submit" disabled={p.isRunning || (p.journeyMode === "live" && !p.agentStatus?.qlooConfigured)}>{p.isRunning ? "Waiting for the real response…" : p.journeyMode === "live" ? "Explore with Qloo" : "Find my doors"} <ArrowRight size={16} /></button></div>
       </div>
     </form>
+    <PreferencesMemory
+      key={p.accountUserId || "guest"}
+      userId={p.accountUserId}
+      signedIn={p.signedIn}
+      values={{ intent: p.intent, depth: p.depth, budget: p.context.budget as PreferenceValues["budget"], movement: p.context.movement as PreferenceValues["movement"] }}
+      hasJourney={!!p.journey}
+      demoActive={p.judgeDemo}
+      hasFormEdits={preferenceFormEdited}
+      onApply={values => {
+        p.setIntent(values.intent);
+        p.setDepth(values.depth);
+        p.setContext({ ...p.context, budget: values.budget, movement: values.movement });
+      }}
+      onRevisionChanged={p.onPreferenceRevisionChanged}
+    />
 
     {p.groupMode && <section className="group-panel" aria-labelledby="group-title">
         <div className="module-heading"><div><span className="eyebrow">Open Door together · prepared group demo</span><h3 id="group-title">A shared path, without averaging people.</h3></div><div className="group-route-mark" aria-hidden="true"><span>YOU</span><MiniDoor /><ArrowRight size={17} /><MiniDoor /><span>SHARED PATH</span></div><p>Three fictional participants, with editable explicit interests. This group sketch is a demo and does not claim Qloo-matched group affinity.</p></div>
@@ -1498,11 +1513,22 @@ function DiscoverView(p: DiscoverProps) {
          <div className="journey-tools"><button className="secondary-btn" type="button" onClick={() => p.onLab()}>Explore in Discovery Lab <ArrowRight size={14} /></button><button className="secondary-btn" type="button" onClick={() => p.setShowInspector(!p.showInspector)} aria-expanded={p.showInspector}><Info size={14} /> {p.showInspector ? "Close evidence" : "Under the Door"}</button><button className="secondary-btn" type="button" onClick={p.reset}><RotateCcw size={14} /> Reset the Compass</button></div></div>
       {p.journey.notices?.map((notice, index) => <div className="demo-note live-note" role="status" key={`${notice}-${index}`}>{notice}</div>)}
       {!!p.journey.feedbackApplied?.length && <div className="feedback-applied" role="status"><strong>Your feedback changed {p.journey.mode === "live" ? "the search" : "the sample route"}.</strong><span>{p.journey.feedbackApplied.join(" · ")}. {p.journey.mode === "live" ? "The orchestrator adjusted the Qloo result types; price and opening hours remain unverified." : "This is deterministic Demo adaptation, not a Qloo response."}</span></div>}
+       <RecommendationTools recommendations={p.journey.doors} city={p.journey.city} mode={p.journey.mode || "demo"} />
+        <aside className="result-guide" aria-label="A note from your field guide">
+          <MascotArt scene="curiosity" />
+          <p><strong>Follow the part that catches your eye.</strong><span>Open a door to read its connection and evidence, then decide what comes next.</span></p>
+        </aside>
        <div className="doors-grid" aria-label="Your recommendations">{p.journey.doors.map(door => <DoorCard key={door.id} door={door} city={p.journey!.city} anchors={p.journey!.anchors} mode={p.journey!.mode || "demo"}
          saved={p.savedIds.has(door.id)} toggleSave={p.toggleSave} onOpenDoor={openDoor} onCloseDoor={closeDoor}
          expanded={activeDoorId === door.id} resultHeadingRef={activeDoorId === door.id ? resultHeadingRef : undefined}
          scenarioCategory={p.journey!.context.scenarioCategory} scenario={p.journey!.context.scenario}
          onExploreDeeper={p.openNext} onLab={p.onLab} feedback={p.feedback[door.id]} setFeedback={p.setFeedback} />)}</div>
+      <DayPlanner key={p.journey.doors.map(door => door.id).join("|")} recommendations={p.journey.doors} city={p.journey.city} mode={p.journey.mode || "demo"}
+        startTime={p.context.startTime || "10:00"} endTime={p.context.endTime || "17:00"}
+        location={p.city} budget={p.context.budget} novelty="Balanced"
+        onRefresh={p.onBuildDay}
+        refreshDisabled={p.isRunning || (p.journeyMode === "live" && !p.agentStatus?.qlooConfigured)}
+        refreshing={p.isRunning} oneHour={p.oneHour} setOneHour={p.setOneHour} />
       <div className="dna-strip"><div className="dna-title"><span>Your Discovery DNA</span><p>Changes as you explore</p></div><div className="dna-items">{p.journey.anchors.map((anchor, i) => <span className="dna-chip" key={anchor}><b>0{i + 1}</b> {anchor} · {p.journey?.categories[anchor] || inferredCategory(anchor)}</span>)}</div></div>
       <div className="dna-edit" aria-label="Edit Discovery DNA categories"><label>Edit explicit categories</label>{p.journey.anchors.map(anchor => <label key={anchor}>{anchor}<select className="dna-category" aria-label={`Category for ${anchor}`} value={p.journey?.categories[anchor] || inferredCategory(anchor)} onChange={event => p.setCategory({ anchor, value: event.target.value as Category })}>{CATEGORIES.map(category => <option key={category}>{category}</option>)}</select></label>)}</div>
 
@@ -1537,18 +1563,26 @@ function DiscoverView(p: DiscoverProps) {
          <p>The story includes the anchors and discoveries shown here—not your city or budget. Review it before sharing: the interests you enter may still be personal. {p.journey.mode === "demo" && "Sample paths are illustrative, not Qloo data."}</p>
         <div className="story-actions"><button className="secondary-btn" type="button" onClick={p.onShare}><Share2 size={14} /> {p.storyCopied ? "Copy story again" : "Share / copy story"}</button><button className="secondary-btn" type="button" onClick={p.onDownloadStory}>Download story card <ArrowDownRight size={14} /></button><span className="helper">Share sheet where supported; otherwise copies a text-only story.</span></div>
       </div>
-        <section className="plan-panel" id="day-plan"><div className="module-heading"><div><span className="eyebrow">Build My Day · returned candidates only</span><h3>{p.oneHour ? "One Hour Demo" : "Build My Day"}</h3></div><p>Uses this journey's returned candidates and your start/end, location, budget, and novelty order. It sequences possibilities, not a verified itinerary.</p></div>
-         <div className="plan-inputs">
-           <div className="field"><label htmlFor="plan-start">Start</label><input id="plan-start" type="time" value={planStart} onChange={event => setPlanStart(event.target.value)} /></div>
-           <div className="field"><label htmlFor="plan-end">End</label><input id="plan-end" type="time" value={planEnd} onChange={event => setPlanEnd(event.target.value)} /></div>
-           <div className="field"><label htmlFor="plan-location">Location</label><input id="plan-location" value={planLocation} onChange={event => setPlanLocation(event.target.value)} /></div>
-           <div className="field"><label htmlFor="plan-budget">Budget</label><select id="plan-budget" value={planBudget} onChange={event => setPlanBudget(event.target.value)}><option>Flexible</option><option>Free or low-cost</option><option>Moderate</option><option>Open to a splurge</option></select></div>
-           <div className="field"><label htmlFor="plan-novelty">Novelty order</label><select id="plan-novelty" value={planNovelty} onChange={event => setPlanNovelty(event.target.value)}><option>Balanced</option><option>Familiar first</option><option>Unexpected first</option></select></div>
-         </div>
-          <div className="plan-toggle"><button className={`secondary-btn ${p.oneHour ? "selected" : ""}`} type="button" aria-pressed={p.oneHour} onClick={() => p.setOneHour(!p.oneHour)}><Clock3 size={14} /> {p.oneHour ? "Show all candidates" : "I have one hour"}</button><span className="helper">Your selected window: {planStart}–{planEnd} · {planLocation || "no location entered"} · {planBudget}. These are your inputs, not verified schedules or prices.</span></div>
-          <div className="story-actions"><button className="primary-btn" type="button" onClick={() => p.onBuildDay({ startTime: planStart, endTime: planEnd, location: planLocation, budget: planBudget, novelty: planNovelty })} disabled={p.isRunning || (p.journeyMode === "live" && !p.agentStatus?.qlooConfigured)}>{p.isRunning ? "Updating returned candidates…" : p.journeyMode === "live" ? "Refresh with these preferences" : "Build my sample day"} <ArrowRight size={14} /></button><span className="helper">Live mode re-queries Qloo; Demo mode reshapes only authored sample paths.</span></div>
-         {planCandidates.length ? planCandidates.slice(0, p.oneHour ? 1 : undefined).map((door, index) => <div className="plan-step" key={door.id}><strong>Candidate {String(index + 1).padStart(2, "0")} · {door.tier}</strong><div><h4>{door.title}</h4><p>{door.why} The candidate is only sequenced here; the selected budget and location do not verify price, venue, availability, or travel.</p></div></div>) : <div className="coordinate-empty">No retrieved candidates are available to sequence.</div>}
-      </section>
+        <section className="helpful-insights">
+          <div className="helpful-art"><MascotArt scene="map" /></div>
+          <div className="helpful-content">
+            <span className="eyebrow"><span aria-hidden="true">✨</span> Helpful tips</span>
+            <h3>Keep the plan kind to your energy.</h3>
+            <ul><li>Start with one practical step from a result; there is no need to book or travel.</li><li>Leave a little unscheduled space between ideas for rest or a change of mind.</li><li>For an in-person visit, check the venue, hours, price, and access details directly.</li></ul>
+          </div>
+          <div className="insight-content">
+            <span className="eyebrow"><span aria-hidden="true">✨</span> Amazing insights</span>
+            {(() => {
+              const counts = p.journey!.doors.reduce<Record<string, number>>((result, door) => {
+                result[door.category] = (result[door.category] || 0) + 1;
+                return result;
+              }, {});
+              const categories = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+              return <><h3>{categories.length ? `Your returned set touches ${categories.length} ${categories.length === 1 ? "category" : "categories"}.` : "Your returned set is ready to explore."}</h3>
+                <p>{categories.length ? `${categories.map(([category, count]) => `${category} (${count})`).join(" · ")}. This is a count of the recommendations shown here, not a claim about cultural affinity or Qloo's reasoning.` : "No recommendation categories were returned for this journey."}</p></>;
+            })()}
+          </div>
+        </section>
         <Passport openedCount={p.openedCount} categories={p.openedCategories} tiers={p.openedTiers} savedCount={p.savedCount} />
       <section className="unopened-panel"><div className="module-heading"><div><span className="eyebrow">Doors left unopened</span><h3>Choose another cultural direction.</h3></div><p>{p.journey.mode === "live" ? "Each choice starts a new Qloo Search and Insights run in the selected category." : "Each choice becomes an explicit starting anchor for a new deterministic sample path."}</p></div>
         <div className="unopened-doors">{(["Art", "Books", "Design", "Food", "Music", "Outdoors"] as Category[]).map(category => <button className="unopened-door" type="button" key={category} onClick={() => p.exploreCategory(category)}><MiniDoor /><span>{category}</span><ArrowRight size={14} /></button>)}</div>
@@ -1616,6 +1650,9 @@ function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, on
         {door.whyYou && <div><span>Why you</span><p>{door.whyYou}</p></div>}
         <div><h5>A practical first step</h5><p>{door.now}</p></div>
       </div>
+      <a className="door-map-link" href={mapsSearch(door.category, city)} target="_blank" rel="noopener noreferrer">
+        <MapPin size={14} /> Search nearby {door.category} in Google Maps <span>category search, not a verified venue</span>
+      </a>
       {scenarioText && <section className="scenario-result" aria-label="Local personal considerations">
         <div><span>Personal considerations · local planning only</span><p>{scenarioLabel || "Your scenario"} · {scenarioText}</p></div>
         <ul>{localGuidance.map((suggestion, index) => <li key={`${suggestion}-${index}`}>{suggestion}</li>)}</ul>
@@ -1664,7 +1701,7 @@ function Passport({ openedCount, categories, tiers, savedCount }: { openedCount:
 function SavedView({ saved, signedIn, remove, onDiscover, explore }: { saved: SavedDoor[]; signedIn: boolean; remove: (id: string) => void; onDiscover: () => void; explore: (item: SavedDoor) => void }) {
   return <section><div className="section-heading"><div><span className="eyebrow">A small collection, gathered by you</span><h1>My Doors</h1><p>Threads worth keeping for another day. {signedIn ? "Saved with your account, across devices." : "Guest saves stay in this browser. Sign in to keep your doors across devices."}</p></div><span className="step-label">{saved.length} SAVED</span></div>
     {saved.length === 0 ? <div className="empty-state mascot-empty"><MascotArt scene="hello" /><h2>No doors saved yet.</h2><p>When a discovery stays with you, save it here. Your collection lives on this device.</p><button className="primary-btn" onClick={onDiscover}>Find your first door <ArrowRight size={15} /></button></div> :
-       <div className="saved-list">{saved.map(item => <article className="saved-row" key={item.id}><MiniDoor className="saved-door-mark" /><div className="saved-copy"><span className="saved-meta">{item.tier} door · saved {item.savedAt} · {item.mode === "live" ? "Qloo response" : "Demo sample"}</span><h3>{item.title}</h3><p><MapPin size={12} /> {item.city} · from {item.anchors.join(", ")}</p><p style={{ marginTop: 8 }}>{item.why} <br />Connection: {item.evidence}</p></div><div className="saved-actions"><button className="secondary-btn" onClick={() => explore(item)}><BookOpen size={14} /> Open a new path</button><button className="icon-action" onClick={() => remove(item.id)} aria-label={`Remove ${item.title}`}><Trash2 size={15} /> Remove</button></div></article>)}</div>}
+        <><aside className="saved-guide" aria-label="A note from your field guide"><MascotArt scene="map" /><p><strong>Your collection, ready when you are.</strong><span>Open a saved door to begin a fresh path from its original interests.</span></p></aside><div className="saved-list">{saved.map(item => <article className="saved-row" key={item.id}><MiniDoor className="saved-door-mark" /><div className="saved-copy"><span className="saved-meta">{item.tier} door · saved {item.savedAt} · {item.mode === "live" ? "Qloo response" : "Demo sample"}</span><h3>{item.title}</h3><p><MapPin size={12} /> {item.city} · from {item.anchors.join(", ")}</p><p style={{ marginTop: 8 }}>{item.why} <br />Connection: {item.evidence}</p></div><div className="saved-actions"><button className="secondary-btn" onClick={() => explore(item)}><BookOpen size={14} /> Open a new path</button><button className="icon-action" onClick={() => remove(item.id)} aria-label={`Remove ${item.title}`}><Trash2 size={15} /> Remove</button></div></article>)}</div></>}
     <p className="helper" style={{ marginTop: 20 }}>{signedIn ? "Your saved doors sync with your account. Full journeys, explicit feedback, and Discovery Lab branches remain browser-local." : "Guest-saved doors and explicit feedback remain in this browser. Sign in to keep saved doors across devices."}</p>
   </section>;
 }

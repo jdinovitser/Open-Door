@@ -30,5 +30,6 @@ CREATE TABLE open_door_account_state (
   clerk_user_id text PRIMARY KEY,
   revision integer NOT NULL DEFAULT 0,
   status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'closing', 'closed')),
-  checked_at timestamptz
+  checked_at timestamptz,
+  preferences jsonb CHECK (preferences IS NULL OR jsonb_typeof(preferences) = 'object')
 );

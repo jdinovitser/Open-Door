@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { createRateLimiter } from "./security.js";
 import { assertAccountWritable, eraseAccountData, finishAccountClosure, withAccountTransaction } from "./accountLifecycle.js";
+import { createAccountPreferencesRouter } from "./accountPreferences.js";
 
 export const MAX_SAVED_DOORS = 100;
 const MAX_DOOR_BYTES = 24_000;
@@ -192,6 +193,7 @@ export function createAccountSavedDoorsRouter({ pool, getUserId, users }) {
 
   const store = pool ? createAccountSavedDoorStore(pool) : null;
   const progressStore = pool ? createAccountProgressStore(pool) : null;
+  router.use("/preferences", createAccountPreferencesRouter(pool));
 
   function stateConflict(error, response) {
     if (error?.code !== "ACCOUNT_STATE_CHANGED") return false;

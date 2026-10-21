@@ -34,7 +34,7 @@ async function renderPrivacyFixture(page: Page, signedIn = true, busy = false, e
 
 test("cloud erasure and closure require explicit confirmation and explain local boundaries", async ({ page }) => {
   const view = await renderPrivacyFixture(page);
-  const erase = view.getByRole("button", { name: "Erase all cloud progress & doors" });
+  const erase = view.getByRole("button", { name: "Erase all cloud data" });
   page.once("dialog", async dialog => {
     expect(dialog.message()).toContain("Guest and Discovery Lab data");
     await dialog.dismiss();
@@ -55,7 +55,7 @@ test("cloud erasure and closure require explicit confirmation and explain local 
 
 test("busy destructive controls cannot be repeated, and partial closure is an error, not success", async ({ page }) => {
   const view = await renderPrivacyFixture(page, true, true, true);
-  for (const name of ["Erase cloud rewards", "Erase cloud saved doors", "Erase all cloud progress & doors", "Close account permanently"]) {
+  for (const name of ["Erase cloud rewards", "Erase cloud saved doors", "Erase all cloud data", "Close account permanently"]) {
     await expect(view.getByRole("button", { name, exact: true })).toBeDisabled();
   }
   await expect(view.getByRole("alert")).toContainText("Account closure is not confirmed yet");

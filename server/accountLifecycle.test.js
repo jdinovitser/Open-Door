@@ -51,6 +51,38 @@ test("account deletion and lifecycle integration with isolated PostgreSQL tables
       body: JSON.stringify({ scope, confirmation: scope === "close" ? "CLOSE" : "ERASE", ...extra }),
     });
 
+    await t.test("preferences require sign-in, consented fields and revision; isolate owners and forget safely", async () => {
+      const preference = { intent: "Go deeper", depth: "A little further", budget: "Moderate", movement: "Mostly seated" };
+      const memory = (owner, method = "GET", body, extraHeaders = {}) => fetch(`${base}/preferences?userId=victim`, {
+        method,
+        headers: { "Content-Type": "application/json", ...(owner ? { "x-test-user": owner } : {}), ...extraHeaders },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+      assert.equal((await memory(null)).status, 401);
+      assert.equal((await memory(null, "PUT", { preferences: preference, revision: 0 })).status, 401);
+      assert.deepEqual(await (await memory("memory-owner")).json(), { preferences: null, revision: 0 });
+      assert.equal((await memory("memory-owner", "PUT", { preferences: preference })).status, 409);
+      assert.equal((await memory("memory-owner", "PUT", { preferences: { ...preference, scenario: "private" }, revision: 0 })).status, 400);
+      assert.equal((await memory("memory-owner", "PUT", { preferences: preference, revision: 0 }, { "sec-fetch-site": "cross-site" })).status, 403);
+      const saved = await memory("memory-owner", "PUT", { preferences: preference, revision: 0, userId: "victim" });
+      assert.equal(saved.status, 200);
+      assert.deepEqual(await saved.json(), { preferences: preference, revision: 0 });
+      assert.deepEqual(await (await memory("victim")).json(), { preferences: null, revision: 0 });
+      assert.deepEqual(await (await memory("memory-owner")).json(), { preferences: preference, revision: 0 });
+      assert.deepEqual(await (await memory("memory-owner", "DELETE", { revision: 0 })).json(), { preferences: null, revision: 1 });
+      assert.equal((await memory("memory-owner", "PUT", { preferences: preference, revision: 0 })).status, 409);
+      assert.equal((await memory("memory-owner", "PUT", { preferences: preference, revision: 1 })).status, 200);
+      await remove("memory-owner", "all");
+      assert.deepEqual(await (await memory("memory-owner")).json(), { preferences: null, revision: 2 });
+      await memory("memory-owner", "PUT", { preferences: preference, revision: 2 });
+      await remove("memory-owner", "close");
+      assert.equal((await memory("memory-owner")).status, 409);
+      const erased = await pool.query("SELECT preferences FROM open_door_account_state WHERE clerk_user_id = $1", ["memory-owner"]);
+      assert.equal(erased.rows[0].preferences, null);
+      // The other lifecycle subtests assert that only their own close called Clerk.
+      deletedUsers.length = 0;
+    });
+
     await t.test("guests, missing confirmation, and cross-site requests cannot erase anything", async () => {
       await seed("victim");
       assert.equal((await remove(null, "all")).status, 401);

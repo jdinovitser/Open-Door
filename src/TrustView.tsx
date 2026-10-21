@@ -61,7 +61,7 @@ export function TrustView({
     <div className="trust-hero">
       <span className="eyebrow">Open Door · Trust &amp; privacy</span>
       <h1>Clear about what happens to your data.</h1>
-      <p>Guest journeys, feedback, opened-door history, and Discovery Lab checkpoints stay in this browser. Optional Replit-managed sign-in syncs saved doors and personal reward progress with your account. Live discovery sends only the inputs needed to retrieve Qloo results.</p>
+      <p>Guest journeys, feedback, opened-door history, and Discovery Lab checkpoints stay in this browser. Optional Replit-managed sign-in syncs saved doors, reward progress, and only the four discovery preferences you explicitly choose to save. Live discovery sends only the inputs needed to retrieve Qloo results.</p>
     </div>
 
     <div className="trust-grid">
@@ -110,16 +110,16 @@ export function TrustView({
           {!signedIn && <button type="button" className="trust-action" onClick={() => window.confirm(`Remove all ${savedCount} Guest-saved doors from this browser?`) && onDeleteSaved()}><Trash2 size={15} /> Delete Guest-saved doors ({savedCount})</button>}
           <button type="button" className="trust-action trust-action-danger" onClick={() => window.confirm(`Clear this browser’s current journey, feedback, opened-door activity, and Discovery Lab checkpoints and branches? This cannot be undone.${signedIn ? " Account-saved doors and account progress remain unchanged." : " Guest-saved doors stored in this browser will also be deleted."}`) && onClearAll()}><Trash2 size={15} /> Clear browser journey, activity &amp; Lab data</button>
         </div>
-        <p className="trust-footnote">Export is created on your device and includes the saved doors and account progress summary currently loaded in this view plus local Discovery Lab checkpoints and branches. It does not include login credentials. The Lab is browser-local; personalization controls do not change its saved explorations. Clearing browser data does not silently turn personalization back on.</p>
+        <p className="trust-footnote">Export is created on your device and includes the saved doors and account progress summary currently loaded in this view plus local Discovery Lab checkpoints and branches. It does not include saved account preference memory or login credentials. Preference memory can be managed from the discovery form. The Lab is browser-local; personalization controls do not change its saved explorations. Clearing browser data does not silently turn personalization back on.</p>
         {signedIn && <div>
           <h3>Cloud data &amp; account closure</h3>
-          <p>These actions cannot be undone. Cloud erasure affects your account across devices, not your Guest collection, browser journey, feedback, or Discovery Lab. Other devices must reload before saving again. Closing your account also deletes your sign-in account and signs you out.</p>
+          <p>These actions cannot be undone. Cloud erasure affects your account across devices, including saved preference memory; it does not affect your Guest collection, browser journey, feedback, or Discovery Lab. Other devices must reload before saving again. Closing your account also deletes your sign-in account and signs you out.</p>
           <div className="trust-actions">
             {([
               ["progress", "Erase cloud rewards", "Erase all cloud reward events and reset Brave and Explorer progress? Saved doors, the Door Collector tally, and your login remain."],
               ["saved-doors", "Erase cloud saved doors", "Erase all account-saved doors across devices? Reward events and your login remain. The Door Collector track will reflect the empty collection."],
-              ["all", "Erase all cloud progress & doors", "Erase all account-saved doors and reward events across devices? Your login remains."],
-              ["close", "Close account permanently", "Permanently close your sign-in account and erase all account-saved doors and reward events? This cannot be undone. If closure is interrupted, cloud saves are blocked and closure is retried automatically."],
+              ["all", "Erase all cloud data", "Erase all account-saved doors, reward events, and saved preference memory across devices? Your login remains."],
+              ["close", "Close account permanently", "Permanently close your sign-in account and erase all account-saved doors, reward events, and saved preference memory? This cannot be undone. If closure is interrupted, cloud saves are blocked and closure is retried automatically."],
             ] as const).map(([scope, label, warning]) => <button key={scope} type="button" className="trust-action trust-action-danger" disabled={cloudBusy} onClick={() => {
               if (window.confirm(`${warning} Guest and Discovery Lab data on this browser are not deleted.`)) onDeleteCloud(scope);
             }}><Trash2 size={15} />{label}</button>)}
@@ -135,7 +135,7 @@ export function TrustView({
       <div className="trust-card-heading"><h2>What is sent where</h2></div>
       <div className="trust-table">
         <div><b>Open Door browser → Open Door server</b><span>Live discovery request fields: interests, selected categories, optional location, chosen discovery depth, and explicit feedback. No account or cookie is required.</span></div>
-        <div><b>Optional account storage</b><span>Replit-managed Clerk handles sign-in. Account-saved doors include the details you choose to save, such as their city and source interests; opened-door progress records use only the door ID, tier, and category. These records are linked to your authenticated account. Full journeys, feedback history, and Lab branches are not synced.</span></div>
+        <div><b>Optional account storage</b><span>Replit-managed Clerk handles sign-in. Account-saved doors include the details you choose to save, such as their city and source interests; opened-door progress records use only the door ID, tier, and category. Separately, intent, depth, budget, and movement preference are stored only after you explicitly choose Save. Health notes, scenario text, anchors, and city are excluded. These records are linked to your authenticated account. Full journeys, feedback history, and Lab branches are not synced.</span></div>
         <div><b>Open Door server → Qloo</b><span>Live requests send entered interests for entity search, resolved Qloo entity IDs for insights, and location only for supported place/destination queries. Budget, schedule, and movement preferences are not sent to Qloo.</span></div>
         <div><b>Your browser → image host</b><span>Live result images may load from an HTTPS image URL returned with Qloo results. As with any remote image, that host can receive a network request from your browser. The page sends no referrer URL.</span></div>
         <div><b>Demo mode</b><span>Demo journeys are authored deterministic examples, not Qloo responses or real venue listings. They do not call Qloo.</span></div>

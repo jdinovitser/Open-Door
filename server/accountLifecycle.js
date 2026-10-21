@@ -46,6 +46,7 @@ export async function eraseAccountData(pool, userId, scope) {
     }
     const result = await client.query(
       `UPDATE open_door_account_state SET revision = revision + 1,
+         preferences = CASE WHEN $2 IN ('all', 'close') THEN NULL ELSE preferences END,
          status = CASE WHEN $2 = 'close' AND status <> 'closed' THEN 'closing' ELSE status END
        WHERE clerk_user_id = $1 RETURNING revision`,
       [userId, scope],

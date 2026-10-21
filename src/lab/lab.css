@@ -350,3 +350,32 @@
 @media(prefers-reduced-motion:reduce) {
   .lab-discovery,.lab-checkpoint,.lab-direction { transition:none; }
 }
+
+/* A clearer, more colorful branch notebook without changing its workflow. */
+.lab-heading p,.lab-current-top p,.lab-inline-hint,
+.lab-direction-copy small,.lab-door-detail>p,.lab-follow-choice,
+.lab-discovery-content>p,.lab-branch-note { color:#4f6257; }
+.lab-heading p { font-size:15px; line-height:1.7; }
+.lab-direction { border-width:1px; }
+.lab-direction:hover:not(:disabled) {
+  border-color:var(--direction-accent);
+  background:var(--direction-paper);
+}
+.lab-direction-copy strong { color:#283f34; }
+.lab-direction-copy small { font-size:12px; line-height:1.5; }
+.lab-door-detail { border-color:#bdcbb9; background:linear-gradient(150deg,#e9f2e6,#f5eddf); }
+.lab-door-detail .eyebrow { color:#914c39; }
+.lab-discovery-meta span { color:#42574b; }
+.lab-discovery-meta span:first-child { color:#75452f; background:#f8e9dc; border-color:#dfbda5; }
+.lab-discovery-content>p { font-size:14px; line-height:1.72; }
+.lab-connection { border-left-color:#b66c43; background:#f5eee1; }
+.lab-connection strong,.lab-more-details strong { color:#3e5d4e; font-size:10px; }
+.lab-feedback-row select { color:#2d483c; }
+.lab-result-count { color:#31594e; font-weight:700; }
+.lab-checkpoint.is-active { border-color:#81a78c; box-shadow:inset 4px 0 #4e8069; }
+.lab-branch-row.is-active { background:#edf4e9; }
+@media(max-width:560px) {
+  .lab-direction-copy small { font-size:11px; }
+  .lab-current-actions .secondary-btn { min-height:40px; }
+  .lab-map-actions button { overflow-wrap:anywhere; }
+}
