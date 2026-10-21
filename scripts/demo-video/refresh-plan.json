@@ -1,0 +1,69 @@
+[
+  {
+    "id": "01-welcome",
+    "duration": 13,
+    "title": "More than a new address.",
+    "headline": "New home.\nNew plans.\nNew possibilities.",
+    "introMascot": true,
+    "kicker": "OPEN DOOR · A DAY THAT FEELS LIKE YOU",
+    "label": "Your mascot artwork · AI-generated narration",
+    "voice": "Open Door is for more than moving. A new home? A day with a friend? A solo adventure? Or just something different? Start with what you love, and make the day feel like you."
+  },
+  {
+    "id": "02-your-day",
+    "duration": 34,
+    "title": "Your interests. Your occasion. Your pace.",
+    "kicker": "01 / MAKE IT YOURS",
+    "label": "Real app recording · Demo examples",
+    "voice": "Choose your time and occasion: my first week here, a day with a friend, a solo afternoon, or something else. A new address is just one starting point. Add your interests, your budget, and the pace that suits you. Personal Style, Age-Aware, Health and Wellbeing, and Custom let you describe your situation in your own words. Here, I love music and art, and I want a relaxed afternoon with a friend."
+  },
+  {
+    "id": "03-open-a-door",
+    "duration": 25,
+    "title": "A clear idea. A simple first step.",
+    "kicker": "02 / OPEN A DOOR",
+    "label": "Real app recording · Demo activities, not live Qloo results",
+    "voice": "Open a door, and the idea expands right here. No extra page to navigate. See what you could try, why you might enjoy it, and exactly how to begin. Uncover a hidden gem for a little extra inspiration. Want more? Explore more ideas keeps your original interests in mind, instead of sending you in circles."
+  },
+  {
+    "id": "04-make-a-plan",
+    "duration": 27,
+    "title": "Turn inspiration into a day you can use.",
+    "kicker": "03 / PLAN IT, KEEP IT, TAKE IT WITH YOU",
+    "label": "Real app recording · Maps searches are not verified venues",
+    "voice": "Now make it practical. Find nearby places on Google Maps, then turn your ideas into a flexible day plan. Choose your time window, reorder activities, and check them off as you go. Only have an hour? Keep it simple. Print your recommendations or download a Word document, so the useful details can come with you."
+  },
+  {
+    "id": "05-discovery-lab",
+    "duration": 25,
+    "title": "Try another direction without losing your place.",
+    "kicker": "04 / DISCOVERY LAB",
+    "label": "Real app recording · Demo branches stay in this browser",
+    "voice": "If you want to explore further, open Discovery Lab. Start with a scenario that fits your life, then edit it to make it yours. Save a checkpoint, try different directions, and compare your options side by side. A quiet solo afternoon and a day with a friend don't have to follow the same path. You stay in control."
+  },
+  {
+    "id": "06-qloo",
+    "duration": 20,
+    "title": "Personal discovery, with Qloo at the core.",
+    "kicker": "05 / HOW IT WORKS",
+    "label": "Architecture walkthrough · No live Qloo response shown",
+    "voice": "This walkthrough uses the clearly labeled demo examples. In Live mode, Qloo Search resolves your cultural interests, and Qloo Insights provides recommendations across categories. Open Door turns those results into explained choices. Your free-text personal scenario is kept separate from requests to Qloo."
+  },
+  {
+    "id": "07-save",
+    "duration": 23,
+    "title": "A guest today. Your own collection tomorrow.",
+    "kicker": "06 / KEEP WHAT YOU LOVE",
+    "label": "Guest saves + sign-in · Rewards preview uses sample milestones",
+    "voice": "Keep a door you love in My Doors. Guest saves stay in this browser. Choose an account to keep your doors across devices, and decide whether to remember your planning preferences. Signed-in progress celebrates Brave, Explorer, and Door Collector milestones, making curiosity something to enjoy and keep building."
+  },
+  {
+    "id": "08-goodbye",
+    "duration": 12,
+    "title": "What will you open next?",
+    "kicker": "OPEN DOOR",
+    "tagline": "A little curiosity.\nA day that feels like you.",
+    "label": "Real product recording · AI-generated narration",
+    "voice": "A first week in a new home. Time with a friend. A solo adventure. Or a day that's entirely your own. Open Door. What will you open next?"
+  }
+]

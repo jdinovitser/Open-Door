@@ -43,3 +43,29 @@ and MP4. The `upbeat` variant preserves a more energetic natural speaking pace.
   milestones, not verified visits or community-engagement scores.
 
 The plan and recording scripts do not add routes or features to the website.
+
+## Updated multi-occasion walkthrough
+
+`refresh-plan.json` tells a broader story: a first week in a new home, a day
+with a friend, a solo afternoon, and other personal occasions. It includes the
+inline recommendations, personal considerations, hidden gems, printable and
+Word recommendations, flexible planner, and existing Lab.
+
+Generate narration into `generated-artifacts/demo-refresh/upbeat-voice/`
+with matching scene IDs, then run:
+
+```sh
+node scripts/demo-video/capture-refresh.mjs --check
+node scripts/demo-video/capture-refresh.mjs
+OPEN_DOOR_DEMO_DIR=generated-artifacts/demo-refresh \
+OPEN_DOOR_DEMO_PLAN=scripts/demo-video/refresh-plan.json \
+node scripts/demo-video/render.mjs upbeat
+```
+
+The recorder uses real UI interactions in a fresh guest browser, checks the
+Maps URL, and downloads an actual Word document. Browser print styling is
+shown without opening a native print dialog. It does not forge a Live result
+or a signed-in account. The rewards sequence renders the existing component
+with explicitly labeled sample milestones, not real member activity. This
+version uses the existing mascot artwork for its opening, rather than the
+earlier moving-house illustration. The finished cut is 179 seconds.
