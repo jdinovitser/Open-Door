@@ -1,11 +1,12 @@
 import { SCENARIOS, type ScenarioCategory } from "./scenarios.ts";
 
 type Value = { scenarioCategory?: ScenarioCategory; scenario?: string };
-export function ScenarioFields({ value, onChange, disabled = false }: {
+export function ScenarioFields({ value, onChange, disabled = false, label = "Lab scenario", helpId = "lab-scenario-help", helperText }: {
   value: Value; onChange: (patch: Value) => void; disabled?: boolean;
+  label?: string; helpId?: string; helperText?: string;
 }) {
   return <div className="lab-scenario-fields">
-    <label className="field"><span>Lab scenario</span>
+    <label className="field"><span>{label}</span>
       <select value={value.scenarioCategory || ""} disabled={disabled} onChange={event => {
         const selected = SCENARIOS.find(item => item.id === event.target.value);
         onChange({ scenarioCategory: selected?.id, scenario: selected?.example || "" });
@@ -18,8 +19,8 @@ export function ScenarioFields({ value, onChange, disabled = false }: {
       <textarea value={value.scenario || ""} maxLength={1000} rows={4} disabled={disabled}
         onChange={event => onChange({ ...value, scenario: event.target.value })}
         placeholder="Describe your goal, preferences, comfort needs and constraints—or edit an example above."
-        aria-describedby="lab-scenario-help" />
+        aria-describedby={helpId} />
     </label>
-    <p className="helper" id="lab-scenario-help">Examples are editable starting points, not assumptions. Scenario text stays in this browser’s Lab data and exports; it is not sent to Qloo or synced to your account. Local planning suggestions use explicit preferences, not medical advice or verified suitability. Avoid identifying or sensitive details.</p>
+    <p className="helper" id={helpId}>{helperText || "Examples are editable starting points, not assumptions. Scenario text stays in this browser’s Lab data and exports; it is not sent to Qloo or synced to your account. Local planning suggestions use explicit preferences, not medical advice or verified suitability. Avoid identifying or sensitive details."}</p>
   </div>;
 }

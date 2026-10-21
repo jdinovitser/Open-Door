@@ -18,7 +18,7 @@ function stated(text: string, pattern: RegExp): boolean {
 
 // Only explicit preferences trigger these local planning suggestions. Category,
 // age, diagnoses and identity never determine suitability or cultural interests.
-export function scenarioGuidance(settings: Settings): string[] {
+export function scenarioGuidance(settings: Pick<Settings, "scenario">): string[] {
   const text = settings.scenario?.trim() || "";
   if (!text) return [];
   const guidance: string[] = [];

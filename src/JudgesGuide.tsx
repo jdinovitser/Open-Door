@@ -28,7 +28,7 @@ const STEPS = [
     title: "Turn a result into another exploration",
     time: "1:30–2:15",
     actions: [
-      "Open a returned door and choose “Continue through this door.”",
+      "Open a returned door to read its recommendation in place, then optionally choose “Explore this thread.”",
       "The selected Qloo entity becomes the next anchor for another live exploration. Inspect the new journey’s evidence.",
     ],
     notice: "This is a stateful discovery workflow, not a one-shot recommendation page. A returned entity ID becomes an input to the next retrieval step instead of being discarded and re-searched as plain text.",

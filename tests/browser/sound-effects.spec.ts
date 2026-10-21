@@ -56,13 +56,14 @@ test("real door opening and mouse/keyboard closing synthesize distinct effects",
   await expect.poll(() => page.evaluate(() => window.soundMetrics.tones)).toBe(4);
   await page.getByRole("button", { name: /^Open familiar door:/ }).click();
   await expect.poll(() => page.evaluate(() => window.soundMetrics.noises)).toBe(1);
-  await page.getByRole("button", { name: "Close this door", exact: true }).click();
+  await page.getByRole("button", { name: /^Collapse .* details$/ }).click();
   await expect.poll(() => page.evaluate(() => window.soundMetrics.noises)).toBe(2);
   await page.getByRole("button", { name: /^Open familiar door:/ }).click();
   await expect.poll(() => page.evaluate(() => window.soundMetrics.noises)).toBe(3);
   await page.keyboard.press("Escape");
   await expect.poll(() => page.evaluate(() => window.soundMetrics.noises)).toBe(4);
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".door-card.is-expanded")).toHaveCount(0);
   expect(await page.evaluate(() => window.soundMetrics.tones)).toBe(10);
 });
 

@@ -42,7 +42,7 @@ test("the intro door is keyboard and pointer accessible and plays the supplied a
   }
 });
 
-test("prepared-sample flow retains red arched previews, reveal artwork, close, Escape and focus return", async ({ page }) => {
+test("prepared-sample doors expand immediately on the same page and preserve keyboard collapse", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Open the prepared sample door" }).click();
   await expect(page.getByTestId("doorway-animation-image")).toHaveAttribute("src", /welcome-opening\.webp/);
@@ -60,16 +60,16 @@ test("prepared-sample flow retains red arched previews, reveal artwork, close, E
   }
 
   await preview.click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible();
-  await expect(dialog.locator(".reveal-swing-art")).toBeVisible();
-  await expect(dialog.locator(".reveal-swing-art .entry-leaf")).toHaveCSS("animation-name", "welcome-door-swing");
-  await expect(dialog.getByTestId("doorway-animation-image")).toHaveJSProperty("naturalWidth", 480);
-  await expect(dialog.getByTestId("doorway-animation-image")).toHaveAttribute("src", /welcome-opening\.webp/);
-  await expect(dialog.locator(".reveal-content")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Close this door" })).toBeFocused();
+  const result = page.locator(".door-card.is-expanded .door-result-expanded");
+  await expect(result).toBeVisible();
+  await expect(result.getByRole("heading", { name: /Why this fits/ })).toBeVisible();
+  await expect(result.getByRole("heading", { name: "A practical first step" })).toBeVisible();
+  await expect(result.locator("h4")).toBeFocused();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".door-reveal,.hallway-phase")).toHaveCount(0);
+  await expect(preview).toHaveAttribute("aria-expanded", "true");
   await page.keyboard.press("Escape");
-  await expect(dialog).toHaveCount(0);
+  await expect(result).toHaveCount(0);
   await expect(preview).toBeFocused();
 });
 
@@ -87,6 +87,6 @@ test("reduced motion uses the supplied still pose and the mobile layout remains 
   await page.getByRole("button", { name: "Open the sample journey" }).click();
   await expect(page.locator("#journey-result")).toBeVisible({ timeout: 3000 });
   await page.locator(".door-preview").first().click();
-  await expect(page.getByRole("dialog").getByTestId("doorway-animation-image"))
-    .toHaveAttribute("src", "/mascot/welcome-opening-still.webp");
+  await expect(page.locator(".door-card.is-expanded .door-result-expanded")).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 });

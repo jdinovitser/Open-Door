@@ -102,6 +102,7 @@ test("original prepared three-door journey imports its selected discovery withou
   await page.goto("/demo");
   await expect(page.locator(".door-card")).toHaveCount(3);
   const title = await page.locator(".door-card h3").first().innerText();
+  await page.locator(".door-preview").first().click();
   await page.getByRole("button", { name: /^Branch in Discovery Lab/ }).first().click();
   await expect(page.getByRole("heading", { name: /A few ways/ })).toBeVisible();
   const state = await stored(page);

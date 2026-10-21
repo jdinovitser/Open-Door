@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from "react";
 import { useClerk, useUser } from "@clerk/react";
 import { requestAccountDeletion } from "./accountDeletion";
 import {
@@ -17,12 +17,14 @@ import { useSoundEffects, type SoundEffect } from "./useSoundEffects";
 import JudgesGuide from "./JudgesGuide";
 import ProgressView from "./ProgressView";
 import { combinePendingSavedDoorChanges, diffAccountSavedDoors, isPendingDoorChanges, mergeAccountSavedDoors, type PendingSavedDoorChanges } from "./accountSavedDoors";
+import { ScenarioFields } from "./lab/ScenarioFields";
+import { SCENARIOS, scenarioGuidance, type ScenarioCategory } from "./lab/scenarios";
 
 type View = "discover" | "saved" | "how" | "trust" | "lab" | "judges" | "progress";
 type Intent = "Find my people" | "Go deeper" | "Try something new";
 type Depth = "Close to home" | "A little further" | "Surprise me" | "Take me somewhere unexpected";
 type Category = "Film" | "Music" | "Food" | "Art" | "Books" | "Design" | "Outdoors" | "Experiences" | "Other";
-type Context = { time: string; budget: string; movement: string; conditions: string; startTime?: string; endTime?: string };
+type Context = { time: string; budget: string; movement: string; conditions: string; startTime?: string; endTime?: string; scenarioCategory?: ScenarioCategory; scenario?: string };
 type Door = {
   id: string; tier: "Familiar" | "Adjacent" | "Unexpected"; title: string; kind: string;
   category: Category; source: string; why: string; now: string; evidence: string; thread: string;
@@ -58,6 +60,17 @@ const DEPTHS: { value: Depth; note: string }[] = [
 const REASONS = ["Too familiar", "Too far", "Too expensive", "Not my scene", "Wrong time", "Just not interested"];
 const INTENTS: Intent[] = ["Find my people", "Go deeper", "Try something new"];
 const EMPTY_CONTEXT: Context = { time: "A free Saturday", budget: "Flexible", movement: "Mostly seated", conditions: "Open to anything" };
+
+function publicContext(context: Context): DiscoveryRequest["context"] {
+  return {
+    time: context.time,
+    budget: context.budget,
+    movement: context.movement,
+    conditions: context.conditions,
+    ...(context.startTime ? { startTime: context.startTime } : {}),
+    ...(context.endTime ? { endTime: context.endTime } : {}),
+  };
+}
 
 function readStore<T>(key: string, fallback: T): T {
   try {
@@ -114,10 +127,6 @@ function makeDoors(city: string, anchors: string[], categories: Record<string, C
   const depthLine = depth === "Close to home" ? "The connection stays close to your stated anchor." : depth === "A little further" ? "This follows a neighboring practice, rather than repeating the exact interest." : depth === "Surprise me" ? "This crosses categories, with the shared practice kept visible." : "This is the most distant illustrative turn in this sample, and the bridge is stated rather than assumed.";
   const feedbackLine = feedback.length ? ` Your explicit feedback (${feedback.join(", ")}) is kept in this journey and changes the next sample path.` : "";
   const cityText = city.trim() || "your chosen place";
-  const timeText = context.time.toLowerCase();
-  const budgetText = context.budget.toLowerCase();
-  const movementText = context.movement.toLowerCase();
-  const conditionsText = context.conditions.toLowerCase();
   const iterationNote = iteration ? ` This is a new path starting from your opened door (${a}).` : "";
   const definitions = [
     { tier: "Familiar" as const, title: "A listening-room ritual", kind: "Sound · attentive company", category: "Music" as Category, source: a, thread: "Stay with the sound", bridge: "patient attention → listening together", experience: "a listening session or a small, focused sound gathering", why: `${a} (your selected category: ${categoryA}) is the anchor you entered. This sample carries its close-attention quality into a listening-room ritual; it is an editorial analogy, not a measured affinity.`, evidence: `${a} · ${categoryA} → patient attention → a shared listening ritual. The bridge is a deterministic demo connection.` },
@@ -192,11 +201,21 @@ function makeDoors(city: string, anchors: string[], categories: Record<string, C
     const category = route.categories[index];
     const bridge = route.bridges[index];
     const limit = feedbackLine + iterationNote;
+    const firstSteps: Partial<Record<Category, string>> = {
+      Music: "Choose one track you already have access to. Listen for a detail that connects with your original interest, then note what you would explore next.",
+      Books: "Choose a short passage or story you already have access to. Read a small section and write down one detail that connects with your original interest.",
+      Food: "Pick a familiar dish or ingredient and read a short account of its cultural story. Note one connection to your original interest; there is no need to buy or prepare anything.",
+      Art: "Choose an artwork or everyday image you can view comfortably. Notice one detail and make a short sketch or written response.",
+      Design: "Choose an everyday object you can examine comfortably. Look at its materials and shape, then describe one connection to your original interest.",
+      Film: "Choose a short scene from a film you can access. Notice one sound, image or storytelling choice that echoes your original interest.",
+      Outdoors: "Notice one natural detail from a comfortable, accessible spot, including a window if preferred. Record a connection to your original interest.",
+    };
     return {
       id: `demo-${crypto.randomUUID()}`,
       tier: item.tier, title, kind: item.kind, category, source: item.source,
       why: `${item.why} At this depth, the path follows ${bridge}. ${depthLine}${limit}`,
-      now: `For ${timeText} in ${cityText}, this is framed as ${focus}. Your ${budgetText} budget, ${movementText} movement preference, and “${conditionsText}” condition shape the suggested format only; they do not verify cost, travel, opening hours, or availability.`,
+      whyYou: `A starting point for ${focus} as you explore ${cityText}. Adapt this authored idea to your ${context.movement.toLowerCase()} preference and your own situation.`,
+      now: firstSteps[category] || `Choose one small part of this cultural direction and connect it to ${item.source}. Try it at your own pace, then decide whether to continue.`,
       evidence: `${item.source} → ${bridge} → ${title}. This is an authored deterministic demo connection, not Qloo output or a real listing.`,
       thread: bridge,
     };
@@ -670,7 +689,7 @@ export default function App() {
     used.forEach(anchor => { cats[anchor] ||= inferredCategory(anchor); });
     return {
       location: city.trim() || "Your chosen place", occasion, intent: nextIntent, depth,
-      context: { ...context, time: occasion },
+      context: publicContext({ ...context, time: occasion }),
       anchors: used.map(label => ({ label, category: cats[label] || inferredCategory(label) })),
       excludedEntityIds: journey?.doors.map(door => door.entityId).filter((id): id is string => Boolean(id)),
       feedback: feedbackValues, iteration: nextIteration,
@@ -684,6 +703,8 @@ export default function App() {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    const localScenarioCategory = context.scenarioCategory;
+    const localScenario = context.scenario;
     setIsRunning(true); setLiveError(""); setLiveStages([]);
     try {
       const result = await runAgentDiscovery(requestOverride || createRequest(nextAnchors, nextIntent, nextIteration, feedbackValues), event => {
@@ -691,7 +712,10 @@ export default function App() {
       }, controller.signal);
       const next: Journey = {
         city: result.city, occasion: result.occasion, intent: result.intent as Intent, anchors: result.anchors,
-        categories: result.categories as Record<string, Category>, context: { ...EMPTY_CONTEXT, ...result.context, time: result.occasion },
+        categories: result.categories as Record<string, Category>, context: {
+          ...EMPTY_CONTEXT, ...result.context, time: result.occasion,
+          scenarioCategory: localScenarioCategory, scenario: localScenario,
+        },
         depth: result.depth as Depth, doors: result.doors.map(toDoor), iteration: result.iteration, mode: "live",
         graph: result.graph, resolvedAnchors: result.resolvedAnchors, tools: result.tools, notices: result.notices,
         methodology: result.methodology, feedbackApplied: result.feedbackApplied, generatedAt: result.generatedAt,
@@ -721,7 +745,11 @@ export default function App() {
       if (selectedFeedback.length) setToast("Your explicit feedback will shape the next live exploration");
     }
   }
-  function startDemoJourney(scrollBehavior: ScrollBehavior = "smooth") {
+  function startDemoJourney(scrollBehavior: ScrollBehavior = "smooth", preserveScenario = false) {
+    if (preserveScenario && journeyMode === "live") {
+      void runLive(anchors, intent, journey?.iteration || 0, Object.values(feedback).filter(value => value && value !== "choose"));
+      return;
+    }
     pendingDemoScroll.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : scrollBehavior;
     setJourneyMode("demo");
     setLiveError("");
@@ -729,7 +757,10 @@ export default function App() {
     const demoOccasion = "One memorable afternoon";
     const demoIntent: Intent = "Try something new";
     const demoDepth: Depth = "Surprise me";
-    const demoContext: Context = { time: demoOccasion, budget: "Free or low-cost", movement: "Easy walking", conditions: "Social setting" };
+    const demoContext: Context = {
+      time: demoOccasion, budget: "Free or low-cost", movement: "Easy walking", conditions: "Social setting",
+      ...(preserveScenario ? { scenarioCategory: context.scenarioCategory, scenario: context.scenario } : {}),
+    };
     const demoCategories: Record<string, Category> = { "independent cinema": "Film", "Japanese breakfast": "Food", "live jazz": "Music" };
     const demoAnchors = [...EXAMPLES];
     const demoJourney: Journey = {
@@ -1081,7 +1112,7 @@ export default function App() {
         occasion,
         intent,
         depth: nextDepth,
-        context: nextContext,
+        context: publicContext(nextContext),
         anchors: usedAnchors.map(label => ({ label, category: usedCategories[label] })),
         excludedEntityIds: journey?.doors.map(door => door.entityId).filter((id): id is string => Boolean(id)),
         feedback: selectedFeedback,
@@ -1167,8 +1198,12 @@ export default function App() {
           const opened = lab.start(journeyToLab(journey, door?.id, feedback, groupMode ? participants.map(person => person.anchors).filter(Boolean).join("; ") : ""));
           if (opened) { setView("lab"); window.scrollTo({ top: 0, behavior: "smooth" }); }
         }}
-        resetCompass={resetCompass} openNext={openNext} onDoorOpened={recordProgressDoor} setView={setView} nodes={dnaNodes} selectedNode={selectedNode}
-        setSelectedNode={setSelectedNode} onShare={shareStory} onDownloadStory={downloadStoryCard} storyCopied={storyCopied} openedCount={openedIds.length}
+        resetCompass={resetCompass} openNext={openNext} onDoorOpened={door => {
+          const visit = `${door.id}|${door.category}|${door.tier}`;
+          setOpenedIds(current => current.includes(visit) ? current : [...current, visit]);
+          void recordProgressDoor(door);
+        }} setView={setView} nodes={dnaNodes} selectedNode={selectedNode}
+        setSelectedNode={setSelectedNode} onShare={shareStory} onDownloadStory={downloadStoryCard} storyCopied={storyCopied} openedCount={openedIds.length} openedIds={openedIds}
         openedCategories={openedCategories} openedTiers={openedTiers} savedCount={saved.length} groupMode={groupMode} setGroupMode={setGroupMode}
         participants={participants} updateParticipant={updateParticipant} addParticipant={addParticipant}
         removeParticipant={removeParticipant} groupBuilt={groupBuilt} buildGroup={buildGroup}
@@ -1234,11 +1269,11 @@ type DiscoverProps = {
   setFeedback: (id: string, reason: string) => void; reset: () => void; resetCompass: (intent: Intent) => void;
   openNext: (door: Door) => void; onDoorOpened: (door: Door) => void; setView: (view: View) => void; nodes: { id: string; label: string; kind: string; category: Category; detail: string; result: string }[];
   selectedNode: string; setSelectedNode: (value: string) => void; onShare: () => void; onDownloadStory: () => void; storyCopied: boolean;
-  openedCount: number; openedCategories: Set<string>; openedTiers: Record<string, number>; groupMode: boolean; setGroupMode: (value: boolean) => void;
+  openedCount: number; openedIds: string[]; openedCategories: Set<string>; openedTiers: Record<string, number>; groupMode: boolean; setGroupMode: (value: boolean) => void;
   savedCount: number;
   participants: Participant[]; updateParticipant: (index: number, field: keyof Participant, value: string) => void;
   addParticipant: () => void; removeParticipant: (index: number) => void; groupBuilt: boolean; buildGroup: () => void;
-  oneHour: boolean; setOneHour: (value: boolean) => void; onStartDemo: (behavior?: ScrollBehavior, allowLive?: boolean) => void;
+  oneHour: boolean; setOneHour: (value: boolean) => void; onStartDemo: (behavior?: ScrollBehavior, preserveScenario?: boolean) => void;
   onBuildDay: (input: DayPlanInput) => void;
   entryPhase: "closed" | "opening" | "welcoming" | "entered"; onOpenEntry: (runPreparedDemo?: boolean) => void;
   onEntryAnimationComplete: () => void;
@@ -1300,15 +1335,15 @@ function DoorwayAnimationArt({ autoPlay = false, className = "", onComplete }: {
 }
 
 function DiscoverView(p: DiscoverProps) {
-  const [activeDoor, setActiveDoor] = useState<Door | null>(null);
-  const [doorOpening, setDoorOpening] = useState(false);
-  const [hallway, setHallway] = useState(false);
+  const [activeDoorId, setActiveDoorId] = useState<string | null>(null);
+  const resultHeadingRef = useRef<HTMLHeadingElement | null>(null);
+  const openTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const openedVisitsRef = useRef(new Set(p.openedIds));
   const [planStart, setPlanStart] = useState(p.context.startTime || "10:00");
   const [planEnd, setPlanEnd] = useState(p.context.endTime || "17:00");
   const [planLocation, setPlanLocation] = useState(p.city);
   const [planBudget, setPlanBudget] = useState(p.context.budget);
   const [planNovelty, setPlanNovelty] = useState("Balanced");
-  const returnFocusRef = useRef<HTMLElement | null>(null);
   useEffect(() => setPlanLocation(p.city), [p.city]);
   useEffect(() => setPlanBudget(p.context.budget), [p.context.budget]);
   useEffect(() => {
@@ -1316,30 +1351,22 @@ function DiscoverView(p: DiscoverProps) {
     if (p.context.endTime) setPlanEnd(p.context.endTime);
   }, [p.context.startTime, p.context.endTime]);
   useEffect(() => {
-    if (!activeDoor) { returnFocusRef.current?.focus(); return; }
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !hallway) { p.onSound("door-close"); setActiveDoor(null); setDoorOpening(false); }
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [activeDoor, hallway, p.onSound]);
-  function continueThrough(door: Door) {
-    p.onSound("door-open");
-    setHallway(true);
-    window.setTimeout(() => {
-      p.openNext(door);
-      setHallway(false);
-      setActiveDoor(null);
-    }, 760);
-  }
+    if (activeDoorId) resultHeadingRef.current?.focus();
+  }, [activeDoorId]);
   function openDoor(door: Door) {
-    p.onDoorOpened(door);
+    const visit = `${door.id}|${door.category}|${door.tier}`;
+    if (!openedVisitsRef.current.has(visit)) {
+      openedVisitsRef.current.add(visit);
+      p.onDoorOpened(door);
+    }
     p.onSound("door-open");
-    returnFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    setActiveDoor(door);
-    setDoorOpening(true);
-    const duration = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 680;
-    window.setTimeout(() => setDoorOpening(false), duration);
+    openTriggerRef.current = document.activeElement instanceof HTMLButtonElement ? document.activeElement : null;
+    setActiveDoorId(door.id);
+  }
+  function closeDoor() {
+    p.onSound("door-close");
+    setActiveDoorId(null);
+    requestAnimationFrame(() => openTriggerRef.current?.focus());
   }
   const selectedNode = p.nodes.find(node => node.id === p.selectedNode) || p.nodes[0];
   const liveJourney = p.journey?.mode === "live" ? p.journey : null;
@@ -1397,7 +1424,7 @@ function DiscoverView(p: DiscoverProps) {
       <div className="hero-copy"><span className="eyebrow">Arrive curious. Leave with a thread.</span>
         <h1>Find your way<br />into <em>somewhere.</em></h1>
         <p>Start with what you already love. Open Door draws a few thoughtful, explainable lines from there into unfamiliar cultural territory.</p>
-         <button className="primary-btn demo-start" type="button" onClick={() => p.onStartDemo("smooth", p.journeyMode === "live")}>{p.journeyMode === "live" ? "Run the prepared live journey" : "Open the sample journey"} <ArrowRight size={15} /></button>
+          <button className="primary-btn demo-start" type="button" onClick={() => p.onStartDemo("smooth", true)}>{p.journeyMode === "live" ? "Run the prepared live journey" : "Open the sample journey"} <ArrowRight size={15} /></button>
       </div>
       <div className="hero-art mascot-welcome">
         <DoorwayAnimationArt className="hero-welcome-art" />
@@ -1422,6 +1449,19 @@ function DiscoverView(p: DiscoverProps) {
           <div className="field"><label htmlFor="conditions">Conditions / energy</label><select id="conditions" value={p.context.conditions} onChange={event => setContextValue("conditions", event.target.value)}><option>Open to anything</option><option>Rainy day</option><option>Low energy</option><option>High energy</option><option>Quiet setting</option><option>Social setting</option><option>Early morning</option><option>Late evening</option></select></div>
           <div className="field"><label htmlFor="mode">Journey mode</label><select id="mode" value={p.groupMode ? "group" : "solo"} onChange={event => p.setGroupMode(event.target.value === "group")}><option value="solo">Solo journey</option><option value="group">Small group / couples</option></select></div>
         </div></div>
+         <div className="field full personal-considerations">
+           <details open>
+             <summary>Personal considerations <span>Optional · explicit preferences only</span><ChevronDown size={15} /></summary>
+             <p className="personal-considerations-intro">Personal style, age-related needs, health and wellbeing, or any other situation: choose an example below, then make it your own. Open Door uses what you tell it, not assumptions about age, health, or identity.</p>
+             <ScenarioFields
+               value={p.context}
+               onChange={patch => p.setContext({ ...p.context, ...patch })}
+               label="Personal considerations"
+               helpId="discover-scenario-help"
+               helperText="Optional text stays in this browser and local journey/Lab data/exports; it is not sent to Qloo or your account. Suggestions use explicit preferences only, are not medical advice or verified suitability, and do not check venue facts. Avoid identifying or sensitive details."
+             />
+           </details>
+         </div>
         <div className="field full"><label htmlFor="anchor-input">Cultural anchors — things you already love</label>
           <div className="anchor-input-row"><input id="anchor-input" value={p.anchorDraft} onChange={event => p.setAnchorDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); p.addAnchor(p.anchorDraft); } }} placeholder="A sound, meal, film, ritual, place…" aria-describedby="anchor-hint" />
             <select className="category-select" aria-label="Category for new anchor" value={p.categoryDraft} onChange={event => p.setCategoryDraft(event.target.value as Category)}>{CATEGORIES.map(item => <option key={item}>{item}</option>)}</select>
@@ -1458,8 +1498,11 @@ function DiscoverView(p: DiscoverProps) {
          <div className="journey-tools"><button className="secondary-btn" type="button" onClick={() => p.onLab()}>Explore in Discovery Lab <ArrowRight size={14} /></button><button className="secondary-btn" type="button" onClick={() => p.setShowInspector(!p.showInspector)} aria-expanded={p.showInspector}><Info size={14} /> {p.showInspector ? "Close evidence" : "Under the Door"}</button><button className="secondary-btn" type="button" onClick={p.reset}><RotateCcw size={14} /> Reset the Compass</button></div></div>
       {p.journey.notices?.map((notice, index) => <div className="demo-note live-note" role="status" key={`${notice}-${index}`}>{notice}</div>)}
       {!!p.journey.feedbackApplied?.length && <div className="feedback-applied" role="status"><strong>Your feedback changed {p.journey.mode === "live" ? "the search" : "the sample route"}.</strong><span>{p.journey.feedbackApplied.join(" · ")}. {p.journey.mode === "live" ? "The orchestrator adjusted the Qloo result types; price and opening hours remain unverified." : "This is deterministic Demo adaptation, not a Qloo response."}</span></div>}
-      <div className="doors-grid" aria-label="Your discovery hallway">{p.journey.doors.map(door => <DoorCard key={door.id} door={door} city={p.journey!.city} anchors={p.journey!.anchors} mode={p.journey!.mode || "demo"}
-        saved={p.savedIds.has(door.id)} toggleSave={p.toggleSave} onOpenDoor={openDoor} onLab={p.onLab} feedback={p.feedback[door.id]} setFeedback={p.setFeedback} />)}</div>
+       <div className="doors-grid" aria-label="Your recommendations">{p.journey.doors.map(door => <DoorCard key={door.id} door={door} city={p.journey!.city} anchors={p.journey!.anchors} mode={p.journey!.mode || "demo"}
+         saved={p.savedIds.has(door.id)} toggleSave={p.toggleSave} onOpenDoor={openDoor} onCloseDoor={closeDoor}
+         expanded={activeDoorId === door.id} resultHeadingRef={activeDoorId === door.id ? resultHeadingRef : undefined}
+         scenarioCategory={p.journey!.context.scenarioCategory} scenario={p.journey!.context.scenario}
+         onExploreDeeper={p.openNext} onLab={p.onLab} feedback={p.feedback[door.id]} setFeedback={p.setFeedback} />)}</div>
       <div className="dna-strip"><div className="dna-title"><span>Your Discovery DNA</span><p>Changes as you explore</p></div><div className="dna-items">{p.journey.anchors.map((anchor, i) => <span className="dna-chip" key={anchor}><b>0{i + 1}</b> {anchor} · {p.journey?.categories[anchor] || inferredCategory(anchor)}</span>)}</div></div>
       <div className="dna-edit" aria-label="Edit Discovery DNA categories"><label>Edit explicit categories</label>{p.journey.anchors.map(anchor => <label key={anchor}>{anchor}<select className="dna-category" aria-label={`Category for ${anchor}`} value={p.journey?.categories[anchor] || inferredCategory(anchor)} onChange={event => p.setCategory({ anchor, value: event.target.value as Category })}>{CATEGORIES.map(category => <option key={category}>{category}</option>)}</select></label>)}</div>
 
@@ -1532,53 +1575,72 @@ function DiscoverView(p: DiscoverProps) {
        <details className="explain"><summary>How this path was assembled <ChevronDown size={16} /></summary><div className="explain-content"><div><h4>Start with your words</h4><p>Anchors, intent, context, budget, and location are explicit inputs. Nothing about identity is inferred.</p></div><div><h4>Separate source from route</h4><p>Qloo supplies returned entities and evidence. Open Door labels familiar, adjacent, or unexpected routes and keeps that presentation logic distinct.</p></div><div><h4>Keep limits visible</h4><p>External provenance and AI synthesis are absent when none were used. Results do not verify opening hours, cost, availability, accessibility, or travel time.</p></div></div></details>
     </section>}
     </>}
-    {activeDoor && <div className={`door-reveal category-${activeDoor.category.toLowerCase()} ${doorOpening ? "is-opening" : ""} ${hallway ? "hallway-phase" : ""}`} role="dialog" aria-modal="true" aria-busy={doorOpening || hallway} aria-labelledby="reveal-title" onKeyDown={event => {
-      if (event.key !== "Tab") return;
-      const focusable = event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])');
-      const first = focusable[0], last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-    }}>
-      <button className="reveal-close" autoFocus type="button" data-sound="door-close" onClick={() => { setActiveDoor(null); setDoorOpening(false); }} disabled={hallway} aria-label="Close this door"><X size={19} /></button>
-      <div className="reveal-scene">{doorOpening ? <div className="reveal-swing-art" aria-hidden="true"><DoorwayFrame /></div> : <DoorwayAnimationArt autoPlay className="reveal-animation-art" />}<div className="reveal-threshold-label">A POSSIBLE WORLD · {activeDoor.tier.toUpperCase()}</div></div>
-      <div className="reveal-content"><span className="eyebrow">{p.journey?.mode === "live" ? "A Qloo-returned cultural entity · not a listing" : activeDoor.tier === "Unexpected" ? "The door you wouldn't have searched for · demo" : "A direction, not a listing · sample path"}</span><h2 id="reveal-title">{activeDoor.title}</h2><p className="reveal-kind">{activeDoor.kind} <span>·</span> {activeDoor.category}</p>
-        {p.journey?.mode === "live" ? <div className="reveal-chain" aria-label="Retrieved entity and source"><div><span>YOUR EXPLICIT ANCHORS</span><b>{p.journey.anchors.join(" · ")}</b></div><ArrowRight size={15} /><div><span>QLOO SOURCE</span><b>{activeDoor.source}</b></div><ArrowRight size={15} /><div><span>ENTITY TYPE</span><b>{activeDoor.entityType || "Not returned"}</b></div><ArrowRight size={15} /><div><span>ENTITY ID</span><b>{activeDoor.entityId || "Not returned"}</b></div></div> :
-        <div className="reveal-chain" aria-label="The cultural thread in this illustrative demo"><div><span>YOUR EXPLICIT ANCHORS</span><b>{p.journey?.anchors.join(" · ") || "your chosen interests"}</b></div><ArrowRight size={15} /><div><span>ANCHOR USED IN THIS SAMPLE</span><b>{activeDoor.source}</b></div><ArrowRight size={15} /><div><span>DEMO BRIDGE</span><b>{activeDoor.thread}</b></div><ArrowRight size={15} /><div><span>BEHIND THIS DOOR</span><b>{activeDoor.title}</b></div></div>}
-         <div className="reveal-explanation"><div><span>WHY THIS</span><p>{activeDoor.why}</p></div>{activeDoor.whyYou && <div><span>WHY YOU</span><p>{activeDoor.whyYou}</p></div>}<div><span>WHY NOW</span><p>{activeDoor.now}</p></div><div><span>{p.journey?.mode === "live" ? "QLOO EVIDENCE" : "DEMO PROVENANCE"}</span><p>{activeDoor.evidence}{p.journey?.mode === "live" ? "" : " This is authored deterministic demo content; it was not found or verified by Qloo."}</p></div></div>
-        <details className="why-qloo"><summary>Why Qloo? <ChevronDown size={14} /></summary><p>Qloo supplies retrieved cultural entities and relationship signals through server-side Search and Insights orchestration. Open Door presents the returned source and evidence separately from its own Familiar, Adjacent, or Unexpected route label. Popularity is not affinity; Discovery Distance is an Open Door ordinal, not a Qloo score or a psychological measure.</p></details>
-        <button className="primary-btn reveal-continue" type="button" onClick={() => continueThrough(activeDoor)} disabled={hallway}>{hallway ? "Walking the hallway…" : "Continue through this door"} <ArrowRight size={16} /></button>
-        <p className="reveal-note">No real venue, event, opening hours, or availability is implied.</p>
-      </div>
-      <div className="hallway-art" aria-hidden="true"><div className="hallway-lines"></div><span>ANOTHER THREAD AHEAD</span></div>
-    </div>}
   </>;
 }
 
-function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, onLab, feedback, setFeedback }: {
+function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, onCloseDoor, expanded, resultHeadingRef,
+  scenarioCategory, scenario, onExploreDeeper, onLab, feedback, setFeedback }: {
   door: Door; city: string; anchors: string[]; saved: boolean; toggleSave: (door: Door, city: string, anchors: string[]) => void;
-  onOpenDoor: (door: Door) => void; onLab: (door: Door) => void; feedback?: string; setFeedback: (id: string, reason: string) => void; mode: "demo" | "live";
+  onOpenDoor: (door: Door) => void; onCloseDoor: () => void; expanded: boolean;
+  resultHeadingRef?: RefObject<HTMLHeadingElement | null>;
+  scenarioCategory?: ScenarioCategory; scenario?: string; onExploreDeeper: (door: Door) => void;
+  onLab: (door: Door) => void; feedback?: string; setFeedback: (id: string, reason: string) => void; mode: "demo" | "live";
 }) {
-  return <article className={`door-card ${feedback ? "dismissed" : ""} tier-${door.tier.toLowerCase()} category-${door.category.toLowerCase()}`}>
-    <button className="door-preview" type="button" data-sound="none" onClick={() => onOpenDoor(door)} aria-label={`Open ${door.tier.toLowerCase()} door: ${door.title}`}>
+  const expansionId = `door-result-${door.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+  const scenarioText = scenario?.trim() || "";
+  const localGuidance = scenarioText ? scenarioGuidance({ scenario: scenarioText }) : [];
+  const scenarioLabel = SCENARIOS.find(item => item.id === scenarioCategory)?.label;
+  return <article className={`door-card ${expanded ? "is-expanded" : ""} ${feedback ? "dismissed" : ""} tier-${door.tier.toLowerCase()} category-${door.category.toLowerCase()}`}>
+    <button className="door-preview" type="button" data-sound="none" onClick={() => expanded ? onCloseDoor() : onOpenDoor(door)}
+      aria-expanded={expanded} aria-controls={expansionId} aria-label={`${expanded ? "Collapse" : "Open"} ${door.tier.toLowerCase()} door: ${door.title}`}>
       <span className="preview-number">{door.tier === "Familiar" ? "01" : door.tier === "Adjacent" ? "02" : "03"}</span>
       <span className="preview-architecture"><span className="preview-opening"><span className="preview-glint"></span><span className="preview-mark">{door.tier === "Familiar" ? "NEAR" : door.tier === "Adjacent" ? "BESIDE" : "BEYOND"}</span></span></span>
-      <span className="preview-invite">{door.tier === "Unexpected" ? "OPEN THE WILDCARD" : "OPEN THIS DOOR"} <ArrowDownRight size={14} /></span>
+      <span className="preview-invite">{expanded ? "CLOSE DETAILS" : door.tier === "Unexpected" ? "OPEN THE WILDCARD" : "OPEN THIS DOOR"} <ArrowDownRight size={14} /></span>
     </button>
     <div className="door-top"><div className="door-kind"><Compass size={13} /> {door.tier} door · {door.category}</div><h3>{door.title}</h3><div className="door-location"><MapPin size={12} /> {mode === "live" ? `${door.kind} · Qloo entity` : `A cultural direction for ${city} · demo, not a listing`}</div></div>
-    <div className="door-body"><div className="why-block"><h4>Why this</h4><p>{door.why}</p></div>
-      {mode === "live" && door.whyYou && <div className="why-block"><h4>Why you</h4><p>{door.whyYou}</p></div>}
-      <div className="why-block"><h4>Why now</h4><p>{door.now}</p></div>
-      <div className="evidence"><strong>{mode === "live" ? `Qloo source · ${door.source}` : "Connection, made visible · authored sample"}</strong>{door.evidence}</div>
-      {mode === "live" && <div className="door-metadata"><span>Entity type · {door.entityType || "not supplied"}</span><span>Discovery Distance · {door.discoveryDistance?.ordinal ?? "not supplied"} · Open Door ordinal, not Qloo score</span>{door.popularity !== null && door.popularity !== undefined && <span>Qloo popularity · {door.popularity} · not affinity</span>}</div>}
-      {mode === "live" && door.explainability != null && <details className="qloo-explainability"><summary>Qloo explainability returned</summary><pre>{JSON.stringify(publicTrace(door.explainability), null, 2)}</pre></details>}
-      <div className="route-note"><b>{door.tier} route explanation</b><span>{mode === "live" ? door.discoveryDistance?.rationale || "Open Door route category based on the returned entity type and selected depth; no distance score is implied." : "Authored sample tier for illustration only; it does not express a measured cultural distance."}</span></div>
-    </div>
+    {!expanded && <div className="door-body door-summary"><p>{door.why}</p></div>}
     <div className="door-actions"><button className={`icon-action ${saved ? "saved" : ""}`} type="button" onClick={() => toggleSave(door, city, anchors)} aria-label={saved ? `Remove ${door.title} from My Doors` : `Save ${door.title}`}><Bookmark size={15} fill={saved ? "currentColor" : "none"} /> {saved ? "Saved" : "Save"}</button>
-      <button className="secondary-btn" type="button" onClick={() => onOpenDoor(door)}>{door.tier === "Unexpected" ? "Open the wildcard" : "Open this door"} <ArrowDownRight size={14} /></button>
-      <button className="icon-action" type="button" onClick={() => onLab(door)}>Branch in Discovery Lab <ArrowRight size={14} /></button>
-      <button className="icon-action" type="button" onClick={() => setFeedback(door.id, feedback ? "" : "choose")} aria-label={`Give feedback on ${door.title}`}><HeartCrack size={15} /> Not for me</button>
+      <button className="secondary-btn" type="button" data-sound="none" aria-expanded={expanded} aria-controls={expansionId}
+        onClick={() => expanded ? onCloseDoor() : onOpenDoor(door)}>{expanded ? "Close details" : door.tier === "Unexpected" ? "Open the wildcard" : "Open this door"} <ArrowDownRight size={14} /></button>
     </div>
-     {feedback && <div className="feedback-panel"><p>What didn’t fit? Your selected reason will be sent with the next live exploration.</p>{feedback === "choose" ? <div className="feedback-options">{REASONS.map(reason => <button key={reason} type="button" className="feedback-chip" onClick={() => setFeedback(door.id, reason)}>{reason}</button>)}</div> : <div><span className="feedback-confirm"><Check size={14} /> Noted: {feedback}</span><button className="text-button" type="button" onClick={() => setFeedback(door.id, "choose")}>Change</button><button className="text-button" type="button" onClick={() => setFeedback(door.id, "")}>Clear</button></div>}</div>}
+    <section className="door-result-expanded" id={expansionId} hidden={!expanded} aria-labelledby={`${expansionId}-heading`}
+      onKeyDown={event => { if (event.key === "Escape") { event.stopPropagation(); onCloseDoor(); } }}>
+      <div className="door-result-heading">
+        <span className="eyebrow">{mode === "live" ? "Live Qloo response · returned entity, not a venue listing" : "Demo · authored cultural direction"}</span>
+        <button className="door-result-close" type="button" data-sound="none" onClick={onCloseDoor} aria-label={`Collapse ${door.title} details`}><X size={15} /> Close</button>
+      </div>
+      <h4 id={`${expansionId}-heading`} tabIndex={-1} ref={resultHeadingRef}>{door.title}</h4>
+      <p className="expanded-kind">{door.kind} · {door.category} · {door.tier} route</p>
+      <div className="expanded-reasons">
+        <div><h5>Why this fits · what you may enjoy</h5><p>{door.why}</p></div>
+        {door.whyYou && <div><span>Why you</span><p>{door.whyYou}</p></div>}
+        <div><h5>A practical first step</h5><p>{door.now}</p></div>
+      </div>
+      {scenarioText && <section className="scenario-result" aria-label="Local personal considerations">
+        <div><span>Personal considerations · local planning only</span><p>{scenarioLabel || "Your scenario"} · {scenarioText}</p></div>
+        <ul>{localGuidance.map((suggestion, index) => <li key={`${suggestion}-${index}`}>{suggestion}</li>)}</ul>
+        <small>These suggestions use only your explicit text. They are separate from retrieved cultural fit and are not verified venue facts, medical advice, or a suitability check.</small>
+      </section>}
+      <details className="expanded-evidence">
+        <summary>{mode === "live" ? `Qloo evidence · ${door.source}` : "Demo provenance · authored sample"} <ChevronDown size={14} /></summary>
+        <p>{door.evidence}{mode === "demo" ? " This is authored deterministic demo content; it was not found or verified by Qloo." : ""}</p>
+        {mode === "live" && <div className="expanded-source-facts">
+          <span>Entity type · {door.entityType || "not returned"}</span>
+          <span>Entity ID · {door.entityId || "not returned"}</span>
+          <span>Discovery Distance · {door.discoveryDistance?.ordinal ?? "not supplied"} · Open Door ordinal, not a Qloo score</span>
+          {door.popularity !== null && door.popularity !== undefined && <span>Qloo popularity · {door.popularity} · not affinity</span>}
+        </div>}
+        <p>{mode === "live" ? door.discoveryDistance?.rationale || "Open Door route category based on returned entity type and selected depth; no distance score is implied." : "Authored sample tier for illustration only, not a measured cultural distance."}</p>
+        {mode === "live" && door.explainability != null && <details className="qloo-explainability"><summary>Qloo explainability returned</summary><pre>{JSON.stringify(publicTrace(door.explainability), null, 2)}</pre></details>}
+      </details>
+      <p className="expanded-limits">{mode === "live" ? "Qloo retrieval does not verify real-world venue details." : "This sample is not Qloo output or a real-world listing."} Opening hours, cost, travel, availability, accessibility, and suitability are not verified.</p>
+      <div className="expanded-next-actions">
+        <button className="primary-btn" type="button" onClick={() => onExploreDeeper(door)}>Explore this thread <ArrowRight size={15} /></button>
+        <button className="secondary-btn" type="button" onClick={() => onLab(door)}>Branch in Discovery Lab <ArrowRight size={14} /></button>
+        <button className="icon-action" type="button" onClick={() => setFeedback(door.id, feedback ? "" : "choose")} aria-label={`Give feedback on ${door.title}`}><HeartCrack size={15} /> Not for me</button>
+      </div>
+    </section>
+     {expanded && feedback && <div className="feedback-panel"><p>What didn’t fit? Your selected reason will be sent with the next live exploration.</p>{feedback === "choose" ? <div className="feedback-options">{REASONS.map(reason => <button key={reason} type="button" className="feedback-chip" onClick={() => setFeedback(door.id, reason)}>{reason}</button>)}</div> : <div><span className="feedback-confirm"><Check size={14} /> Noted: {feedback}</span><button className="text-button" type="button" onClick={() => setFeedback(door.id, "choose")}>Change</button><button className="text-button" type="button" onClick={() => setFeedback(door.id, "")}>Clear</button></div>}</div>}
   </article>;
 }
 
