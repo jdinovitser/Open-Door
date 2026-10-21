@@ -1,0 +1,69 @@
+[
+  {
+    "id": "01-welcome",
+    "duration": 21,
+    "title": "So many options. What fits you?",
+    "headline": "So many options.\nWhat fits you?",
+    "introMascot": true,
+    "kicker": "OPEN DOOR · PERSONAL DISCOVERY",
+    "label": "Your mascot artwork · AI-generated narration",
+    "voice": "The problem isn't finding something to do. It's finding something that works for you. You finally have an afternoon free. But another list of popular places doesn't tell you what you'll enjoy, or whether it fits your time, budget, and energy."
+  },
+  {
+    "id": "02-your-day",
+    "duration": 26,
+    "title": "Meet Open Door. Make the day yours.",
+    "kicker": "01 / YOUR INTERESTS + YOUR CIRCUMSTANCES",
+    "label": "Real app recording · Demo examples",
+    "voice": "Meet Open Door. Start with what you love, then tell it what kind of day you want. Maybe you need a gentler pace, a quiet setting, or room to pause. Your age, health, preferences, and circumstances deserve more than a generic suggestion. Describe what matters in your own words. No assumptions about what someone like you should enjoy."
+  },
+  {
+    "id": "06-qloo",
+    "duration": 26,
+    "title": "Qloo connects your cultural interests.",
+    "kicker": "02 / CULTURAL INTELLIGENCE, EXPLAINED",
+    "label": "Architecture walkthrough · No live Qloo response shown",
+    "voice": "Qloo provides the cultural intelligence behind Live discovery. Qloo Search identifies your cultural interests. Qloo Insights finds recommendations across categories, connecting the music, films, books, and other things you love. Open Door turns those connections into choices you can understand. Your free-text personal scenario stays separate from requests to Qloo."
+  },
+  {
+    "id": "03-open-a-door",
+    "duration": 24,
+    "title": "A clear idea. A simple first step.",
+    "kicker": "03 / OPEN SOMETHING THAT INTERESTS YOU",
+    "label": "Real app recording · Demo activities, not live Qloo results",
+    "voice": "Now open a door. The recommendation expands right here: what to try, why you might enjoy it, and how to begin. Stay close to something familiar, or try a different direction. For an extra spark of curiosity, uncover a hidden gem. Want more? Explore more ideas keeps your original interests in mind."
+  },
+  {
+    "id": "05-discovery-lab",
+    "duration": 19,
+    "title": "Try a different direction. Keep your place.",
+    "kicker": "04 / DISCOVERY LAB",
+    "label": "Real app recording · Demo branches stay in this browser",
+    "voice": "Curiosity doesn't have to follow one path. In Discovery Lab, save a checkpoint, branch into different directions, and compare your options side by side. Keep what interests you, or return to your starting point without losing the alternatives."
+  },
+  {
+    "id": "04-make-a-plan",
+    "duration": 26,
+    "title": "Make a plan. Take it with you.",
+    "kicker": "05 / FROM INSPIRATION TO SOMETHING USEFUL",
+    "label": "Real app recording · Maps searches are not verified venues",
+    "voice": "Inspiration is only useful if you can do something with it. Open a nearby search in Google Maps. Build a flexible day plan, reorder activities, and check them off. Only have an hour? Simplify your plan. Print your recommendations or download a Word document, so the useful details can come with you."
+  },
+  {
+    "id": "07-save",
+    "duration": 23,
+    "title": "Keep what you love. Celebrate curiosity.",
+    "kicker": "06 / MY DOORS + A LITTLE DELIGHT",
+    "label": "Guest saves + sign-in · Rewards preview uses sample milestones",
+    "voice": "Found something you love? Save it in My Doors. Explore as a guest, or sign in to keep your doors across devices. Choose whether to remember your planning preferences. Then celebrate your curiosity: Brave, Explorer, and Door Collector milestones bring medals, stars, and a little delight to the journey."
+  },
+  {
+    "id": "08-goodbye",
+    "duration": 14,
+    "title": "Your kind of day.",
+    "tagline": "Your kind of day.\nOpen up what's possible.",
+    "kicker": "OPEN DOOR",
+    "label": "Real product recording · AI-generated narration",
+    "voice": "Less time sorting through possibilities. More confidence choosing something you'll enjoy. Your interests. Your circumstances. Your kind of day. Open Door. Open up what's possible."
+  }
+]

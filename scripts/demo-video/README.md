@@ -69,3 +69,27 @@ or a signed-in account. The rewards sequence renders the existing component
 with explicitly labeled sample milestones, not real member activity. This
 version uses the existing mascot artwork for its opening, rather than the
 earlier moving-house illustration. The finished cut is 179 seconds.
+
+## Story-led demo
+
+The approved narrative in `story-plan.json` follows one problem and one
+journey: too many options, personal constraints, Open Door as the solution,
+Qloo's role, useful tools, and a positive payoff. It does not repeatedly
+enumerate the occasion options.
+
+Generate matching new narration under
+`generated-artifacts/demo-story/upbeat-voice/`, then run:
+
+```sh
+node scripts/demo-video/capture-story.mjs --check
+node scripts/demo-video/capture-story.mjs
+OPEN_DOOR_DEMO_DIR=generated-artifacts/demo-story \
+OPEN_DOOR_DEMO_PLAN=scripts/demo-video/story-plan.json \
+node scripts/demo-video/render.mjs upbeat
+```
+
+The setup and Qloo chapters are freshly recorded. The verified recommendation,
+Maps/planner/download, Lab, save/sign-in, and labeled rewards-preview footage
+from the multi-occasion version is reused with the new narration. The Lab
+footage is modestly accelerated to fit its chapter. The final cut is 179
+seconds, and the earlier exports are preserved.

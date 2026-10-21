@@ -124,7 +124,8 @@ ${lines.join("\n")}\n`);
     if (captures[scene.id].start) inputArgs.push("-ss", String(captures[scene.id].start));
     inputArgs.push("-i", captures[scene.id].file, "-i", voice);
     voiceIndex = 1;
-    base = `[0:v]fps=24,scale=1440:810:flags=lanczos,setsar=1,tpad=stop_mode=clone:stop_duration=3,trim=duration=${scene.duration},pad=1920:1080:240:170:color=0xf4f3eb,drawbox=x=232:y=162:w=1456:h=826:color=0xCCD3C8:t=2,${draw(kickerFile, 240, 26, 18, "0x947233", bold)},${draw(titleFile, 238, 62, 48, "0x173e33", serif)},${draw(labelFile, 240, 128, scene.id === "06-progress" ? 18 : 20, "0x66746B")}[base]`;
+    const clip = captures[scene.id];
+    base = `[0:v]trim=duration=${clip.duration},setpts=(PTS-STARTPTS)/${clip.playbackRate || 1},fps=24,scale=1440:810:flags=lanczos,setsar=1,tpad=stop_mode=clone:stop_duration=${scene.duration},trim=duration=${scene.duration},pad=1920:1080:240:170:color=0xf4f3eb,drawbox=x=232:y=162:w=1456:h=826:color=0xCCD3C8:t=2,${draw(kickerFile, 240, 26, 18, "0x947233", bold)},${draw(titleFile, 238, 62, 48, "0x173e33", serif)},${draw(labelFile, 240, 128, scene.id === "06-progress" ? 18 : 20, "0x66746B")}[base]`;
   }
   const filter = `${base};[base]drawbox=x=0:y=990:w=1920:h=90:color=0x173e33:t=fill,ass='${assFile}',fade=t=in:st=0:d=0.3,fade=t=out:st=${scene.duration - 0.3}:d=0.3,format=yuv420p[v];[${voiceIndex}:a]atempo=${speed},loudnorm=I=-16:TP=-1.5:LRA=7,adelay=800:all=1,apad,atrim=duration=${scene.duration},aresample=48000[a]`;
   const output = `${renderDirectory}/${scene.id}.mp4`;
