@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 import type { Page } from "@playwright/test";
 
 async function openSample(page: import("@playwright/test").Page) {
@@ -8,7 +9,7 @@ async function openSample(page: import("@playwright/test").Page) {
   await expect(page.locator(".door-card h3").first()).toBeVisible();
 }
 
-test("recommendation HTML is standalone and each result links to a nearby category search", async ({ page }) => {
+test("recommendations download as a genuine Word document with clickable map links", async ({ page }) => {
   await page.addInitScript(() => {
     window.print = () => { document.documentElement.dataset.printRequested = "true"; };
   });
@@ -18,7 +19,7 @@ test("recommendation HTML is standalone and each result links to a nearby catego
   const map = result.locator(".door-map-link");
   await expect(map).toHaveAttribute("target", "_blank");
   await expect(map).toHaveAttribute("rel", "noopener noreferrer");
-  await expect(map).toContainText("category search, not a verified venue");
+  await expect(map).toContainText("Opens Google Maps");
   expect(await map.getAttribute("href")).toMatch(/^https:\/\/www\.google\.com\/maps\/search\/\?api=1&query=/);
   await page.getByRole("button", { name: "Print recommendations" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-print-requested", "true");
@@ -27,21 +28,25 @@ test("recommendation HTML is standalone and each result links to a nearby catego
   await page.emulateMedia({ media: "screen" });
 
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download HTML" }).click();
+  await page.getByRole("button", { name: "Download Word document" }).click();
   const download = await downloadPromise;
   const file = await download.path();
   expect(file).toBeTruthy();
-  const html = await readFile(file!, "utf8");
-  expect(html).toContain("<!doctype html>");
-  expect(html).toContain("<style>");
-  expect(html).toContain("Authored deterministic demo content");
-  expect(html).toContain("noopener noreferrer");
-  expect(html).not.toMatch(/<script\b/i);
+  expect(download.suggestedFilename()).toBe("open-door-recommendations.docx");
+  expect((await readFile(file!)).subarray(0, 2).toString()).toBe("PK");
+  const xml = execFileSync("unzip", ["-p", file!, "word/document.xml"], { encoding: "utf8" });
+  expect(xml).toContain("Demo recommendations are examples");
+  expect(xml).toContain("Why you might like it:");
+  expect(xml).toContain("Try this:");
+  const links = execFileSync("unzip", ["-p", file!, "word/_rels/document.xml.rels"], { encoding: "utf8" });
+  expect(links).toContain("https://www.google.com/maps/search/");
+  expect(links).toContain('TargetMode="External"');
+  await download.saveAs("generated-artifacts/recommendations-sample.docx");
 });
 
 test("local planner uses returned candidates, enforces its time window, and exports a truthful plan", async ({ page }) => {
   await openSample(page);
-  await page.getByRole("button", { name: "Plan these candidates" }).click();
+  await page.getByRole("button", { name: "Plan these ideas" }).click();
   const firstCandidate = page.locator(".planner-pick").first();
   const candidateTitle = (await firstCandidate.innerText()).split("\n")[0];
   await firstCandidate.click();
@@ -52,7 +57,7 @@ test("local planner uses returned candidates, enforces its time window, and expo
   await expect(page.getByRole("button", { name: "Download day plan" })).toBeDisabled();
   await duration.selectOption("45");
   await expect(page.getByRole("button", { name: "Download day plan" })).toBeEnabled();
-  const map = page.getByRole("link", { name: /Nearby .* search in Google Maps/ }).first();
+  const map = page.getByRole("link", { name: /Find .* on Google Maps/ }).first();
   await expect(map).toHaveAttribute("target", "_blank");
   await expect(map).toHaveAttribute("rel", "noopener noreferrer");
 
@@ -60,18 +65,38 @@ test("local planner uses returned candidates, enforces its time window, and expo
   await page.getByRole("button", { name: "Download day plan" }).click();
   const download = await downloadPromise;
   const file = await download.path();
-  const html = await readFile(file!, "utf8");
-  expect(html).toContain("A flexible day plan");
-  expect(html).toContain("Sequence only; travel time is not estimated.");
-  expect(html).toContain("not Qloo output or real listings");
-  expect(html).toContain(candidateTitle);
-  expect(html).not.toMatch(/<script\b/i);
+  expect(download.suggestedFilename()).toBe("open-door-day-plan.docx");
+  const xml = execFileSync("unzip", ["-p", file!, "word/document.xml"], { encoding: "utf8" });
+  expect(xml).toContain("A flexible day plan");
+  expect(xml).toContain("Travel time is not included.");
+  expect(xml).toContain("Demo recommendations are examples");
+  expect(xml).toContain(candidateTitle);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   for (const id of ["planner-start", "planner-end", "planner-location", "planner-buffer"]) {
     const box = await page.locator(`#${id}`).boundingBox();
     expect(box!.x + box!.width).toBeLessThanOrEqual(390);
   }
+});
+
+test("Word exports preserve Unicode and escape untrusted text rather than exporting HTML", async ({ page }) => {
+  await page.goto("/");
+  const downloading = page.waitForEvent("download");
+  await page.evaluate(async () => {
+    const modulePath = "/src/documentExport.ts";
+    const { downloadWordDocument } = await import(/* @vite-ignore */ modulePath);
+    await downloadWordDocument({
+      filename: "unicode-test.docx", title: "Café — 音楽 & música",
+      subtitle: "A readable document",
+      sections: [{ heading: "<script>not executable</script>", paragraphs: ["Crème brûlée & storytelling"] }],
+      footnote: "A test export.",
+    });
+  });
+  const file = await (await downloading).path();
+  const xml = execFileSync("unzip", ["-p", file!, "word/document.xml"], { encoding: "utf8" });
+  expect(xml).toContain("Café — 音楽 &amp; música");
+  expect(xml).toContain("&lt;script&gt;not executable&lt;/script&gt;");
+  expect(xml).toContain("Crème brûlée &amp; storytelling");
 });
 
 test("suggested schedule fits, supports checkoff and reorder, and prints only the chosen sheet", async ({ page }) => {
@@ -89,7 +114,7 @@ test("suggested schedule fits, supports checkoff and reorder, and prints only th
   await page.getByRole("button", { name: "I have one hour", exact: true }).click();
   await expect(items).toHaveCount(1);
   await expect(items.first().getByRole("button", { name: /later/ })).toBeDisabled();
-  await page.getByRole("button", { name: "Show all candidates" }).click();
+  await page.getByRole("button", { name: "Show all ideas" }).click();
   await expect(items).toHaveCount(3);
   await expect(items.first().locator(".planner-check span")).toHaveText(first);
   await page.getByRole("button", { name: "Print day plan", exact: true }).click();

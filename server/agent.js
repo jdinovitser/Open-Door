@@ -520,22 +520,29 @@ export async function runDiscovery(input, { qloo, emit = () => {}, signal, onToo
       ? `Same Qloo entity type as the first resolved starting interest (${result.entityType}).`
       : `Different Qloo entity type selected by Open Door's ${request.depth.toLowerCase()} routing taxonomy; not a Qloo distance score.`;
     const contextText = contextSummary(request.context, request.occasion);
+    const firstStep = ({
+      Music: `Look for a track by “${candidate.title}” on a service you use. Try a short preview and decide whether you want to hear more.`,
+      Film: `Look for a trailer or short preview of “${candidate.title}”. Notice whether the story or atmosphere catches your interest.`,
+      Books: `Look for a library copy or reading preview of “${candidate.title}”. Try the first page before committing to the whole book.`,
+      Art: `Look for images or a short introduction to “${candidate.title}”. Choose one detail you would like to explore further.`,
+      Food: `Look for a recipe, menu, or introduction to “${candidate.title}”. Check ingredients, costs, and any dietary needs before making plans.`,
+    })[candidate.category] || `Look for a short introduction to “${candidate.title}”. Choose one part that interests you before making a bigger plan.`;
     selected.push({
       id: `qloo-${candidate.id}`,
       entityId: candidate.id,
       entityType: candidate.entityType,
       tier: result.tier,
       title: candidate.title,
-      kind: candidate.subtype || `urn:entity:${candidate.entityType}`,
+      kind: candidate.subtype && !candidate.subtype.startsWith("urn:") ? candidate.subtype : candidate.category,
       category: candidate.category,
       source: anchorsText,
       sourceEntityIds: entityIds,
       thread: `${anchorsText} → Qloo ${candidate.category} result`,
-      why: `Qloo returned “${candidate.title}” in an Insights request conditioned on your resolved interests: ${anchorsText}.${exactMatchNote}`,
-      whyYou: `You explicitly chose ${anchorsText}.`,
-      whyNow: `You specified ${contextText}. Qloo does not verify current opening hours, availability, or price.`,
-      now: `You specified ${contextText}. Qloo does not verify current opening hours, availability, or price.`,
-      evidence: `Qloo Insights API · GET /v2/insights/ · filter.type=urn:entity:${candidate.entityType} · result ${candidate.title}.`,
+      why: `Qloo suggested “${candidate.title}” based on the interests you chose: ${anchorsText}. Try a preview to see whether it suits your taste.`,
+      whyYou: `You chose ${anchorsText}, with ${contextText}.`,
+      whyNow: firstStep,
+      now: firstStep,
+      evidence: `Qloo Insights API · GET /v2/insights/ · filter.type=urn:entity:${candidate.entityType} · result ${candidate.title}.${exactMatchNote} Check opening hours, availability, prices, and access before visiting a place.`,
       description: candidate.description,
       imageUrl: candidate.imageUrl,
       popularity: candidate.popularity,

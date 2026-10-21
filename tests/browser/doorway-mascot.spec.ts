@@ -62,8 +62,8 @@ test("prepared-sample doors expand immediately on the same page and preserve key
   await preview.click();
   const result = page.locator(".door-card.is-expanded .door-result-expanded");
   await expect(result).toBeVisible();
-  await expect(result.getByRole("heading", { name: /Why this fits/ })).toBeVisible();
-  await expect(result.getByRole("heading", { name: "A practical first step" })).toBeVisible();
+  await expect(result.getByRole("heading", { name: "Why you might enjoy it" })).toBeVisible();
+  await expect(result.getByRole("heading", { name: "Try this first" })).toBeVisible();
   await expect(result.locator("h4")).toBeFocused();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.locator(".door-reveal,.hallway-phase")).toHaveCount(0);

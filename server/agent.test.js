@@ -56,7 +56,8 @@ test("the live agent resolves anchors, makes multiple Qloo insight queries, and 
   assert.ok(calls.insights.some(call => call.location === "Brooklyn, New York"));
   assert.ok(journey.doors.every(door => door.entityId.startsWith("candidate-")));
   assert.ok(journey.doors.every(door => door.discoveryDistance.isQlooScore === false));
-  assert.ok(journey.doors.every(door => door.whyNow.includes("does not verify current opening hours")));
+  assert.ok(journey.doors.every(door => door.whyNow.includes(door.title) && !door.whyNow.includes("You specified")));
+  assert.ok(journey.doors.every(door => door.evidence.includes("Check opening hours")));
   assert.equal(journey.methodology.llmUsed, false);
   assert.ok(journey.graph.nodes.some(node => node.provenance === "USER"));
   assert.ok(journey.graph.nodes.some(node => node.provenance === "QLOO"));

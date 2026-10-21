@@ -22,6 +22,9 @@ export function scenarioGuidance(settings: Pick<Settings, "scenario">): string[]
   const text = settings.scenario?.trim() || "";
   if (!text) return [];
   const guidance: string[] = [];
+  if (stated(text, /\b(?:love|enjoy|like|interested in)\s+(?:both\s+)?music\s+and\s+art\b/)) {
+    guidance.push("Try pairing a song you love with an artwork. You can explore both interests together without needing to go anywhere.");
+  }
   if (stated(text, /\b(quiet|silence|silent|avoid (?:loud|noise)|low[- ]noise)\b/)) {
     guidance.push("Try a silent reading or visual version first; confirm sound levels before choosing an in-person experience.");
   }
@@ -43,7 +46,7 @@ export function scenarioGuidance(settings: Pick<Settings, "scenario">): string[]
   if (stated(text, /\b(understated|tactile|colors|aesthetic|texture)\b/)) {
     guidance.push("Sample one detail and compare its colors, textures or atmosphere with your own taste before committing.");
   }
-  if (!guidance.length) guidance.push("Preview one small part, compare it with your stated goal and constraints, then keep, reject or adapt this direction.");
+  if (!guidance.length) guidance.push("Try a short preview before committing your time. Keep what you enjoy and skip what you don’t.");
   return guidance;
 }
 

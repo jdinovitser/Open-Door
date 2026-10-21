@@ -19,7 +19,8 @@ for (const item of cases) {
     await page.locator(".door-preview").first().click();
     const result = page.locator(".door-card.is-expanded .door-result-expanded");
     await expect(result).toBeVisible();
-    await expect(result.getByRole("region", { name: "Local personal considerations" })).toContainText(item.label);
+    await expect(selector).toHaveValue(item.id);
+    await expect(result.getByRole("region", { name: "Local personal considerations" })).toContainText("You told us:");
     await expect(result.locator(".scenario-result")).toContainText(item.text);
     await expect(result.locator(".scenario-result ul")).toContainText(item.outcome);
     await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -47,7 +48,7 @@ test("expanded recommendations keep save, feedback, evidence and deeper explorat
   await result.getByRole("button", { name: `Give feedback on ${title}`, exact: true }).click();
   await card.getByRole("button", { name: "Too expensive", exact: true }).click();
   await expect(card.locator(".feedback-panel")).toContainText("Noted: Too expensive");
-  await result.getByRole("button", { name: "Explore this thread", exact: true }).click();
+  await result.getByRole("button", { name: "Explore more ideas", exact: true }).click();
   await expect(page.locator("#journey-result")).toContainText(title);
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("button", { name: /^My Doors/ }).click();
