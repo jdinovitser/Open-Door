@@ -12,6 +12,7 @@ import CompanyPortal from "./company/CompanyPortal";
 import CompanyExperience from "./company/CompanyExperience";
 import CompanyAdmin from "./company/CompanyAdmin";
 import "./auth.css";
+import { safeAppReturnTo } from "./authReturn";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 const clerkPubKey = publishableKeyFromHost(
@@ -63,10 +64,13 @@ const clerkAppearance = {
 };
 
 function ContinueAsGuest() {
-  return <p className="auth-guest"><Link href="/">Continue as guest</Link></p>;
+  const destination = safeAppReturnTo(new URLSearchParams(window.location.search).get("redirect_url"));
+  return <p className="auth-guest"><Link href={destination}>Continue as guest</Link></p>;
 }
 
 function SignInPage() {
+  const destination = safeAppReturnTo(new URLSearchParams(window.location.search).get("redirect_url"));
+  const returnQuery = `?redirect_url=${encodeURIComponent(destination)}`;
   useEffect(() => {
     document.title = "Sign in | Open Door";
     return () => { document.title = "Open Door — Find your way into a new place"; };
@@ -76,13 +80,14 @@ function SignInPage() {
       <span className="eyebrow">Open Door · a cultural field guide</span>
       <h1>Welcome back.</h1>
        <p>Keep your saved doors and rewards across devices. Guest-saved doors from this browser are added to your account when you sign in.</p>
-      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} forceRedirectUrl={new URLSearchParams(window.location.search).get("redirect_url") === "/companies/admin" ? `${basePath}/companies/admin` : undefined} />
+      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up${returnQuery}`} forceRedirectUrl={`${basePath}${destination}`} />
       <ContinueAsGuest />
     </div>
   </main>;
 }
 
 function SignUpPage() {
+  const destination = safeAppReturnTo(new URLSearchParams(window.location.search).get("redirect_url"));
   useEffect(() => {
     document.title = "Create an account | Open Door";
     return () => { document.title = "Open Door — Find your way into a new place"; };
@@ -92,7 +97,7 @@ function SignUpPage() {
       <span className="eyebrow">Open Door · a cultural field guide</span>
       <h1>Keep your doors.</h1>
        <p>Keep your discoveries and rewards across devices. Guest-saved doors from this browser will be added to your account.</p>
-      <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} />
+      <SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in?redirect_url=${encodeURIComponent(destination)}`} forceRedirectUrl={`${basePath}${destination}`} />
       <ContinueAsGuest />
     </div>
   </main>;

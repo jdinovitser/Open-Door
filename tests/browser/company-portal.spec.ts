@@ -21,7 +21,7 @@ for (const profile of COMPANY_PROFILES) {
     await expect(page.locator("#budget")).toHaveValue(profile.context.budget);
     await page.locator("#occasion").fill("Our own event afternoon");
     await expect(page.locator("#occasion")).toHaveValue("Our own event afternoon");
-    await page.getByRole("link", { name: "Try the idea lab", exact: true }).click();
+    await page.getByRole("navigation", { name: "Main navigation", exact: true }).getByRole("button", { name: "Discovery Lab", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/companies/lab\\?type=${profile.id}`));
     await expect(page.getByRole("heading", { name: profile.labTitle, exact: true })).toBeVisible();
     await expect(page.locator("#lab-location")).toHaveValue(profile.location);

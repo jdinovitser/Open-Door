@@ -1,8 +1,11 @@
 import { useRef, useState, type FormEvent } from "react";
 import { Link } from "wouter";
-import { COMPANY_PROFILES, companyUrl, type CompanyType } from "./profiles";
+import { useUser } from "@clerk/react";
+import { ProductAvenues, ProductHeader } from "../ProductHeader";
+import { COMPANY_PROFILES, companyProfile, type CompanyType } from "./profiles";
 import { CompanyMascot } from "./CompanyMascot";
 import CompanyWalkthrough from "./CompanyWalkthrough";
+import { companyExperienceUrl, readPublicOccasion } from "./experienceContext";
 import "./company.css";
 
 type InquiryForm = {
@@ -34,14 +37,32 @@ function getErrorMessage(payload: unknown, fallback: string) {
 }
 
 export default function CompanyPortal() {
-  const [companyType, setCompanyType] = useState<CompanyType>("hospitality");
+  const { isSignedIn } = useUser();
+  const initialSearch = typeof window === "undefined" ? "" : window.location.search;
+  const initialParams = new URLSearchParams(initialSearch);
+  const initialType = COMPANY_PROFILES.some(profile => profile.id === initialParams.get("type"))
+    ? initialParams.get("type") as CompanyType : "hospitality";
+  const initialProfile = companyProfile(initialType);
+  const initialOccasion = readPublicOccasion(initialSearch);
+  const [companyType, setCompanyType] = useState<CompanyType>(initialType);
+  const [location, setLocation] = useState(initialOccasion.location ?? initialProfile.location);
+  const [occasion, setOccasion] = useState(initialOccasion.occasion ?? initialProfile.occasion);
   const [form, setForm] = useState<InquiryForm>(blankForm);
   const [error, setError] = useState("");
+  const [shareMessage, setShareMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<SubmissionReceipt | null>(null);
   const requestIdRef = useRef<string | null>(null);
   const selectedProfile = COMPANY_PROFILES.find(profile => profile.id === companyType) || COMPANY_PROFILES[0];
 
+  function changeCompanyType(value: string) {
+    const nextType = COMPANY_PROFILES.some(profile => profile.id === value) ? value as CompanyType : "hospitality";
+    const nextProfile = companyProfile(nextType);
+    setCompanyType(nextType);
+    setLocation(nextProfile.location);
+    setOccasion(nextProfile.occasion);
+    setShareMessage("");
+  }
   function update<K extends keyof InquiryForm>(key: K, value: InquiryForm[K]) {
     setForm(current => ({ ...current, [key]: value }));
     setError("");
@@ -90,23 +111,26 @@ export default function CompanyPortal() {
     }
   }
 
-  return <div className="company-portal">
-    <header className="company-topbar">
-      <div className="company-shell company-topbar-inner">
-        <Link href="/companies" className="company-brand" aria-label="Open Door companies home">
-          <span className="company-brand-mark" aria-hidden="true">O</span>
-          <span><span className="company-brand-name">Open Door</span><span className="company-brand-caption">Company experiences</span></span>
-        </Link>
-        <nav className="company-top-links" aria-label="Company navigation">
-          <a href="#company-walkthrough">Walkthrough</a>
-          <a href="#use-cases">Use cases</a>
-          <a href="#inquiry">Talk with us</a>
-          <Link href="/companies/admin">Admin access</Link>
-        </nav>
-      </div>
-    </header>
+  async function copyGuestLink() {
+    setShareMessage("");
+    try {
+      const relativeUrl = companyExperienceUrl("discover", companyType, { location, occasion });
+      await navigator.clipboard.writeText(new URL(relativeUrl, window.location.origin).toString());
+      setShareMessage("Guest link copied. It includes only the public place and occasion.");
+    } catch {
+      setShareMessage("We couldn’t copy the link here. You can still open a preview and copy its address.");
+    }
+  }
 
+  return <div className="company-portal">
+    <ProductHeader view="companies" signedIn={Boolean(isSignedIn)} />
+    <ProductAvenues active="company" />
     <main className="company-main company-shell">
+      <nav className="company-local-nav" aria-label="Company page sections">
+        <a href="#company-walkthrough">Walkthrough</a>
+        <a href="#use-cases">Use cases</a>
+        <a href="#inquiry">Talk with us</a>
+      </nav>
       <section className="company-hero" aria-labelledby="company-hero-title">
         <div>
           <span className="company-eyebrow">Open Door for organizations</span>
@@ -133,7 +157,7 @@ export default function CompanyPortal() {
           <div>
             <label className="company-form-control" htmlFor="company-type">
               <span>Company use case</span>
-              <select id="company-type" value={companyType} onChange={event => setCompanyType(event.target.value as CompanyType)}>
+              <select id="company-type" value={companyType} onChange={event => changeCompanyType(event.target.value)}>
                 {COMPANY_PROFILES.map(profile => <option value={profile.id} key={profile.id}>{profile.name}</option>)}
               </select>
               <small>{selectedProfile.audience}. These are starting points to explore, not a claim about what your organization offers.</small>
@@ -143,6 +167,20 @@ export default function CompanyPortal() {
               <input id="company-type-description" value={form.typeDescription} onChange={event => update("typeDescription", event.target.value.slice(0, 200))} maxLength={200} placeholder="A short explanation (up to 200 characters)" />
               <small>Optional while exploring; required if you send a customization inquiry.</small>
             </label>}
+            <div className="company-public-context">
+              <span className="company-public-context-heading">Set the public occasion</span>
+              <p>These two details can be shared with guests. Their tastes and practical needs stay personal.</p>
+              <div className="company-public-context-fields">
+                <label className="company-form-control" htmlFor="company-public-place">
+                  <span>Place</span>
+                  <input id="company-public-place" value={location} maxLength={120} onChange={event => { setLocation(event.target.value.slice(0, 120)); setShareMessage(""); }} placeholder="City, neighborhood or destination" />
+                </label>
+                <label className="company-form-control" htmlFor="company-public-occasion">
+                  <span>Occasion</span>
+                  <input id="company-public-occasion" value={occasion} maxLength={200} onChange={event => { setOccasion(event.target.value.slice(0, 200)); setShareMessage(""); }} placeholder="A weekend around the celebration" />
+                </label>
+              </div>
+            </div>
           </div>
         </div>
         <article className="company-profile-spotlight">
@@ -152,9 +190,11 @@ export default function CompanyPortal() {
             <p>{selectedProfile.summary}</p>
           </div>
           <div className="company-path-links" aria-label={`Explore ${selectedProfile.name} example`}>
-            <Link className="company-button" onClick={rememberOtherContext} href={companyUrl("discover", selectedProfile.id)}>Try discovery <span aria-hidden="true">→</span></Link>
-            <Link className="company-button secondary" onClick={rememberOtherContext} href={companyUrl("lab", selectedProfile.id)}>Open the idea lab</Link>
+            <Link className="company-button" onClick={rememberOtherContext} href={companyExperienceUrl("discover", selectedProfile.id, { location, occasion })}>Try discovery <span aria-hidden="true">→</span></Link>
+            <Link className="company-button secondary" onClick={rememberOtherContext} href={companyExperienceUrl("lab", selectedProfile.id, { location, occasion })}>Open the idea lab</Link>
+            <button className="company-button secondary" type="button" onClick={() => void copyGuestLink()}>Copy guest link</button>
           </div>
+          {shareMessage && <p className="company-share-message" role="status">{shareMessage}</p>}
         </article>
       </section>
 
@@ -181,7 +221,7 @@ export default function CompanyPortal() {
           <div className="company-form-grid">
             <label className="company-form-control">
               <span>Company use case <b aria-hidden="true">*</b></span>
-              <select value={companyType} onChange={event => setCompanyType(event.target.value as CompanyType)} required>
+               <select value={companyType} onChange={event => changeCompanyType(event.target.value)} required>
                 {COMPANY_PROFILES.map(profile => <option value={profile.id} key={profile.id}>{profile.name}</option>)}
               </select>
             </label>

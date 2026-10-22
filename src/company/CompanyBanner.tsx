@@ -1,28 +1,30 @@
-import { Link } from "wouter";
 import type { CompanyProfile } from "./profiles";
-import { companyUrl } from "./profiles";
 import "./company.css";
 
-type Props = {
+export type CompanyBannerProps = {
   profile: CompanyProfile;
-  page: "discover" | "lab";
+  location: string;
+  occasion: string;
+  onEditOccasion: () => void;
+  organizerHref: string;
 };
 
-export default function CompanyBanner({ profile, page }: Props) {
-  const otherPage = page === "discover" ? "lab" : "discover";
-  const otherPageLabel = page === "discover" ? "Try the idea lab" : "Try discovery";
-
-  return <aside className="company-banner" aria-label={`${profile.name} company context`}>
+export default function CompanyBanner({ profile, location, occasion, onEditOccasion, organizerHref }: CompanyBannerProps) {
+  return <aside className="company-banner" aria-label={`${profile.name} occasion context`}>
     <div className="company-banner-copy">
-      <span className="company-banner-label">Company example · {profile.name}</span>
-      <p>{page === "discover" ? profile.discoveryCopy : profile.labCopy}</p>
-      <span className="company-banner-note">Illustrative starting point only. Inputs are editable; saved doors belong to the signed-in individual, not a shared company workspace. Check real availability and suitability independently.</span>
+      <span className="company-banner-label">Your occasion</span>
+      <p className="company-banner-context">
+        <strong>{location || "Place not set"}</strong>
+        <span aria-hidden="true"> · </span>
+        <span>{occasion || "Occasion not set"}</span>
+      </p>
+      <span className="company-banner-preset">{profile.name}</span>
+      <span className="company-banner-note">Your saved doors belong to you. The company cannot view your private preferences.</span>
     </div>
-    <nav className="company-banner-actions" aria-label="Company experience navigation">
-      <a href={companyUrl(otherPage, profile.id)}>{otherPageLabel}</a>
-      <a className="company-banner-active" href={companyUrl(page, profile.id)} aria-current="page">{page === "discover" ? "Discovery" : "Idea lab"}</a>
-      <Link href={`/companies#company-type`}>Change company type</Link>
-      <Link href="/">Individual experience</Link>
+    <nav className="company-banner-actions" aria-label="Occasion options">
+      <button type="button" onClick={onEditOccasion}>Change occasion</button>
+      <a href={organizerHref}>Change company type</a>
+      <a href="/?explore=1">Explore on my own</a>
     </nav>
   </aside>;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type RefObject } from "react";
 import { useClerk, useUser } from "@clerk/react";
 import { requestAccountDeletion } from "./accountDeletion";
 import {
@@ -29,6 +29,9 @@ import PreferencesMemory, { type PreferenceValues } from "./PreferencesMemory";
 import HiddenGem from "./HiddenGem";
 import CompanyBanner from "./company/CompanyBanner";
 import type { CompanyProfile } from "./company/profiles";
+import { ProductHeader, ProductAvenues, type ProductView } from "./ProductHeader";
+import { clearCompanyDraft, companyContextScope, companyExperienceUrl, companyOrganizerUrl, readPublicOccasion, writeCompanyDraft, type CompanyDraftChange } from "./company/experienceContext";
+import { signInFor } from "./authReturn";
 
 type View = "discover" | "saved" | "how" | "trust" | "lab" | "judges" | "progress";
 type Intent = "Find my people" | "Go deeper" | "Try something new";
@@ -246,7 +249,8 @@ const labDemoProvider = createDemoProvider(snapshot => {
 const labLiveProvider = createLiveProvider();
 
 export default function App({ companyProfile }: { companyProfile?: CompanyProfile } = {}) {
-  const storageScope = companyProfile ? `opendoor.company.${companyProfile.id}` : "opendoor";
+  const [invitation] = useState(() => readPublicOccasion(window.location.search));
+  const storageScope = companyProfile ? companyContextScope(companyProfile.id, invitation) : "opendoor";
   const journeyKey = `${storageScope}.journey`;
   const feedbackKey = `${storageScope}.feedback`;
   const openedKey = `${storageScope}.opened`;
@@ -260,20 +264,20 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
     /^\/judges\/?$/.test(window.location.pathname) ? "judges"
       : /^\/progress\/?$/.test(window.location.pathname) ? "progress"
       : window.location.pathname === "/trust" ? "trust" : window.location.pathname.endsWith("/lab") ? "lab"
-        : companyProfile && ["saved", "how", "trust", "progress"].includes(new URLSearchParams(window.location.search).get("view") || "")
+        : ["saved", "how", "trust", "progress"].includes(new URLSearchParams(window.location.search).get("view") || "")
           ? new URLSearchParams(window.location.search).get("view") as View : "discover",
   );
   useEffect(() => {
     // Keep directly shareable screens correct when entered through an in-app tab.
     if (companyProfile) {
-      const route = `/companies/${view === "lab" ? "lab" : "discover"}?type=${companyProfile.id}${["discover", "lab"].includes(view) ? "" : `&view=${view}`}`;
+      const route = `${companyExperienceUrl(view === "lab" ? "lab" : "discover", companyProfile.id, invitation)}${["discover", "lab"].includes(view) ? "" : `&view=${view}`}`;
       if (`${window.location.pathname}${window.location.search}` !== route) window.history.replaceState(null, "", route);
       return;
     }
-    const route = view === "judges" ? "/judges" : view === "progress" ? "/progress" : view === "lab" ? "/lab" : view === "trust" ? "/trust" : null;
-    if (route && window.location.pathname !== route) window.history.replaceState(null, "", route);
-    else if (!route && ["/judges", "/progress", "/lab", "/trust"].includes(window.location.pathname)) window.history.replaceState(null, "", "/");
-  }, [view, companyProfile]);
+    const route = view === "judges" ? "/judges" : view === "progress" ? "/progress" : view === "lab" ? "/lab" : view === "trust" ? "/trust" : view === "saved" || view === "how" ? `/?view=${view}` : null;
+    if (route && `${window.location.pathname}${window.location.search}` !== route) window.history.replaceState(null, "", route);
+    else if (!route && (["/judges", "/progress", "/lab", "/trust"].includes(window.location.pathname) || new URLSearchParams(window.location.search).has("view"))) window.history.replaceState(null, "", "/");
+  }, [view, companyProfile, invitation]);
   const [personalizationEnabled, setPersonalizationEnabled] = useState(() =>
     readStore<boolean>("opendoor.privacy.personalization", true),
   );
@@ -298,11 +302,29 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
   const [context, setContext] = useState<Context>(() => companyProfile ? { ...companyProfile.context } : EMPTY_CONTEXT);
   const [anchors, setAnchors] = useState<string[]>(() => companyProfile ? [...companyProfile.anchors] : []);
   const [categories, setCategories] = useState<Record<string, Category>>(() => companyProfile ? { ...companyProfile.categories } : {});
+  const activeCompanyProfile = useMemo<CompanyProfile | undefined>(() => companyProfile ? {
+    ...companyProfile, location: city, occasion, anchors, categories,
+    context: { ...companyProfile.context, ...context, time: occasion },
+  } : undefined, [companyProfile, city, occasion, anchors, categories, context]);
+  useEffect(() => {
+    if (!activeCompanyProfile) return;
+    if (!personalizationEnabled) { clearCompanyDraft(activeCompanyProfile.id, invitation); return; }
+    writeCompanyDraft(activeCompanyProfile.id, {
+      location: city, occasion, anchors, categories, context: activeCompanyProfile.context,
+    }, invitation);
+  }, [activeCompanyProfile, personalizationEnabled, city, occasion, anchors, categories, invitation]);
+  const updateCompanyFromLab = useCallback((draft: CompanyDraftChange) => {
+    setCity(draft.location);
+    setAnchors(current => JSON.stringify(current) === JSON.stringify(draft.anchors) ? current : draft.anchors);
+    setCategories(current => JSON.stringify(current) === JSON.stringify(draft.categories) ? current : draft.categories);
+    setContext(current => current.scenario === draft.scenario && current.scenarioCategory === draft.scenarioCategory
+      ? current : { ...current, scenario: draft.scenario, scenarioCategory: draft.scenarioCategory });
+  }, []);
   const [categoryDraft, setCategoryDraft] = useState<Category>("Experiences");
   const [anchorDraft, setAnchorDraft] = useState("");
   const [journey, setJourney] = useState<Journey | null>(() => restoreJourney(journeyKey));
   const [threadExploration, setThreadExploration] = useState<ThreadExploration | null>(null);
-  const [entryPhase, setEntryPhase] = useState<"closed" | "opening" | "welcoming" | "entered">(companyProfile ? "entered" : "closed");
+  const [entryPhase, setEntryPhase] = useState<"closed" | "opening" | "welcoming" | "entered">(companyProfile || new URLSearchParams(window.location.search).get("explore") === "1" ? "entered" : "closed");
   const entryRunDemoRef = useRef(false);
   const [judgeDemo, setJudgeDemo] = useState(() => new URLSearchParams(window.location.search).get("demo") === "1");
   const [saved, setSaved] = useState<SavedDoor[]>(() => restoreSavedDoors());
@@ -757,6 +779,7 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
     setPersonalizationEnabled(enabled);
     safeSetStore("opendoor.privacy.personalization", enabled);
     if (!enabled) {
+      if (companyProfile) clearCompanyDraft(companyProfile.id, invitation);
       safeRemoveStore(journeyKey);
       safeRemoveStore(feedbackKey);
       safeRemoveStore(openedKey);
@@ -796,6 +819,11 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
     for (const key of [journeyKey, feedbackKey, openedKey]) {
       safeRemoveStore(key);
     }
+    // Company contexts are still the visitor's browser data, never company records.
+    try {
+      for (const key of Object.keys(sessionStorage)) if (key.startsWith("opendoor.company.")) sessionStorage.removeItem(key);
+      for (const key of Object.keys(localStorage)) if (key.startsWith("opendoor.company.")) localStorage.removeItem(key);
+    } catch { /* Browser storage may be unavailable. */ }
     if (!isSignedIn) {
       safeRemoveStore("opendoor.saved");
       safeRemoveStore(GUEST_SAVED_KEY);
@@ -1130,40 +1158,42 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
 
   return <div className="app-shell" onClickCapture={sound.onClickCapture}>
     <a className="skip-link" href="#main-content">Skip to main content</a>
-    <header className="topbar">
-      <button className="brand" onClick={() => setView("discover")} aria-label="Open Door, Discover">
-        <span className="brand-mark"><img src="/mascot/qloo-guide-still.webp" alt="" width="400" height="225" /></span>
-        <span><span className="brand-name">open door</span><span className="brand-caption">{companyProfile ? "for companies" : "a cultural field guide"}</span></span>
-      </button>
-      <nav className="nav" aria-label="Main navigation">
-        <button className={`nav-btn ${view === "discover" ? "active" : ""}`} onClick={() => setView("discover")}>{companyProfile ? "Company Discovery" : "Discover"}</button>
-        <button className={`nav-btn lab-nav ${view === "lab" ? "active" : ""}`} onClick={() => setView("lab")}><span className="lab-nav-full">Discovery </span>Lab</button>
-        <button className={`nav-btn ${view === "saved" ? "active" : ""}`} onClick={() => setView("saved")}>My Doors<span className="nav-count">{saved.length || ""}</span></button>
-        <button className={`nav-btn ${view === "how" ? "active" : ""}`} onClick={() => setView("how")}>How it works</button>
-        <button className={`nav-btn ${view === "trust" ? "active" : ""}`} onClick={() => setView("trust")}>Trust</button>
-        {isSignedIn && <button className={`nav-btn progress-nav ${view === "progress" ? "active" : ""}`} onClick={() => setView("progress")}>Progress</button>}
-        <a className="nav-btn" href="/companies">{companyProfile ? "Company portal" : "For companies"}</a>
-      </nav>
-      {isSignedIn
+    <ProductHeader view={view === "judges" ? undefined : view}
+      onNavigate={(next: ProductView) => { if (next !== "companies") setView(next); }}
+      savedCount={saved.length} signedIn={!!isSignedIn}
+      companyLink={companyProfile ? companyOrganizerUrl(companyProfile.id, invitation) : "/companies"}
+      controls={<>{isSignedIn
         ? <div className="account-control">
           <span className="account-label" aria-live="polite">
             {accountSaveStatus === "saving" ? "Syncing saves…" : accountSaveStatus === "error" ? "Sync needs attention" : accountSaveStatus === "ready" ? "Saved to your account" : "Loading your account…"}
           </span>
           {accountSaveStatus === "error" && <button type="button" className="account-retry" onClick={() => setAccountSyncAttempt(attempt => attempt + 1)}>Retry</button>}
           <button type="button" className="account-sign-out" onClick={() => setView("trust")}>Account &amp; privacy</button>
-          <button type="button" className="account-sign-out" disabled={cloudBusy} onClick={() => void signOut({ redirectUrl: "/" })}>Sign out</button>
+           <button type="button" className="account-sign-out" disabled={cloudBusy} onClick={() => void signOut({ redirectUrl: companyProfile ? companyExperienceUrl(view === "lab" ? "lab" : "discover", companyProfile.id, invitation) : "/" })}>Sign out</button>
         </div>
-        : <a className="account-sign-in" href="/sign-in">Sign in</a>}
+         : <a className="account-sign-in" href={signInFor(companyProfile
+           ? `${companyExperienceUrl(view === "lab" ? "lab" : "discover", companyProfile.id, invitation)}${["discover", "lab"].includes(view) ? "" : `&view=${view}`}`
+           : view === "lab" ? "/lab" : view === "trust" ? "/trust" : view === "saved" || view === "how" ? `/?view=${view}` : "/?explore=1")}>Sign in</a>}
       <button className="sound-toggle" type="button" data-sound="none" onClick={sound.toggle}
         aria-pressed={sound.enabled} aria-label={`Sound effects: ${sound.enabled ? "on" : "off"}`}
         title={sound.notice || (sound.enabled ? "Mute sound effects" : "Enable gentle sound effects")}>
         {sound.enabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
         <span>Sound {sound.enabled ? "on" : "off"}</span>
       </button>
-    </header>
+    </>} />
+    <ProductAvenues active={companyProfile ? "company" : "individual"} />
     {sound.notice && <p className="sound-notice" role="status">{sound.notice}</p>}
     <main className="page" id="main-content" tabIndex={-1}>
-      {companyProfile && <CompanyBanner profile={companyProfile} page={view === "lab" ? "lab" : "discover"} />}
+      {companyProfile && <CompanyBanner profile={companyProfile} location={city} occasion={occasion}
+        organizerHref={companyOrganizerUrl(companyProfile.id, invitation)}
+        onEditOccasion={() => {
+          setView("discover");
+          setEntryPhase("entered");
+          requestAnimationFrame(() => {
+            document.getElementById("company-starting-point")?.scrollIntoView({ block: "start", behavior: "auto" });
+            document.getElementById("occasion")?.focus();
+          });
+        }} />}
       {accountSaveNotice && isSignedIn && <p className={`account-sync-notice${accountSaveStatus === "error" ? " is-error" : ""}`} role={accountSaveStatus === "error" ? "alert" : "status"}>
         {accountSaveNotice}{accountSaveStatus === "error" && <button type="button" onClick={() => setAccountSyncAttempt(attempt => attempt + 1)}>Retry account sync</button>}
       </p>}
@@ -1211,7 +1241,7 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
           <p>Your saved doors and reward tracks belong to your account. Keep exploring as a guest, or sign in to see account progress.</p>
           <div><a href="/sign-in" className="primary-btn">Sign in <ArrowRight size={16} /></a><button type="button" className="secondary-btn" onClick={() => setView("discover")}>Continue as guest</button></div>
         </section>)}
-      {view === "lab" && <DiscoveryLab companyProfile={companyProfile} lab={lab} qlooConfigured={!!agentStatus?.qlooConfigured} connection={{ status: agentStatus, mode: journeyMode, source: qlooSource, disabled: isRunning || lab.busy, onSelect: selectQlooConnection }} />}
+      {view === "lab" && <DiscoveryLab companyProfile={activeCompanyProfile} onCompanyContextChange={companyProfile ? updateCompanyFromLab : undefined} lab={lab} qlooConfigured={!!agentStatus?.qlooConfigured} connection={{ status: agentStatus, mode: journeyMode, source: qlooSource, disabled: isRunning || lab.busy, onSelect: selectQlooConnection }} />}
       {view === "how" && <HowView agentStatus={agentStatus} />}
       {view === "judges" && <JudgesGuide status={agentStatus} statusError={statusError} />}
       {view === "trust" && <TrustView
@@ -1234,9 +1264,9 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
     <footer className="site-footer">
       <div className="footer-note">A FIELD GUIDE, NOT A CHECKLIST · OPEN DOOR · {journey ? journey.mode === "live" ? "RECOMMENDATIONS FROM QLOO" : "PREPARED EXAMPLE RESULTS" : "CULTURAL DISCOVERY WITH QLOO"}</div>
       <nav className="footer-nav" aria-label="Footer navigation">
-        <a href="/">Discover</a>
-        <a href="/lab">Discovery Lab</a>
-        <a href="/trust">Trust &amp; privacy</a>
+         <a href={companyProfile ? companyExperienceUrl("discover", companyProfile.id, invitation) : "/"}>Discover</a>
+         <a href={companyProfile ? companyExperienceUrl("lab", companyProfile.id, invitation) : "/lab"}>Discovery Lab</a>
+         <a href={companyProfile ? `${companyExperienceUrl("discover", companyProfile.id, invitation)}&view=trust` : "/trust"}>Trust &amp; privacy</a>
         <a href="/judges" aria-current={view === "judges" ? "page" : undefined}>Judge’s Guide</a>
         <a href="/companies">For companies</a>
       </nav>
@@ -1372,7 +1402,7 @@ function DiscoverView(p: DiscoverProps) {
     <p className="helper" role="status" data-testid="discovery-connection-status">{connectionMessage}</p>
     {p.statusError && <p role="alert">{p.statusError}</p>}
     <section className="hero">
-      <div className="hero-copy"><span className="eyebrow">{p.companyProfile ? "Company Discovery · editable example" : "Arrive curious. Leave with a thread."}</span>
+      <div className="hero-copy"><span className="eyebrow">{p.companyProfile ? "Your interests. Your occasion. Your Open Door." : "Arrive curious. Leave with a thread."}</span>
         <h1>{p.companyProfile?.discoveryTitle || <>Find your way<br />into <em>somewhere.</em></>}</h1>
         <p>{p.companyProfile?.discoveryCopy || "Tell us about the music, films, food, or art you love. Find something to enjoy next, with a simple way to get started."}</p>
           {p.companyProfile ? <a className="primary-btn" href="#company-starting-point">Customize this experience <ArrowRight size={15} /></a> : <button className="primary-btn demo-start" type="button" disabled={p.isRunning || (p.journeyMode === "live" && !p.agentStatus?.qlooConfigured)} onClick={() => p.onStartDemo("smooth", true)}>{p.journeyMode === "live" ? "Start exploring with Qloo" : "Open the sample journey"} <ArrowRight size={15} /></button>}

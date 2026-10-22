@@ -154,6 +154,8 @@ Start at **`/companies`** for the featured hotel-guest example: a free afternoon
 
 Companies supply the occasion; individuals choose their interests and practical constraints. These are working, themed entry points into the existing discovery and branching tools, not customer endorsements, managed company workspaces, or booking services. Shared Demo and personal Qloo API access use the existing connection flow; prepared examples remain explicitly separate from live retrieval. Saved doors belong to the individual account, while company Lab histories stay in the browser.
 
+Open Door has two entry avenues—**Explore for yourself** and **Help others explore**—with the same product identity, navigation, account and saved-door collection. Organizers can customize a public place and occasion and copy a guest link. Those links contain only public starting context, never a visitor’s tastes, health details or private preferences. Visitors can edit their own context, move between Discovery and Lab, sign in, and leave the occasion through **Explore on my own**. Company-context draft inputs are scoped to the invitation in this tab; completed Lab histories remain browser-local.
+
 ## Technology stack
 
 - React

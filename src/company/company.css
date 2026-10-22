@@ -86,6 +86,22 @@
 
 .company-main { padding: 44px 0 88px; }
 
+.company-local-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: -22px 0 32px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--company-line);
+}
+
+.company-local-nav a {
+  color: var(--company-green-dark);
+  font-size: 11px;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
 .company-hero {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(260px, .85fr);
@@ -255,6 +271,36 @@
 .company-form-control textarea::placeholder { color: #899187; }
 .company-form-control small { color: var(--company-muted); font-size: 11px; line-height: 1.55; }
 
+.company-public-context {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+  padding: 15px 16px;
+  border-left: 2px solid var(--company-gold);
+  background: #f0eee4;
+}
+
+.company-public-context-heading {
+  color: var(--company-green-dark);
+  font: 10px 'DM Mono', monospace;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.company-public-context > p {
+  margin: 0;
+  color: var(--company-muted);
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.company-public-context-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 13px;
+  margin-top: 3px;
+}
+
 .company-other-field {
   margin-top: 14px;
   animation: company-rise .35s both;
@@ -282,6 +328,13 @@
   color: #566459;
   font-size: 12px;
   line-height: 1.65;
+}
+
+.company-share-message {
+  grid-column: 1 / -1;
+  margin: -10px 0 0 !important;
+  color: var(--company-green-dark) !important;
+  font-size: 11px !important;
 }
 
 .company-path-links {
@@ -454,11 +507,15 @@
 
 .company-banner-copy { min-width: 0; }
 .company-banner-label { display: block; color: var(--company-clay); font: 9px 'DM Mono', monospace; letter-spacing: .12em; text-transform: uppercase; }
-.company-banner-copy p { margin: 5px 0 0; color: #526056; font: 500 17px/1.25 'Newsreader', Georgia, serif; }
+.company-banner-copy p { margin: 5px 0 0; color: #526056; font: 500 16px/1.25 'Newsreader', Georgia, serif; }
+.company-banner-context strong { color: var(--company-green-dark); font-weight: 600; }
+.company-banner-preset { display: block; margin-top: 5px; color: #7a8278; font: 9px 'DM Mono', monospace; letter-spacing: .05em; }
 .company-banner-note { display: block; margin-top: 6px; color: #677267; font-size: 10px; line-height: 1.55; }
 .company-banner-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 7px; }
-.company-banner-actions a { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; padding: 7px 10px; border: 1px solid #b7c4b4; color: var(--company-green-dark); font-size: 10px; text-decoration: none; }
+.company-banner-actions a,
+.company-banner-actions button { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; padding: 7px 10px; border: 1px solid #b7c4b4; background: transparent; color: var(--company-green-dark); cursor: pointer; font: 10px 'DM Sans', sans-serif; text-decoration: none; }
 .company-banner-actions a:hover { background: #f7f6ee; }
+.company-banner-actions button:hover { background: #f7f6ee; }
 .company-banner-actions a.company-banner-active { background: var(--company-green); border-color: var(--company-green); color: #fffaf0; }
 
 .company-walkthrough {
@@ -619,6 +676,7 @@
   .company-hero { grid-template-columns: 1fr; gap: 16px; padding-inline: 0; }
   .company-hero-art { width: min(310px, 85%); }
   .company-selector-panel { grid-template-columns: 1fr; gap: 21px; }
+  .company-public-context-fields { grid-template-columns: 1fr; }
   .company-profile-spotlight { grid-template-columns: 1fr; gap: 17px; }
   .company-usecase { grid-template-columns: 44px minmax(0, 1fr); gap: 13px; }
   .company-usecase-example { grid-column: 2; }
@@ -639,6 +697,7 @@
   .company-top-links { gap: 12px; }
   .company-top-links a { font-size: 10px; }
   .company-main { padding: 25px 0 58px; }
+  .company-local-nav { margin: -9px 0 25px; gap: 14px; }
   .company-hero { padding: 4px 0 28px; }
   .company-hero h1 { font-size: 56px; }
   .company-hero-copy { font-size: 13px; }

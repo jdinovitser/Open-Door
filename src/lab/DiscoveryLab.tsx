@@ -11,6 +11,7 @@ import type { LabController } from "./useDiscoveryLab.ts";
 import "./lab.css";
 import { ScenarioFields } from "./ScenarioFields.tsx";
 import type { CompanyProfile } from "../company/profiles";
+import type { CompanyDraftChange } from "../company/experienceContext";
 
 type QlooConnectionSource = "shared" | "personal";
 type Connection = {
@@ -20,7 +21,7 @@ type Connection = {
   disabled: boolean;
   onSelect: (mode: "demo" | "live", source: QlooConnectionSource) => void;
 };
-type Props = { lab: LabController; qlooConfigured: boolean; connection: Connection; companyProfile?: CompanyProfile };
+type Props = { lab: LabController; qlooConfigured: boolean; connection: Connection; companyProfile?: CompanyProfile; onCompanyContextChange?: (draft: CompanyDraftChange) => void };
 
 const strategyNotes: Record<Strategy, string> = {
   stay: "Keep close to your starting taste; look for a neighboring expression inside the same world.",
@@ -54,7 +55,7 @@ function discoveryIdentity(discovery: Discovery) {
   return `title:${domain}|${title}`;
 }
 
-export default function DiscoveryLab({ lab, connection, companyProfile }: Props) {
+export default function DiscoveryLab({ lab, connection, companyProfile, onCompanyContextChange }: Props) {
   const { state, busy, error, loadError, storageWarning, notices } = lab;
   const current = state.current;
   const [anchors, setAnchors] = useState<string[]>(() => companyProfile ? [...companyProfile.anchors] : []);
@@ -62,6 +63,18 @@ export default function DiscoveryLab({ lab, connection, companyProfile }: Props)
   const [anchorDraft, setAnchorDraft] = useState("");
   const [location, setLocation] = useState<string>(companyProfile?.location || "");
   const [scenario, setScenario] = useState<Pick<Settings, "scenario" | "scenarioCategory">>(() => companyProfile ? { scenario: companyProfile.context.scenario, scenarioCategory: companyProfile.context.scenarioCategory } : {});
+  useEffect(() => {
+    if (!onCompanyContextChange) return;
+    const categories: CompanyDraftChange["categories"] = {};
+    for (const anchor of anchors) {
+      const category = anchorCategories[anchor] || "Other";
+      categories[anchor] = (category === "Architecture" ? "Design" : category) as CompanyDraftChange["categories"][string];
+    }
+    onCompanyContextChange({
+      location, anchors, categories,
+      scenario: scenario.scenario || "", scenarioCategory: scenario.scenarioCategory || "custom",
+    });
+  }, [location, anchors, anchorCategories, scenario, onCompanyContextChange]);
   const [selectedStrategy, setSelectedStrategy] = useState<Strategy>("stay");
   const [destination, setDestination] = useState<string>("Art");
   const [compareCheckpoint, setCompareCheckpoint] = useState("");
@@ -234,7 +247,7 @@ export default function DiscoveryLab({ lab, connection, companyProfile }: Props)
   return <div className="discovery-lab" aria-labelledby="lab-title">
     <header className="lab-heading">
       <div>
-        <span className="eyebrow">Open Door · {companyProfile ? "Company Discovery Lab" : "Discovery Lab"}</span>
+        <span className="eyebrow">Open Door · Discovery Lab{companyProfile ? " · your occasion" : ""}</span>
         <h1 id="lab-title">{companyProfile ? companyProfile.labTitle : <>A few ways <em>forward.</em></>}</h1>
         <p>{companyProfile?.labCopy || "Keep one discovery close. Save a place to return to, then open different doors from the same point."}</p>
       </div>
