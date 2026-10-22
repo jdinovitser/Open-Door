@@ -44,7 +44,7 @@ async function begin(page: Page) {
   await page.goto("/lab");
   await page.getByLabel("Cultural interest", { exact: true }).fill("Miles Davis");
   await page.getByRole("button", { name: "Add anchor", exact: true }).click();
-  await page.getByLabel("Category for Miles Davis", { exact: true }).selectOption("Music");
+  await page.getByRole("combobox", { name: "Category for Miles Davis", exact: true }).selectOption("Music");
   await page.getByRole("button", { name: /^Start exploring/ }).click();
   await expect(page.locator(".lab-discovery")).toHaveCount(2);
 }
@@ -71,10 +71,10 @@ test("shared Demo opens a real-provider Lab path in one click and automatically 
   expect(mock.calls.map(call => call.source)).toEqual(["shared", "shared"]);
   expect(mock.calls[1].input.depth).not.toBe(mock.calls[0].input.depth);
   expect(mock.calls[1].input.anchors).toEqual(mock.calls[0].input.anchors);
-  await expect(page.locator(".lab-compare-branch").first()).toContainText("A shared discovery");
-  await page.locator(".lab-compare-picker input").first().uncheck();
+  await expect(page.locator(".lab-post-history")).toContainText("A shared discovery");
+  await page.locator(".lab-sibling-card input[type=checkbox]").first().uncheck();
   await expect(page.locator(".lab-compare-branch")).toHaveCount(0);
-  await page.locator(".lab-compare-picker input").first().check();
+  await page.locator(".lab-sibling-card input[type=checkbox]").first().check();
   await expect(page.locator(".lab-compare-branch")).toHaveCount(2);
   await page.locator(".lab-compare").screenshot({ path: "generated-artifacts/lab-comparison-desktop.png" });
   await page.reload();
@@ -102,9 +102,36 @@ test("a failed live branch preserves siblings, shows an empty failed path and re
   expect(failed.current.candidates).toEqual([]);
   expect(failed.current.mode).toBe("live");
   mock.setFailure(false);
-  await page.locator(".lab-results").getByRole("button", { name: /Retry|Explore again/ }).first().click();
+  await page.locator(".lab-results").getByRole("button", { name: /Try again|Retry|Explore again/ }).first().click();
   await expect(page.locator(".lab-discovery")).toHaveCount(2);
   await expect(page.locator(".lab-compare-branch")).toHaveCount(2);
+});
+
+test("reference-style branch cards rename, continue independently and compare recorded discoveries", async ({ page }) => {
+  const mock = await fixture(page);
+  await begin(page);
+  await expect(page.locator(".lab-sibling-card")).toHaveCount(1);
+  const original = await stored(page);
+  const name = page.locator(".lab-branch-name-input").first();
+  await name.fill("My familiar route");
+  await name.press("Enter");
+  await expect.poll(async () => (await stored(page)).branches[0].name).toBe("My familiar route");
+  await wildBranch(page);
+  await expect(page.locator(".lab-sibling-card")).toHaveCount(2);
+  await expect(page.locator(".lab-shared-checkpoint")).toContainText("Miles Davis");
+  await expect(page.getByRole("heading", { name: "Observable differences", exact: true })).toBeVisible();
+  const adventureRow = page.locator(".lab-difference-table tr").filter({ has: page.getByRole("rowheader", { name: "Adventure", exact: true }) });
+  await expect(adventureRow).toContainText("familiar");
+  await expect(adventureRow).toContainText("unexpected");
+  const siblingBefore = (await stored(page)).branches[1];
+  await page.locator(".lab-sibling-card").first().getByRole("button", { name: "Explore this path", exact: true }).click();
+  await expect.poll(() => mock.calls.length).toBe(3);
+  await expect.poll(async () => (await stored(page)).branches[0].snapshot.history.length).toBe(original.branches[0].snapshot.history.length + 1);
+  expect((await stored(page)).branches[1]).toEqual(siblingBefore);
+  await page.reload();
+  await expect(page.locator(".lab-branch-name-input").first()).toHaveValue("My familiar route");
+  await page.locator(".lab-sibling-grid").screenshot({ path: "generated-artifacts/lab-reference-branches.png" });
+  await page.locator(".lab-compare-findings").screenshot({ path: "generated-artifacts/lab-reference-findings.png" });
 });
 
 test("phone branch map and comparison remain readable without horizontal overflow", async ({ page }) => {

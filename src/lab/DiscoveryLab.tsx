@@ -5,6 +5,7 @@ import QlooConnectionPanel from "../QlooConnectionPanel";
 import type { AgentStatus } from "../agentApi";
 import { allDiscoveries, compareBranches } from "./engine.ts";
 import { DOMAINS, STRATEGIES, type Discovery, type LabSeed, type Settings, type Strategy } from "./model.ts";
+import { SCENARIOS } from "./scenarios.ts";
 import type { LabController } from "./useDiscoveryLab.ts";
 import "./lab.css";
 import { ScenarioFields } from "./ScenarioFields.tsx";
@@ -65,6 +66,7 @@ export default function DiscoveryLab({ lab, connection }: Props) {
   const [compareIds, setCompareIds] = useState<string[]>([]);
   const [compareTouched, setCompareTouched] = useState(false);
   const [compareContextCheckpoint, setCompareContextCheckpoint] = useState(state.activeCheckpointId);
+  const [branchNameDrafts, setBranchNameDrafts] = useState<Record<string, string>>({});
   const lastActiveCheckpointId = useRef(state.activeCheckpointId);
   const [expanded, setExpanded] = useState<string[]>([]);
   const [reason, setReason] = useState<Record<string, string>>({});
@@ -193,8 +195,16 @@ export default function DiscoveryLab({ lab, connection }: Props) {
   }
   function updateSetting<K extends keyof Settings>(key: K, value: Settings[K]) { lab.settings({ [key]: value } as Pick<Settings, K>); }
   function toggleCompare(id: string) {
+    const selected = compareTouched && comparisonContextIsCurrent
+      ? compareIds
+      : compareCheckpointBranches.slice(0, 2).map(branch => branch.id);
     setCompareTouched(true);
-    setCompareIds(ids => ids.includes(id) ? ids.filter(item => item !== id) : [...ids, id]);
+    setCompareIds(selected.includes(id) ? selected.filter(item => item !== id) : [...selected, id]);
+  }
+  function saveBranchName(id: string, fallback: string) {
+    const name = (branchNameDrafts[id] ?? fallback).trim();
+    if (name && name !== fallback) lab.rename("branch", id, name);
+    setBranchNameDrafts(items => { const next = { ...items }; delete next[id]; return next; });
   }
   function toggleExpanded(id: string) {
     setExpanded(ids => ids.includes(id) ? ids.filter(item => item !== id) : [...ids, id]);
@@ -398,14 +408,34 @@ export default function DiscoveryLab({ lab, connection }: Props) {
       {effectiveCompareCheckpoint && compareCheckpointBranches.length < 2 && <div className="lab-empty-inline"><strong>One more sibling opens a comparison</strong><span>This checkpoint has {compareCheckpointBranches.length} path{compareCheckpointBranches.length === 1 ? "" : "s"}. Open another direction from this exact starting point.</span>
         {checkpoints.length > 0 && <button type="button" className="secondary-btn" onClick={() => current ? void openDirection(effectiveCompareCheckpoint) : lab.restore(effectiveCompareCheckpoint)} disabled={busy}>{current ? `Open ${STRATEGIES.find(item => item.id === selectedStrategy)?.name}` : "Return to this checkpoint"}</button>}
       </div>}
-      {effectiveCompareCheckpoint && compareCheckpointBranches.length >= 2 && <div className="lab-compare-body">
-        <fieldset className="lab-compare-picker"><legend>Choose paths to compare · siblings only</legend>{compareCheckpointBranches.map(branch => <label key={branch.id}><input type="checkbox" checked={effectiveCompareIds.includes(branch.id)} onChange={() => toggleCompare(branch.id)} /><span><strong>{branch.name}</strong><small>{STRATEGIES.find(item => item.id === branch.strategy)?.name}</small></span></label>)}</fieldset>
-        {selectedCompareBranches.length < 2 ? <p className="lab-compare-prompt" role="status">Select {2 - selectedCompareBranches.length} more branch{2 - selectedCompareBranches.length === 1 ? "" : "es"} to compare.</p> : <div className="lab-compare-columns">{selectedCompareBranches.map(branch => {
+      {effectiveCompareCheckpoint && compareCheckpointBranches.length > 0 && <div className="lab-compare-body">
+        <div className="lab-sibling-grid" aria-label="Sibling paths from the selected checkpoint">
+          {compareCheckpointBranches.map((branch, index) => {
+            const branchCheckpoint = checkpoints.find(item => item.id === branch.checkpointId);
+            const branchDiscoveries = allDiscoveries(branch, branchCheckpoint);
+            const postHistory = branch.snapshot.history.slice(branchCheckpoint?.snapshot.history.length || 0);
+            const chosen = effectiveCompareIds.includes(branch.id);
+            const draftName = branchNameDrafts[branch.id] ?? branch.name;
+            return <article className={`lab-sibling-card tone-${index % 3} ${chosen ? "is-compared" : ""}`} key={branch.id}>
+              <header className="lab-sibling-card-head"><label className="lab-compare-toggle"><input type="checkbox" aria-label={`Compare ${branch.name}`} checked={chosen} onChange={() => toggleCompare(branch.id)} /><span>Compare</span></label>
+                <input aria-label={`Name for ${branch.name}`} className="lab-branch-name-input" value={draftName} disabled={busy} onChange={event => setBranchNameDrafts(items => ({ ...items, [branch.id]: event.target.value }))} onBlur={() => saveBranchName(branch.id, branch.name)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }} />
+              </header>
+              <div className="lab-sibling-card-body"><span className="lab-map-kind">{STRATEGIES.find(item => item.id === branch.strategy)?.name} · {branch.snapshot.mode === "demo" ? "Prepared examples" : "Historical live Qloo"}</span>
+                <strong className="lab-sibling-subtitle">{branch.name}: independent path</strong>
+                <p>{postHistory.length} {postHistory.length === 1 ? "exploration" : "explorations"} after the checkpoint · {branchDiscoveries.length} distinct discoveries · updated {dateLabel(branch.updatedAt)}.</p>
+                {!postHistory.length && <div className="lab-sibling-empty">Branch opened; no post-checkpoint exploration has been recorded yet.</div>}
+              </div>
+              <footer className="lab-sibling-card-actions"><button type="button" className="secondary-btn" onClick={() => resumeToResults(branch.id)} disabled={busy}>Resume this path</button><button type="button" className="text-button" onClick={() => { if (lab.resume(branch.id)) void afterOperation(() => lab.explore()); }} disabled={busy}>Explore this path</button></footer>
+            </article>;
+          })}
+        </div>
+        {compareCheckpointBranches.length >= 2 && selectedCompareBranches.length < 2 && <p className="lab-compare-prompt" role="status">Select {2 - selectedCompareBranches.length} more branch{selectedCompareBranches.length === 1 ? "" : "es"} to compare.</p>}
+        {selectedCompareBranches.length >= 2 && <details className="lab-detailed-comparison"><summary>Detailed discoveries &amp; evidence</summary><div className="lab-compare-columns">{selectedCompareBranches.map(branch => {
           const branchDiscoveries = allDiscoveries(branch, checkpoints.find(item => item.id === branch.checkpointId));
           const favorite = state.favorites[branch.checkpointId] === branch.id;
           return <article className="lab-compare-branch" key={branch.id}><header><div><span className="lab-map-kind">{STRATEGIES.find(item => item.id === branch.strategy)?.name} · {branch.snapshot.mode === "demo" ? "Prepared examples" : "Historical live Qloo"}</span><h4>{branch.name}</h4><p>From {checkpoints.find(item => item.id === branch.checkpointId)?.name}</p></div><button type="button" className={`quiet-btn ${favorite ? "is-favorite" : ""}`} aria-pressed={favorite} onClick={() => lab.favorite(branch.id)}>{favorite ? "Unfavorite branch" : "Favorite branch"}</button></header>
             <div className="lab-compare-controls"><button className="secondary-btn" type="button" onClick={() => resumeToResults(branch.id)}>Resume this branch</button></div>
-             <details className="lab-compare-context" open><summary>Conditions & path history</summary>
+              <details className="lab-compare-context"><summary>Conditions & full path record</summary>
                <div className="lab-compare-settings"><strong>Recorded conditions</strong><p>{[
                  `Adventure: ${branch.snapshot.settings.adventure}`,
                  `Time: ${branch.snapshot.settings.time}`,
@@ -428,7 +458,67 @@ export default function DiscoveryLab({ lab, connection }: Props) {
                return <div className="lab-compare-discovery" key={discovery.id}><span className={`lab-domain-tag ${common ? "is-shared" : "is-path-only"}`}>{common ? "Also found on another selected path" : "Only in this selected path"} · {discovery.domain}</span><h5>{discovery.title}</h5><p>{discovery.description}</p><details className="lab-compare-evidence"><summary>Evidence, sources &amp; practical checks</summary><dl><div><dt>Connection</dt><dd>{discovery.connection || "Not provided."}</dd></div><div><dt>Original connection</dt><dd>{discovery.originalConnection || "Not provided."}</dd></div><div><dt>Evidence</dt><dd>{discovery.evidence || "No evidence supplied."}</dd></div><div><dt>Source &amp; selection</dt><dd>{discovery.source || "Not recorded."} · {discovery.selection || "Not recorded."}</dd></div><div><dt>Provenance</dt><dd>{discovery.mode === "demo" ? "Prepared example; not live Qloo evidence." : "Historical live record; current connection not implied."}</dd></div>{discovery.constraints.length > 0 && <div><dt>Practical limits · unverified</dt><dd>{discovery.constraints.map(item => `${item.constraint}: ${item.value} · ${item.status} — ${item.detail}`).join(" / ")}</dd></div>}<div><dt>Branch feedback</dt><dd>{fb ? `${fb.action === "keep" ? "Kept" : "Not for me"} · ${fb.reason}` : "No feedback recorded"}</dd></div></dl></details><div className="lab-compare-discovery-actions"><button type="button" className="text-button" onClick={() => void runFork(discovery, branch.id)}>Fork from this discovery</button><button type="button" className="text-button" onClick={() => runNext(discovery, branch.id)}>Continue from this discovery</button></div></div>;
             })}
           </article>;
-        })}</div>}
+        })}</div></details>}
+        {selectedCompareBranches.length >= 2 && (() => {
+          const checkpoint = checkpoints.find(item => item.id === effectiveCompareCheckpoint);
+          if (!checkpoint) return null;
+          const branches = selectedCompareBranches;
+          const branchItems = branches.map(branch => ({
+            branch,
+            discoveries: allDiscoveries(branch, checkpoint),
+            postHistory: branch.snapshot.history.slice(checkpoint.snapshot.history.length),
+          }));
+          const keyOf = (discovery: Discovery) => discoveryIdentity(discovery);
+          const discoveryCounts = new Map<string, number>();
+          branchItems.forEach(item => item.discoveries.forEach(discovery => discoveryCounts.set(keyOf(discovery), (discoveryCounts.get(keyOf(discovery)) || 0) + 1)));
+          const distinctDiscoveries = new Map<string, Discovery>();
+          branchItems.forEach(item => item.discoveries.forEach(discovery => distinctDiscoveries.set(keyOf(discovery), discovery)));
+          const comparableSettings: Array<[string, keyof Settings]> = [
+            ["Adventure", "adventure"], ["Time available", "time"], ["Mood", "mood"],
+            ["Domain", "domain"], ["Occasion", "occasion"], ["Place", "location"],
+            ["Budget", "budget"], ["Movement / access", "movement"], ["Conditions", "conditions"],
+            ["Group interests", "groupInterests"], ["Scenario", "scenario"], ["Scenario category", "scenarioCategory"],
+          ];
+          const differingSettings = comparableSettings.filter(([, key]) => new Set(branches.map(branch => String(branch.snapshot.settings[key] || "Not recorded"))).size > 1);
+          const sharedCount = [...discoveryCounts.values()].filter(count => count > 1).length;
+          return <section className="lab-compare-findings" aria-label="Branch comparison findings">
+            <section className="lab-shared-checkpoint" aria-labelledby="shared-checkpoint-title">
+              <div><span className="eyebrow">Shared starting point · unchanged</span><h4 id="shared-checkpoint-title">{checkpoint.name}</h4><p>{valuesText(checkpoint.snapshot.anchors)}{checkpoint.snapshot.selected ? ` · selected discovery: ${checkpoint.snapshot.selected.title}` : ""}</p></div>
+              <div className="lab-shared-checkpoint-facts"><span>{checkpoint.snapshot.settings.domain} domain</span><span>{checkpoint.snapshot.settings.time}</span><span>{checkpoint.snapshot.settings.occasion}</span></div>
+            </section>
+            <section className="lab-takeaway" aria-labelledby="takeaway-title">
+              <span className="eyebrow">A factual read of these saved paths</span><h4 id="takeaway-title">What differs after the checkpoint</h4>
+              <p>{sharedCount} discovery {sharedCount === 1 ? "title appears" : "titles appear"} on more than one selected path. {distinctDiscoveries.size - sharedCount} {distinctDiscoveries.size - sharedCount === 1 ? "title appears" : "titles appear"} on only one selected path. {differingSettings.length ? `Recorded conditions differ in ${differingSettings.map(([label]) => label.toLowerCase()).join(", ")}.` : "The recorded conditions shown here match across selected paths."}</p>
+              <small>This describes saved records and settings only; it does not rank paths or imply suitability.</small>
+            </section>
+            <section className="lab-next-experiment" aria-label="A useful next experiment">
+              <div><span className="eyebrow">A useful next experiment</span><p>Return to this shared point, open a new sibling path, and change one recorded condition at a time{differingSettings.length ? ` — such as ${differingSettings[0][0].toLowerCase()}` : " — for example, the time available"}. The resulting records can then be compared without treating the change as a score.</p></div>
+              <button type="button" className="secondary-btn" onClick={() => lab.restore(checkpoint.id)} disabled={busy}>Return to shared checkpoint</button>
+            </section>
+            <section className="lab-post-history" aria-labelledby="post-history-title">
+              <div className="lab-history-heading"><span className="eyebrow">Separate histories</span><h4 id="post-history-title">After the shared checkpoint</h4><p>Each path continued independently. The checkpoint’s earlier history is not repeated here.</p></div>
+              <div className="lab-post-history-grid">{branchItems.map(({ branch, postHistory }) => <article className="lab-post-history-column" key={branch.id}>
+                <h5>{branch.name}</h5>
+                {!postHistory.length ? <p className="lab-compare-empty">No exploration steps saved after this checkpoint.</p> : <ol>{postHistory.map((step, stepIndex) => <li key={step.id}><span>Step {stepIndex + 1} · {STRATEGIES.find(item => item.id === step.strategy)?.name} · {dateLabel(step.createdAt)}</span><strong>{step.discoveries.length ? step.discoveries.map(item => item.title).join(" · ") : "No discoveries returned"}</strong><small>Anchors: {valuesText(step.anchors)} · {step.settings.domain} · {step.settings.time}</small></li>)}</ol>}
+              </article>)}</div>
+            </section>
+            <section className="lab-difference-section" aria-labelledby="observable-title">
+              <span className="eyebrow">Recorded details, not ratings</span><h4 id="observable-title">Observable differences</h4>
+              <div className="lab-difference-scroll" role="region" aria-label="Horizontally scrollable observable differences table" tabIndex={0}>
+                <table className="lab-difference-table"><thead><tr><th scope="col">Recorded cue</th>{branches.map(branch => <th scope="col" key={branch.id}>{branch.name}</th>)}</tr></thead>
+                  <tbody>
+                    {differingSettings.map(([label, key]) => <tr key={String(key)}><th scope="row">{label}</th>{branches.map(branch => {
+                      const value = branch.snapshot.settings[key];
+                      const scenarioLabel = key === "scenarioCategory" ? SCENARIOS.find(item => item.id === value)?.label : undefined;
+                      return <td key={branch.id}>{scenarioLabel || String(value || "Not recorded")}</td>;
+                    })}</tr>)}
+                    {[...distinctDiscoveries.entries()].map(([key, discovery]) => <tr key={key}><th scope="row">Discovery · {discovery.domain}</th>{branchItems.map(({ branch, discoveries }) => <td key={branch.id}>{discoveries.some(item => keyOf(item) === key) ? discovery.title : "Not recorded on this path"}</td>)}</tr>)}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </section>;
+        })()}
       </div>}
     </section>
 
