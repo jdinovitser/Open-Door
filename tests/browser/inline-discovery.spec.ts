@@ -82,7 +82,7 @@ test("live requests exclude the local scenario while returned results and Lab re
   await page.goto("/demo");
   await page.getByRole("combobox", { name: "Personal considerations", exact: true }).selectOption("wellbeing");
   await page.getByRole("textbox", { name: "Your scenario", exact: true }).fill(brief);
-  await page.getByRole("button", { name: "Live", exact: true }).click();
+  await page.getByRole("button", { name: "Demo", exact: true }).click();
   await page.getByRole("button", { name: "Explore with Qloo", exact: true }).click();
   await expect(page.locator(".door-card h3")).toHaveText("Test cultural discovery");
   expect(JSON.stringify(sent)).not.toContain(brief);

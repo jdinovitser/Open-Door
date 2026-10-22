@@ -1,0 +1,147 @@
+.qloo-connection-panel {
+  grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.1fr);
+  align-items: start;
+  gap: 24px;
+}
+
+.qloo-panel-intro h2 {
+  max-width: 390px;
+  margin: 10px 0 9px;
+  color: var(--ink);
+  font: 500 clamp(25px, 3vw, 34px)/1.08 var(--serif);
+  letter-spacing: -.035em;
+}
+
+.qloo-panel-intro p {
+  max-width: 390px;
+  margin: 0;
+  color: #687067;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.qloo-controls {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.qloo-source-switch {
+  justify-self: start;
+  max-width: 100%;
+}
+
+.qloo-source-switch button:disabled,
+.qloo-key-form button:disabled,
+.qloo-connected button:disabled,
+.qloo-example-choice button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.qloo-example-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.qloo-example-choice .helper {
+  max-width: 230px;
+}
+
+.qloo-inline-note,
+.qloo-loading,
+.qloo-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-left: 2px solid var(--gold);
+  background: #f0eee5;
+  color: #5e675d;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.qloo-loading {
+  border-left-color: var(--forest);
+  background: #e8eee5;
+}
+
+.qloo-error {
+  border-left-color: var(--clay);
+  background: #f5ebe4;
+  color: #784b3e;
+}
+
+.qloo-key-form {
+  display: flex;
+  align-items: end;
+  gap: 18px;
+  padding-top: 4px;
+}
+
+.qloo-key-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.qloo-key-field input {
+  width: 100%;
+}
+
+.qloo-key-field .helper {
+  max-width: 360px;
+}
+
+.qloo-key-form .primary-btn {
+  flex: 0 0 auto;
+  min-height: 46px;
+  padding: 12px 16px;
+}
+
+.qloo-connected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border: 1px solid #cbd7c8;
+  background: #e9efe6;
+  padding: 14px 15px;
+  color: var(--forest-dark);
+}
+
+.qloo-connected strong {
+  font: 500 17px/1.2 var(--serif);
+}
+
+.qloo-connected p {
+  max-width: 420px;
+  margin: 5px 0 0;
+  color: #59685c;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.qloo-connected .secondary-btn {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 800px) {
+  .qloo-connection-panel {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+}
+
+@media (max-width: 560px) {
+  .qloo-key-form,
+  .qloo-connected {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .qloo-key-form .primary-btn,
+  .qloo-connected .secondary-btn {
+    width: 100%;
+  }
+}

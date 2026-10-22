@@ -1,92 +1,91 @@
 import { expect, test } from "@playwright/test";
 
-test("the intro door is keyboard and pointer accessible and plays the supplied artwork once", async ({ page }) => {
+test("entry plays the supplied opening then mascot artwork on desktop and mobile", async ({ page }) => {
+  test.setTimeout(45000);
   for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport);
     await page.goto("/");
-
-    const closedDoor = page.getByRole("button", { name: "Open the illustrated door" });
-    await expect(closedDoor).toBeVisible();
-    const closedStyle = await page.locator(".entry-frame").evaluate(frame => {
-      const style = getComputedStyle(frame);
-      return { border: style.borderTopColor, radius: style.borderTopLeftRadius };
-    });
-    expect(closedStyle.border).toBe("rgb(153, 75, 64)");
-    expect(parseFloat(closedStyle.radius)).toBeGreaterThan(40);
-
+    const entry = page.getByTestId("entry-art");
+    const image = entry.getByTestId("doorway-animation-image");
+    await expect(image).toHaveAttribute("src", "/mascot/door-closed.webp");
+    const trigger = page.getByRole("button", { name: "Open the illustrated door" });
     if (viewport.width === 1280) {
-      await closedDoor.focus();
+      await trigger.focus();
       await page.keyboard.press("Enter");
-    } else {
-      await closedDoor.click();
-    }
-    await expect(page.locator(".entry-scene")).toHaveAttribute("data-entry-phase", "opening");
-    await expect(page.locator(".entry-scene .entry-frame")).toBeVisible();
-    await expect(page.getByTestId("doorway-animation-image")).toHaveCount(0);
-    await expect(page.locator(".entry-scene .entry-leaf")).toHaveCSS("transition-duration", "1.05s");
-    await expect(page.locator(".entry-scene")).toHaveAttribute("data-entry-phase", "welcoming", { timeout: 2000 });
-    const animatedImage = page.getByTestId("doorway-animation-image");
-    await expect(animatedImage).toHaveAttribute("src", /welcome-opening\.webp\?play=0/);
-    await expect(animatedImage).toHaveJSProperty("naturalWidth", 480);
-
-    await page.getByRole("button", { name: "Pause welcome illustration" }).click();
-    await expect(animatedImage).toHaveAttribute("src", "/mascot/welcome-opening-still.webp");
-    await page.getByRole("button", { name: "Play welcome illustration" }).click();
-    await expect(animatedImage).toHaveAttribute("src", /welcome-opening\.webp\?play=1/);
-
-    const enteredArt = page.locator(".hero-welcome-art");
-    await expect(enteredArt).toBeVisible({ timeout: 4000 });
-    await expect(page.locator(".entry-scene")).toHaveCount(0);
-    await expect(enteredArt.locator("img")).toHaveAttribute("src", "/mascot/welcome-opening-still.webp");
-    await expect(enteredArt.locator(".mascot-motion-toggle")).toBeVisible();
+    } else await trigger.click();
+    await expect(image).toHaveAttribute("src", /door-opening\.webp\?play=/);
+    await expect(entry.getByTestId("doorway-animation")).toHaveAttribute("data-art-phase", "opening");
+    await expect(image).toHaveAttribute("src", /door-mascot-appear\.webp\?play=/, { timeout: 5000 });
+    await expect(entry.getByTestId("doorway-animation")).toHaveAttribute("data-art-phase", "mascot");
+    const hero = page.locator(".hero-welcome-art");
+    await expect(hero).toBeVisible({ timeout: 5000 });
+    await expect(hero.locator("img")).toHaveAttribute("src", /door-mascot-appear\.webp\?play=/);
+    await page.getByRole("button", { name: "Pause illustration", exact: true }).click();
+    await expect(hero.locator("img")).toHaveAttribute("src", "/mascot/door-mascot-appear-still.webp");
+    await page.getByRole("button", { name: "Play illustration", exact: true }).click();
+    await expect(hero.locator("img")).toHaveAttribute("src", /door-mascot-appear\.webp\?play=/);
+    await expect(hero).toHaveAttribute("data-art-phase", "complete", { timeout: 5000 });
+    await expect(hero.locator("img")).toHaveAttribute("src", "/mascot/door-mascot-appear-still.webp");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await hero.screenshot({ path: `generated-artifacts/supplied-door-hero-${viewport.width}.png` });
   }
 });
 
-test("prepared-sample doors expand immediately on the same page and preserve keyboard collapse", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Open the prepared sample door" }).click();
-  await expect(page.getByTestId("doorway-animation-image")).toHaveAttribute("src", /welcome-opening\.webp/);
-  await expect(page.locator("#journey-result")).toBeVisible({ timeout: 5000 });
-
+test("cards reveal results immediately while playing both GIFs, hold the mascot and restart on reopen", async ({ page }) => {
+  await page.goto("/demo");
   const preview = page.locator(".door-preview").first();
-  for (const viewport of [{ width: 1280, height: 900 }, { width: 390, height: 844 }]) {
-    await page.setViewportSize(viewport);
-    const previewStyle = await preview.locator(".preview-opening").evaluate(door => {
-      const style = getComputedStyle(door);
-      return { border: style.borderTopColor, radius: style.borderTopLeftRadius };
-    });
-    expect(previewStyle.border).toBe("rgb(169, 81, 69)");
-    expect(parseFloat(previewStyle.radius)).toBeGreaterThan(40);
-  }
-
+  const image = preview.getByTestId("doorway-animation-image");
+  const artwork = preview.getByTestId("doorway-animation");
+  await expect(image).toHaveAttribute("src", "/mascot/door-closed.webp");
   await preview.click();
   const result = page.locator(".door-card.is-expanded .door-result-expanded");
-  await expect(result).toBeVisible();
-  await expect(result.getByRole("heading", { name: "Why you might enjoy it" })).toBeVisible();
-  await expect(result.getByRole("heading", { name: "Try this first" })).toBeVisible();
+  await expect(result).toBeVisible({ timeout: 1000 });
   await expect(result.locator("h4")).toBeFocused();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.locator(".door-reveal,.hallway-phase")).toHaveCount(0);
-  await expect(preview).toHaveAttribute("aria-expanded", "true");
+  await expect(image).toHaveAttribute("src", /door-opening\.webp\?play=/);
+  const firstRun = await image.getAttribute("src");
+  await expect(image).toHaveAttribute("src", /door-mascot-appear\.webp\?play=/, { timeout: 5000 });
+  await expect(artwork).toHaveAttribute("data-art-phase", "complete", { timeout: 5000 });
+  await expect(image).toHaveAttribute("src", "/mascot/door-mascot-appear-still.webp");
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await preview.screenshot({ path: "generated-artifacts/supplied-door-card-mobile.png" });
   await page.keyboard.press("Escape");
   await expect(result).toHaveCount(0);
   await expect(preview).toBeFocused();
+  await expect(image).toHaveAttribute("src", "/mascot/door-closed.webp");
+  await preview.click();
+  await expect(image).toHaveAttribute("src", /door-opening\.webp\?play=/);
+  expect(await image.getAttribute("src")).not.toBe(firstRun);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".door-reveal,.hallway-phase")).toHaveCount(0);
 });
 
-test("reduced motion uses the supplied still pose and the mobile layout remains inside the viewport", async ({ page }) => {
+test("reduced motion uses supplied stills, bypasses waits and has no animated door requests", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 402, height: 874 });
+  const animatedRequests: string[] = [];
+  page.on("request", request => {
+    if (/\/mascot\/door-(closed|opening|mascot-appear)\.webp/.test(request.url())) animatedRequests.push(request.url());
+  });
   await page.goto("/");
+  await expect(page.getByTestId("entry-art").locator("img")).toHaveAttribute("src", "/mascot/door-closed-still.webp");
   await page.getByRole("button", { name: "Open the illustrated door" }).click();
-
-  const enteredArt = page.locator(".hero-welcome-art");
-  await expect(enteredArt).toBeVisible({ timeout: 1500 });
-  await expect(enteredArt.locator("img")).toHaveAttribute("src", "/mascot/welcome-opening-still.webp");
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-
+  const hero = page.locator(".hero-welcome-art");
+  await expect(hero).toBeVisible({ timeout: 1500 });
+  await expect(hero.locator("img")).toHaveAttribute("src", "/mascot/door-mascot-appear-still.webp");
+  await page.getByRole("button", { name: "Try prepared examples", exact: true }).click();
   await page.getByRole("button", { name: "Open the sample journey" }).click();
-  await expect(page.locator("#journey-result")).toBeVisible({ timeout: 3000 });
   await page.locator(".door-preview").first().click();
   await expect(page.locator(".door-card.is-expanded .door-result-expanded")).toBeVisible();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator(".door-card.is-expanded .door-preview img")).toHaveAttribute("src", "/mascot/door-mascot-appear-still.webp");
+  expect(animatedRequests).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+test("entry animation can be skipped without losing the prepared sample or adding clicks to results", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Open the prepared sample door" }).click();
+  await page.getByRole("button", { name: "Skip animation", exact: true }).click();
+  await expect(page.locator("#journey-result")).toBeVisible({ timeout: 2000 });
+  await expect(page.locator(".door-card")).toHaveCount(3);
 });

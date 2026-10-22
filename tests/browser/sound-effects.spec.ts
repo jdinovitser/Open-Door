@@ -79,8 +79,9 @@ test("the clickable illustrated door plays one opening effect and keeps the mute
   await expect.poll(() => page.evaluate(() => window.soundMetrics.tones)).toBe(6);
   await expect(page.getByTestId("doorway-animation-image")).toBeVisible();
   await page.getByRole("button", { name: "Sound effects: on" }).click();
-  await page.getByRole("button", { name: "Pause welcome illustration" }).click();
-  await page.getByRole("button", { name: "Play welcome illustration" }).click();
+  await page.getByRole("button", { name: "Skip animation", exact: true }).click();
+  await page.getByRole("button", { name: "Pause illustration", exact: true }).click();
+  await page.getByRole("button", { name: "Play illustration", exact: true }).click();
   expect(await page.evaluate(() => window.soundMetrics.noises)).toBe(1);
   expect(await page.evaluate(() => localStorage.getItem("opendoor.sound.enabled"))).toBe("false");
 });

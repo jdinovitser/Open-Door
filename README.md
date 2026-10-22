@@ -52,6 +52,16 @@ flowchart LR
 
 ## Qloo integration
 
+### Choose a connection
+
+- **Demo** uses the project's shared server-side Qloo API key to retrieve real recommendations. Requests count toward the project's Qloo quota.
+- **Connect your own** verifies a visitor's key against Qloo's hackathon API and uses that key for subsequent discovery, including Live Discovery Lab branches. Keys compatible with the hackathon API are required; this is API-key authentication, not account OAuth.
+- **Try prepared examples** remains a separate, network-independent sample path, also available at `/demo`. Historical references to “Demo Mode” in the technical documentation refer to these authored examples, not the shared Demo connection.
+
+Personal keys are held only in server-process memory for up to one hour. An HttpOnly, SameSite=Strict cookie contains a random session identifier, not a key; HTTPS connections also set Secure. Keys are not written to browser storage, account storage, logs, or API responses. Disconnect, expiry, or a server restart removes the connection. Selecting a personal connection never silently falls back to the shared key. Invalid, unavailable, or rate-limited upstream connections fail visibly.
+
+The connection source selector defaults to shared Qloo discovery; the prepared `/demo` route still explicitly selects authored examples. Qloo-backed results retain their Live Qloo provenance labels regardless of which connection supplied them.
+
 The server calls only Qloo's documented hackathon endpoints: `GET /search` and `GET /v2/insights/` at `https://hackathon.api.qloo.com`, following the [hackathon developer guide](https://docs.qloo.com/reference/qloo-llm-hackathon-developer-guide). Qloo's key is read from the server-side `QLOO_API_KEY` secret and is never sent to the browser. Demo Mode remains an explicit, separate option.
 
 The full endpoint, provenance, fallback, and verification notes are in [`docs/HACKATHON_INTEGRATIONS.md`](docs/HACKATHON_INTEGRATIONS.md). Request a hackathon API key through Qloo's [official access form](https://forms.gle/zz12orkLHTAneLGz6); add the provisioned key through Replit Secrets as `QLOO_API_KEY`.

@@ -5,7 +5,9 @@ import {
   ArrowDownRight, ArrowRight, Bookmark, BookOpen, Check, ChevronDown, Compass,
   HeartCrack, Info, MapPin, Plus, RotateCcw, Share2, Trash2, Volume2, VolumeX, X,
 } from "lucide-react";
-import { getAgentStatus, runAgentDiscovery, type AgentEvent, type AgentStatus, type DiscoveryRequest, type LiveDoor, type LiveJourney, type ProgressSummary } from "./agentApi";
+import { getAgentStatus, getQlooConnectionSource, setQlooConnectionSource, runAgentDiscovery, type QlooConnectionSource, type AgentEvent, type AgentStatus, type DiscoveryRequest, type LiveDoor, type LiveJourney, type ProgressSummary } from "./agentApi";
+import QlooConnectionPanel from "./QlooConnectionPanel";
+import DoorArtwork from "./DoorArtwork";
 import { DevSecurityTestView, TrustView } from "./TrustView";
 import { MascotArt } from "./MascotArt";
 import DiscoveryLab from "./lab/DiscoveryLab";
@@ -263,7 +265,9 @@ export default function App() {
   const [personalizationEnabled, setPersonalizationEnabled] = useState(() =>
     readStore<boolean>("opendoor.privacy.personalization", true),
   );
-  const [journeyMode, setJourneyMode] = useState<"demo" | "live">("demo");
+  const [journeyMode, setJourneyMode] = useState<"demo" | "live">("live");
+  const [qlooSource, setQlooSource] = useState<QlooConnectionSource>(getQlooConnectionSource);
+  const statusGeneration = useRef(0);
   const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null);
   const lab = useDiscoveryLab(labDemoProvider, labLiveProvider, !!agentStatus?.qlooConfigured);
   const [statusError, setStatusError] = useState("");
@@ -509,11 +513,28 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
-    getAgentStatus().then(status => { if (active) setAgentStatus(status); }).catch(error => {
+    const generation = ++statusGeneration.current;
+    getAgentStatus().then(status => { if (active && generation === statusGeneration.current) setAgentStatus(status); }).catch(error => {
       if (active) setStatusError(error instanceof Error ? error.message : "Configuration status is unavailable.");
     });
     return () => { active = false; abortRef.current?.abort(); };
   }, []);
+
+  function selectQlooConnection(mode: "demo" | "live", source: QlooConnectionSource) {
+    if (isRunning) return;
+    const generation = ++statusGeneration.current;
+    setQlooConnectionSource(source);
+    setQlooSource(source);
+    setJourneyMode(mode);
+    setAgentStatus(null);
+    setStatusError("");
+    setLiveError("");
+    getAgentStatus().then(status => {
+      if (generation === statusGeneration.current) setAgentStatus(status);
+    }).catch(() => {
+      if (generation === statusGeneration.current) setStatusError("Could not check your Qloo connection. Select it again to retry.");
+    });
+  }
 
   useEffect(() => {
     if (personalizationEnabled) safeSetStore("opendoor.journey", journey);
@@ -612,7 +633,7 @@ export default function App() {
   }
   async function runLive(nextAnchors: string[], nextIntent = intent, nextIteration = 0, feedbackValues = Object.values(feedback).filter(value => value && value !== "choose"), requestOverride?: DiscoveryRequest, localContext = context) {
     if (!agentStatus?.qlooConfigured) {
-      setLiveError("Live discovery is not configured. Choose Demo, or configure Qloo on the server.");
+      setLiveError("This Qloo connection is unavailable. Reconnect your key, select Demo to use the shared connection, or try prepared examples.");
       return null;
     }
     abortRef.current?.abort();
@@ -710,18 +731,10 @@ export default function App() {
       startDemoJourney("instant");
     }
   }
-  useEffect(() => {
-    if (entryPhase !== "opening" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const timer = window.setTimeout(() => setEntryPhase("welcoming"), 1050);
-    return () => window.clearTimeout(timer);
-  }, [entryPhase]);
   function openEntry(runPreparedDemo = false) {
     if (entryPhase !== "closed") return;
     setEntryPhase("opening");
     entryRunDemoRef.current = runPreparedDemo || judgeDemo;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      window.setTimeout(completeEntryAnimation, 0);
-    }
   }
   function resetJourney() {
     setJourney(null); setFeedback({}); setSelectedNode(""); setGroupBuilt(false); setView("discover");
@@ -1158,6 +1171,7 @@ export default function App() {
         judgeDemo={judgeDemo}
         onPreferenceRevisionChanged={() => setAccountSyncAttempt(attempt => attempt + 1)}
          journeyMode={journeyMode} setJourneyMode={setJourneyMode} agentStatus={agentStatus} statusError={statusError}
+         qlooSource={qlooSource} selectQlooConnection={selectQlooConnection}
          liveStages={liveStages} liveError={liveError} isRunning={isRunning} showInspector={showInspector}
          setShowInspector={setShowInspector}
       />}
@@ -1203,6 +1217,8 @@ export default function App() {
 }
 
 type DiscoverProps = {
+  qlooSource: QlooConnectionSource;
+  selectQlooConnection: (mode: "demo" | "live", source: QlooConnectionSource) => void;
   threadExploration: ThreadExploration | null; onReturnFromThread: () => void;
   onLab: (door?: Door) => void;
   city: string; setCity: (value: string) => void; occasion: string; setOccasion: (value: string) => void;
@@ -1232,56 +1248,6 @@ type DiscoverProps = {
   liveStages: Extract<AgentEvent, { type: "stage" }>[]; liveError: string; isRunning: boolean; showInspector: boolean;
   setShowInspector: (value: boolean) => void;
 };
-
-function DoorwayFrame() {
-  return <div className="entry-frame">
-    <div className="entry-leaf"><i></i><span>OD</span></div>
-    <div className="entry-threshold"></div>
-  </div>;
-}
-
-function DoorwayAnimationArt({ autoPlay = false, className = "", onComplete }: { autoPlay?: boolean; className?: string; onComplete?: () => void }) {
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const [playing, setPlaying] = useState(autoPlay && !reducedMotion);
-  const [run, setRun] = useState(0);
-  const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
-  useEffect(() => {
-    if (!playing) return;
-    const timer = window.setTimeout(() => {
-      setPlaying(false);
-      onCompleteRef.current?.();
-    }, 3000);
-    return () => window.clearTimeout(timer);
-  }, [playing, run]);
-  function togglePlayback() {
-    if (playing) setPlaying(false);
-    else {
-      setRun(value => value + 1);
-      setPlaying(true);
-    }
-  }
-  return <div className={`doorway-animation-art ${className}`} data-testid="doorway-animation">
-    <img
-      key={run}
-      data-testid="doorway-animation-image"
-      src={playing ? `/mascot/welcome-opening.webp?play=${run}` : "/mascot/welcome-opening-still.webp"}
-      alt="The Open Door mascot welcomes you from a red arched doorway."
-      width="480"
-      height="270"
-      decoding="async"
-    />
-    <button
-      className="mascot-motion-toggle"
-      type="button"
-      aria-pressed={playing}
-      aria-label={`${playing ? "Pause" : "Play"} welcome illustration`}
-      onClick={togglePlayback}
-    >
-      {playing ? "Pause illustration" : "Play illustration"}
-    </button>
-  </div>;
-}
 
 function DiscoverView(p: DiscoverProps) {
   const [activeDoorId, setActiveDoorId] = useState<string | null>(null);
@@ -1353,43 +1319,28 @@ function DiscoverView(p: DiscoverProps) {
         <p className="entry-caveat">{p.agentStatus?.qlooConfigured ? "Qloo configured · only successful responses are labeled Live" : p.agentStatus ? "Illustrative demo paths · Qloo is not configured" : p.statusError ? "Qloo status unavailable · demo paths remain available" : "Checking Qloo configuration…"}</p>
       </div>
       <div className="entry-architecture" data-testid="entry-art">
-        {p.entryPhase === "welcoming" ? <DoorwayAnimationArt autoPlay onComplete={p.onEntryAnimationComplete} className="entry-animation-art" /> : <>
-          <div className="entry-halo" aria-hidden="true"></div>
-          <div className="entry-wall">
-            <button className="entry-door-trigger" type="button" data-sound="door-open" aria-label="Open the illustrated door" onClick={() => p.onOpenEntry()} disabled={p.entryPhase !== "closed"}>
-              <DoorwayFrame />
-            </button>
-          </div>
-          <div className="entry-companion"><MascotArt scene="map" priority /><span>Come along.</span></div>
-          <span className="entry-coordinate" aria-hidden="true">A CULTURAL FIELD GUIDE</span>
-          <span className="entry-caption" aria-hidden="true">A threshold, not a destination.</span>
-        </>}
+        <button className="entry-door-trigger supplied-entry-trigger" type="button" data-sound="door-open" aria-label="Open the illustrated door" onClick={() => p.onOpenEntry()} disabled={p.entryPhase !== "closed"}>
+          <DoorArtwork open={p.entryPhase !== "closed"} onComplete={p.onEntryAnimationComplete} className="entry-animation-art" />
+        </button>
+        {p.entryPhase !== "closed" && <button className="text-button entry-skip-animation" type="button" onClick={p.onEntryAnimationComplete}>Skip animation</button>}
       </div>
     </section>}
     {p.entryPhase === "entered" && <>
-    <section className="mode-panel" aria-label="Journey data mode">
-      <div><span className="eyebrow">How would you like to explore?</span><h2>Try the demo, or make it personal.</h2><p>Demo lets you try example activities. Choose Live for recommendations from Qloo based on your interests.</p></div>
-      <div className="mode-switch" role="group" aria-label="Choose Demo or Live">
-        <button type="button" className={p.journeyMode === "demo" ? "selected" : ""} aria-pressed={p.journeyMode === "demo"} onClick={() => p.setJourneyMode("demo")}>Demo</button>
-        <button type="button" className={p.journeyMode === "live" ? "selected" : ""} aria-pressed={p.journeyMode === "live"} onClick={() => p.setJourneyMode("live")}>Live</button>
-      </div>
-      <div className={`configuration-status ${p.agentStatus?.qlooConfigured ? "configured" : ""}`} role="status">
-        <span className="status-mark" />{p.agentStatus ? (p.agentStatus.qlooConfigured ? "Live recommendations are available" : "Live recommendations aren’t available right now. You can still try Demo.") : p.statusError ? "Couldn’t check Live availability" : "Checking Live availability…"}
-      </div>
-    </section>
+    <QlooConnectionPanel status={p.agentStatus} mode={p.journeyMode} source={p.qlooSource} disabled={p.isRunning} onSelect={p.selectQlooConnection} />
+    {p.statusError && <p role="alert">{p.statusError}</p>}
     <section className="hero">
       <div className="hero-copy"><span className="eyebrow">Arrive curious. Leave with a thread.</span>
         <h1>Find your way<br />into <em>somewhere.</em></h1>
         <p>Tell us about the music, films, food, or art you love. Find something to enjoy next, with a simple way to get started.</p>
-          <button className="primary-btn demo-start" type="button" onClick={() => p.onStartDemo("smooth", true)}>{p.journeyMode === "live" ? "Run the prepared live journey" : "Open the sample journey"} <ArrowRight size={15} /></button>
+          <button className="primary-btn demo-start" type="button" disabled={p.isRunning || (p.journeyMode === "live" && !p.agentStatus?.qlooConfigured)} onClick={() => p.onStartDemo("smooth", true)}>{p.journeyMode === "live" ? "Start exploring with Qloo" : "Open the sample journey"} <ArrowRight size={15} /></button>
       </div>
       <div className="hero-art mascot-welcome">
-        <DoorwayAnimationArt className="hero-welcome-art" />
+        <DoorArtwork open hero showControls className="hero-welcome-art" />
       </div>
     </section>
-    {p.journeyMode === "demo" && <div className="demo-note"><Info size={16} /><div><strong>Demo mode.</strong> Every sample path is authored deterministic content; it did not come from Qloo and is not a real venue listing, event, availability check, or local fact. <button className="text-button" onClick={() => p.setView("how")}>Evidence &amp; method</button></div></div>}
-    {p.journeyMode === "live" && <div className="demo-note live-note"><Info size={16} /><div><strong>Live is a request, not a setting.</strong> A configured server is necessary but not sufficient. The interface will only say Live Qloo after a successful real response. {p.agentStatus?.qlooConfigured ? "Your next exploration will make a server request." : "Live requests are unavailable until Qloo is configured."}</div></div>}
-    {p.liveError && <div className="live-error" role="alert"><strong>The live door is temporarily closed.</strong><span>{p.liveError}</span><button className="secondary-btn" type="button" disabled={p.isRunning} onClick={() => p.onStartDemo()}>Continue with Demo Mode <ArrowRight size={14} /></button></div>}
+    {p.journeyMode === "demo" && <div className="demo-note"><Info size={16} /><div><strong>Prepared examples.</strong> These are authored activities, not Qloo results or verified local listings. Choose Demo above for real recommendations using our shared Qloo connection. <button className="text-button" onClick={() => p.setView("how")}>Evidence &amp; method</button></div></div>}
+    {p.journeyMode === "live" && <div className="demo-note live-note"><Info size={16} /><div><strong>{p.qlooSource === "personal" ? "Your Qloo connection." : "Demo · shared Qloo connection."}</strong> Your interests are sent to Qloo when you explore. Results are labeled Live Qloo only after a successful response. Availability, prices and accessibility are not verified.</div></div>}
+    {p.liveError && <div className="live-error" role="alert"><strong>We couldn’t retrieve your recommendations.</strong><span>{p.liveError}</span><button className="secondary-btn" type="button" disabled={p.isRunning} onClick={() => p.onStartDemo()}>Try prepared examples <ArrowRight size={14} /></button></div>}
     {p.isRunning && p.liveStages.length === 0 && <div className="stage-wait" role="status" aria-live="polite"><span>Waiting for the first server event</span><i /><i /><small>No estimated stages or fabricated progress are shown.</small></div>}
     <form className="form-panel" onSubmit={p.submit}>
       <div className="form-heading"><div><span className="eyebrow">Begin with your own coordinates</span><h2>What brings you here?</h2></div><span className="step-label">01 — YOUR STARTING POINT</span></div>
@@ -1603,7 +1554,7 @@ function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, on
     <button className="door-preview" type="button" data-sound="none" onClick={() => expanded ? onCloseDoor() : onOpenDoor(door)}
       aria-expanded={expanded} aria-controls={expansionId} aria-label={`${expanded ? "Collapse" : "Open"} ${door.tier.toLowerCase()} door: ${door.title}`}>
       <span className="preview-number">{door.tier === "Familiar" ? "01" : door.tier === "Adjacent" ? "02" : "03"}</span>
-      <span className="preview-architecture"><span className="preview-opening"><span className="preview-glint"></span><span className="preview-mark">{door.tier === "Familiar" ? "NEAR" : door.tier === "Adjacent" ? "BESIDE" : "BEYOND"}</span></span></span>
+      <DoorArtwork open={expanded} className="recommendation-door-art" />
       <span className="preview-invite">{expanded ? "CLOSE DETAILS" : door.tier === "Unexpected" ? "OPEN THE WILDCARD" : "OPEN THIS DOOR"} <ArrowDownRight size={14} /></span>
     </button>
     <div className="door-top"><div className="door-kind"><Compass size={13} /> {door.tier === "Familiar" ? "A familiar interest" : door.tier === "Adjacent" ? "A related idea" : "Something different"} · {door.category}</div><h3>{door.title}</h3><div className="door-location">{mode === "live" ? door.kind : "An activity you can try at your own pace"}</div></div>
@@ -1656,7 +1607,7 @@ function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, on
 }
 
 function MiniDoor({ className = "" }: { className?: string }) {
-  return <span className={`mini-door ${className}`} aria-hidden="true"><i /><b /></span>;
+  return <img className={`mini-door supplied-mini-door ${className}`} src="/mascot/door-closed-still.webp" width="48" height="27" alt="" aria-hidden="true" loading="lazy" />;
 }
 
 function Passport({ openedCount, categories, tiers, savedCount }: { openedCount: number; categories: Set<string>; tiers: Record<string, number>; savedCount: number }) {
@@ -1689,7 +1640,7 @@ function HowView({ agentStatus }: { agentStatus: AgentStatus | null }) {
      </aside>
     <div className="steps">
       <div className="step"><span className="step-num">01 / BEGIN</span><h2>Name what you love.</h2><p>Choose a place, a time, explicit conditions, exploration depth, and cultural anchors. A sound, a meal, a film, a ritual—your own words are enough.</p></div>
-      <div className="step"><span className="step-num">02 / CONNECT</span><h2>Follow a thread.</h2><p>In Live mode, actual Qloo Search and Insights responses supply entities and graph evidence. Demo Mode uses authored deterministic content. Familiar, adjacent, and unexpected are Open Door route labels, not Qloo scores.</p></div>
+      <div className="step"><span className="step-num">02 / CONNECT</span><h2>Follow a thread.</h2><p>Choose Demo for our shared Qloo connection, or Connect your own to use your key. Both retrieve actual Qloo Search and Insights responses. Try prepared examples is a separate authored sample path. Familiar, adjacent, and unexpected are Open Door route labels, not Qloo scores.</p></div>
       <div className="step"><span className="step-num">03 / MAKE IT YOURS</span><h2>Keep what resonates.</h2><p>Save a door locally, open a Qloo-returned entity as a new anchor, or provide a reason it missed. Your explicit feedback is included in the next live request.</p></div>
     </div>
     <section className="mascot-showcase" aria-labelledby="mascot-showcase-title">
@@ -1726,7 +1677,7 @@ function HowView({ agentStatus }: { agentStatus: AgentStatus | null }) {
            ? "Qloo is currently configured on the server. Configuration alone does not count as Live success; only a successful Qloo-backed response is labeled Live."
            : "Qloo is currently not configured. Demo remains available while Live discovery is unavailable."}</p>
        </div>
-       <div className="architecture-demo"><strong>Demo is separate.</strong> Demo journeys use authored deterministic content, not Qloo results. A failed live request does not substitute a Demo path under a Live label.</div>
+       <div className="architecture-demo"><strong>Prepared examples are separate.</strong> The Demo connection retrieves real Qloo recommendations. Prepared examples are authored content, never a silent replacement for a failed Qloo request.</div>
      </section>
     <div className="how-future"><strong>Responsible discovery.</strong> Open Door uses explicit taste signals, does not infer sensitive identity, does not assign cultural identity, and does not tell anyone what they should like. Cultural intelligence should create possibilities, not judgments. Business, event, and creator applications are future possibilities only; they are not functional features in this demo.</div>
   </section>;

@@ -8,7 +8,7 @@ const STEPS = [
     title: "Begin with personal interests",
     time: "0:00–0:45",
     actions: [
-      "Open the app in a separate tab and choose “Open the door.” Select Live, rather than the prepared sample.",
+      "Open the app in a separate tab and choose “Open the door.” Select Demo to use the shared Qloo API connection, or Connect your own to validate your Qloo hackathon key. Try prepared examples is a separate, authored sample path.",
       "Enter a place and two cultural interests, assigning the appropriate categories. Specific musicians, films, or books are a clearer starting point than a broad phrase such as “good music.”",
       "Choose your intention and exploration depth, then select “Explore with Qloo.”",
     ],

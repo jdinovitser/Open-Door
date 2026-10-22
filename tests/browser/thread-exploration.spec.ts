@@ -7,7 +7,7 @@ test("repeated demo continuation opens distinct useful steps and can return to t
   const originalTitles = await page.locator(".door-card > .door-top h3").allTextContents();
   await page.locator(".door-card").first().locator(".door-preview").click();
   // Continuing a displayed Demo must not silently become Live because of a form toggle.
-  await page.getByRole("button", { name: "Live", exact: true }).click();
+  await page.getByRole("button", { name: "Demo", exact: true }).click();
   await page.getByRole("button", { name: "Explore more ideas", exact: true }).click();
   const first = page.locator(".door-card.is-expanded .door-result-expanded");
   await expect(first).toBeVisible();
@@ -53,7 +53,7 @@ function liveResult(input: any, title: string, entityId: string, empty = false) 
 }
 async function startLive(page: Page) {
   await page.goto("/demo");
-  await page.getByRole("button", { name: "Live", exact: true }).click();
+  await page.getByRole("button", { name: "Demo", exact: true }).click();
   await page.getByRole("button", { name: "Explore with Qloo", exact: true }).click();
   await expect(page.locator(".door-card h3")).toHaveText("First returned artist");
   await page.locator(".door-preview").click();
@@ -78,7 +78,7 @@ test("live continuation has visible loading, keeps prior results on failure, ret
       body: liveResult(input, calls === 1 ? "First returned artist" : "A deeper returned artist", calls === 1 ? "first-entity" : "next-entity") });
   });
   await startLive(page);
-  await page.getByRole("button", { name: "Demo", exact: true }).click();
+  await page.getByRole("button", { name: "Try prepared examples", exact: true }).first().click();
   await page.getByRole("button", { name: "Explore more ideas", exact: true }).click();
   const notice = page.getByRole("region", { name: "Thread exploration" });
   await expect(notice).toContainText("Finding new Qloo connections");

@@ -1,5 +1,9 @@
 export type AgentStatus = {
   qlooConfigured: boolean;
+  sharedQlooConfigured?: boolean;
+  personalQlooConnected?: boolean;
+  connectionSource?: "shared" | "personal" | "none";
+  connectionExpiresAt?: string | null;
   agent: string;
   demoAvailable: boolean;
   authenticationConfigured?: boolean;
@@ -177,8 +181,19 @@ export class AgentApiError extends Error {
   }
 }
 
+export type QlooConnectionSource = "shared" | "personal";
+let connectionSource: QlooConnectionSource = (() => {
+  try { return sessionStorage.getItem("opendoor.qloo.source") === "personal" ? "personal" : "shared"; }
+  catch { return "shared"; }
+})();
+export function getQlooConnectionSource(): QlooConnectionSource { return connectionSource; }
+export function setQlooConnectionSource(source: QlooConnectionSource) {
+  connectionSource = source;
+  try { sessionStorage.setItem("opendoor.qloo.source", source); } catch { /* Selection is optional storage, never a credential. */ }
+}
+
 export async function getAgentStatus(): Promise<AgentStatus> {
-  const response = await fetch("/api/status", { headers: { Accept: "application/json" } });
+  const response = await fetch("/api/status", { headers: { Accept: "application/json", "X-Qloo-Connection": connectionSource } });
   if (!response.ok) throw new Error("Open Door's status endpoint is unavailable.");
   return response.json() as Promise<AgentStatus>;
 }
@@ -199,6 +214,7 @@ export async function runAgentDiscovery(
     headers: {
       Accept: "application/x-ndjson",
       "Content-Type": "application/json",
+      "X-Qloo-Connection": connectionSource,
     },
     body: JSON.stringify(request),
     signal,

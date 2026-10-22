@@ -2,15 +2,17 @@ import { expect, test } from "@playwright/test";
 
 test("welcome mascot animates, can be paused and resumed, and loads without broken images", async ({ page }) => {
   await page.goto("/");
-  const guide = page.locator(".entry-companion [data-mascot-scene='map']");
+  await page.getByRole("button", { name: "Open the illustrated door" }).click();
+  await page.getByRole("button", { name: "Skip animation", exact: true }).click();
+  const guide = page.locator(".hero-welcome-art");
   const image = guide.locator("img");
-  await expect(image).toHaveAttribute("src", "/mascot/map-guide.webp");
+  await expect(image).toHaveAttribute("src", /door-mascot-appear\.webp\?play=/);
   await expect(image).toHaveJSProperty("naturalWidth", 480);
-  await guide.getByRole("button", { name: "Pause map mascot animation" }).click();
-  await expect(image).toHaveAttribute("src", "/mascot/map-guide-still.webp");
-  await expect(guide.getByRole("button", { name: "Play map mascot animation" })).toHaveAttribute("aria-pressed", "true");
-  await guide.getByRole("button", { name: "Play map mascot animation" }).click();
-  await expect(image).toHaveAttribute("src", "/mascot/map-guide.webp");
+  await guide.getByRole("button", { name: "Pause illustration", exact: true }).click();
+  await expect(image).toHaveAttribute("src", "/mascot/door-mascot-appear-still.webp");
+  await expect(guide.getByRole("button", { name: "Play illustration", exact: true })).toHaveAttribute("aria-pressed", "false");
+  await guide.getByRole("button", { name: "Play illustration", exact: true }).click();
+  await expect(image).toHaveAttribute("src", /door-mascot-appear\.webp\?play=/);
 });
 
 test("mascots appear across Lab, saved doors and the cultural gallery; offscreen animation stops", async ({ page }) => {

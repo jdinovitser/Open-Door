@@ -8,6 +8,7 @@ import { publishableKeyFromHost } from "@clerk/shared/keys";
 import { Pool } from "pg";
 import { getAgentError, runDiscovery, validateDiscoveryRequest } from "./agent.js";
 import { createQlooClient } from "./qloo.js";
+import { createQlooConnections } from "./qlooConnections.js";
 import { createAccountSavedDoorsRouter } from "./accountSavedDoors.js";
 import { startAccountCleanup } from "./accountLifecycle.js";
 import { CLERK_PROXY_PATH, clerkProxyMiddleware, getClerkProxyHost } from "./middlewares/clerkProxyMiddleware.js";
@@ -26,6 +27,7 @@ const production = process.env.NODE_ENV === "production";
 const port = Number(process.env.PORT || 5000);
 const app = express();
 const httpServer = createHttpServer(app);
+const qlooConnections = createQlooConnections();
 const pool = process.env.DATABASE_URL
   ? new Pool({ connectionString: process.env.DATABASE_URL, max: 5, connectionTimeoutMillis: 5000 })
   : null;
@@ -37,6 +39,14 @@ app.use(blockCrossSiteMutations);
 if (production) app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 app.use("/api/account", express.json({ limit: "512kb" }));
 app.use(express.json({ limit: APP_POLICY.maxRequestBytes }));
+app.use((error, request, response, next) => {
+  if (request.path === "/api/qloo/connection" && error?.type?.startsWith("entity.")) {
+    // Body-parser errors may contain fragments of submitted credentials.
+    response.status(error.status === 413 ? 413 : 400).json({ message: "The connection request could not be read. Please retry with a valid API key." });
+    return;
+  }
+  next(error);
+});
 app.use(clerkMiddleware(request => ({
   publishableKey: publishableKeyFromHost(
     getClerkProxyHost(request) ?? "",
@@ -51,10 +61,12 @@ app.use("/api/account", createAccountSavedDoorsRouter({
 
 if (pool) startAccountCleanup(pool, clerkClient.users);
 
-app.get("/api/status", (_request, response) => {
+app.use("/api/qloo/connection", qlooConnections.router);
+
+app.get("/api/status", (request, response) => {
   response.setHeader("Cache-Control", "no-store");
   response.json({
-    qlooConfigured: Boolean(process.env.QLOO_API_KEY),
+    ...qlooConnections.status(request),
     agent: "Open Door structured tool orchestration",
     demoAvailable: true,
     authenticationConfigured: Boolean(process.env.CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY),
@@ -126,16 +138,17 @@ app.post(
     return;
   }
 
-  if (!process.env.QLOO_API_KEY) {
+  const connection = qlooConnections.resolve(request);
+  if (!connection.apiKey) {
     recordAuditEvent({
       eventType: "request_rejected",
       requestId,
       outcome: "qloo-not-configured",
-      statusCode: 503,
+      statusCode: connection.status,
     });
-    response.status(503).json({
-      code: "QLOO_NOT_CONFIGURED",
-      message: "Live Qloo is not configured. Use Demo Mode or add the QLOO_API_KEY secret after receiving a hackathon API key.",
+    response.status(connection.status).json({
+      code: connection.code,
+      message: connection.message,
       requestId,
     });
     return;
@@ -168,7 +181,7 @@ app.post(
   };
 
   try {
-    const qloo = createQlooClient({ apiKey: process.env.QLOO_API_KEY });
+    const qloo = createQlooClient({ apiKey: connection.apiKey });
     const journey = await runDiscovery(validatedRequest, {
       qloo,
       emit,

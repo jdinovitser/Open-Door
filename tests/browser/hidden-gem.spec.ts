@@ -86,7 +86,7 @@ test("live hidden gems clearly remain editorial prompts, not Qloo evidence or ve
     await route.fulfill({ contentType: "application/x-ndjson", body: liveResult(route.request().postDataJSON()) });
   });
   await page.goto("/demo");
-  await page.getByRole("button", { name: "Live", exact: true }).click();
+  await page.getByRole("button", { name: "Demo", exact: true }).click();
   await page.getByRole("button", { name: "Explore with Qloo", exact: true }).click();
   const card = page.locator(".door-card").first();
   await expect(card.locator("h3")).toHaveText("A returned listening artist");
