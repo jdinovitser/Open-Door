@@ -1204,7 +1204,7 @@ export default function App() {
       />}
     </main>
     <footer className="site-footer">
-      <div className="footer-note">A FIELD GUIDE, NOT A CHECKLIST · OPEN DOOR · {journey?.mode === "live" ? "LIVE QLOO RESPONSE RECEIVED" : "DEMO PATHS ARE AUTHORED EXAMPLES"}</div>
+      <div className="footer-note">A FIELD GUIDE, NOT A CHECKLIST · OPEN DOOR · {journey ? journey.mode === "live" ? "RECOMMENDATIONS FROM QLOO" : "PREPARED EXAMPLE RESULTS" : "CULTURAL DISCOVERY WITH QLOO"}</div>
       <nav className="footer-nav" aria-label="Footer navigation">
         <a href="/">Discover</a>
         <a href="/lab">Discovery Lab</a>
@@ -1311,12 +1311,23 @@ function DiscoverView(p: DiscoverProps) {
   const allGroupAnchors = [...new Set(groupTokens.flat())];
   const storyDoors = p.journey?.doors || [];
   const setContextValue = (key: keyof Context, value: string) => p.setContext({ ...p.context, [key]: value });
+  const connectionMessage = !p.agentStatus
+    ? p.statusError ? "Couldn’t check Qloo right now. Select your connection again to retry." : "Checking Qloo connection…"
+    : p.journeyMode === "demo"
+      ? p.agentStatus.sharedQlooConfigured || p.agentStatus.qlooConfigured
+        ? "Prepared examples selected. Choose Demo for recommendations from Qloo."
+        : "Prepared examples selected. A Qloo connection is needed for live recommendations."
+      : p.agentStatus.qlooConfigured
+        ? p.qlooSource === "personal" ? "Qloo ready · using your own connection." : "Qloo ready · using the shared Demo connection."
+        : p.qlooSource === "personal"
+          ? "Connect your Qloo key below, or choose Demo to use our shared connection."
+          : "The shared Qloo connection is unavailable. Connect your own key or try prepared examples.";
   return <>
     {p.entryPhase !== "entered" && <section className={`entry-scene ${p.entryPhase === "opening" ? "is-opening" : ""}`} data-entry-phase={p.entryPhase} aria-label="Open Door introduction">
       <div className="entry-copy"><span className="eyebrow">Open Door · a cultural field guide</span><p className="entry-index">FIELD NOTE 001 <span>—</span> ARRIVAL</p><h1>What’s behind<br /><em>your next door?</em></h1><p className="entry-deck">Start with the films, music, food, or books you love. Open three cultural directions—and choose where to go next.</p>
         <button className="entry-action" type="button" data-sound="door-open" onClick={() => p.onOpenEntry()} disabled={p.entryPhase !== "closed"}><span>{p.entryPhase !== "closed" ? "The room is opening" : "Open the door"}</span><ArrowRight size={17} /></button>
         <button className="entry-demo-link" type="button" data-sound="door-open" onClick={() => p.onOpenEntry(true)} disabled={p.entryPhase !== "closed"}>Open the prepared sample door</button>
-        <p className="entry-caveat">{p.agentStatus?.qlooConfigured ? "Qloo configured · only successful responses are labeled Live" : p.agentStatus ? "Illustrative demo paths · Qloo is not configured" : p.statusError ? "Qloo status unavailable · demo paths remain available" : "Checking Qloo configuration…"}</p>
+        <p className="entry-caveat">{connectionMessage}</p>
       </div>
       <div className="entry-architecture" data-testid="entry-art">
         <button className="entry-door-trigger supplied-entry-trigger" type="button" data-sound="door-open" aria-label="Open the illustrated door" onClick={() => p.onOpenEntry()} disabled={p.entryPhase !== "closed"}>
@@ -1327,6 +1338,7 @@ function DiscoverView(p: DiscoverProps) {
     </section>}
     {p.entryPhase === "entered" && <>
     <QlooConnectionPanel status={p.agentStatus} mode={p.journeyMode} source={p.qlooSource} disabled={p.isRunning} onSelect={p.selectQlooConnection} />
+    <p className="helper" role="status" data-testid="discovery-connection-status">{connectionMessage}</p>
     {p.statusError && <p role="alert">{p.statusError}</p>}
     <section className="hero">
       <div className="hero-copy"><span className="eyebrow">Arrive curious. Leave with a thread.</span>
@@ -1339,7 +1351,7 @@ function DiscoverView(p: DiscoverProps) {
       </div>
     </section>
     {p.journeyMode === "demo" && <div className="demo-note"><Info size={16} /><div><strong>Prepared examples.</strong> These are authored activities, not Qloo results or verified local listings. Choose Demo above for real recommendations using our shared Qloo connection. <button className="text-button" onClick={() => p.setView("how")}>Evidence &amp; method</button></div></div>}
-    {p.journeyMode === "live" && <div className="demo-note live-note"><Info size={16} /><div><strong>{p.qlooSource === "personal" ? "Your Qloo connection." : "Demo · shared Qloo connection."}</strong> Your interests are sent to Qloo when you explore. Results are labeled Live Qloo only after a successful response. Availability, prices and accessibility are not verified.</div></div>}
+    {p.journeyMode === "live" && <div className="demo-note live-note"><Info size={16} /><div><strong>{p.qlooSource === "personal" ? "Your Qloo connection." : "Demo · shared Qloo connection."}</strong> {p.agentStatus?.qlooConfigured ? "Explore to get cultural recommendations from Qloo based on your interests." : "Choose an available connection above to explore with Qloo."} Check opening hours, prices and accessibility before visiting.</div></div>}
     {p.liveError && <div className="live-error" role="alert"><strong>We couldn’t retrieve your recommendations.</strong><span>{p.liveError}</span><button className="secondary-btn" type="button" disabled={p.isRunning} onClick={() => p.onStartDemo()}>Try prepared examples <ArrowRight size={14} /></button></div>}
     {p.isRunning && p.liveStages.length === 0 && <div className="stage-wait" role="status" aria-live="polite"><span>Waiting for the first server event</span><i /><i /><small>No estimated stages or fabricated progress are shown.</small></div>}
     <form className="form-panel" onSubmit={p.submit}>
@@ -1437,7 +1449,7 @@ function DiscoverView(p: DiscoverProps) {
       <p className="result-truth-note" role="note">
         {p.journey.mode === "live"
           ? "Recommendations from Qloo. Check opening hours, prices, and access before visiting a place."
-          : "You’re trying the demo: these are example activities, not live Qloo recommendations or booked events."}
+          : "These results are prepared example activities, not retrieved Qloo recommendations. Choose Demo above and explore again for Qloo results."}
       </p>
        <RecommendationTools recommendations={p.journey.doors} city={p.journey.city} mode={p.journey.mode || "demo"} />
         <aside className="result-guide" aria-label="A note from your field guide">
@@ -1532,7 +1544,7 @@ function DiscoverView(p: DiscoverProps) {
            <div className="provenance-flow"><span>User-entered anchors</span><ArrowRight size={13} /><span>Authored deterministic demo path</span></div>
          </>}
        </details>}
-       <details className="why-qloo"><summary>Why Qloo? <ChevronDown size={15} /></summary><p>Qloo lets Open Door resolve cultural entities and retrieve cross-domain signals through the server-side Search and Insights API contract. Its popularity field remains popularity, not affinity. Familiar, Adjacent, and Unexpected are Open Door route labels. Discovery Distance is an Open Door ordinal, never a Qloo score or a psychological measure.</p><p>Open Door uses explicit inputs and retrieved evidence; it does not infer identity. A configured key alone is not a live journey—the current results are called Live Qloo only after the real request succeeds.</p></details>
+       <details className="why-qloo"><summary>Why Qloo? <ChevronDown size={15} /></summary><p>Qloo connects your interests with cultural recommendations through its Search and Insights APIs. Use our shared Demo connection or connect your own key. Familiar, Adjacent, and Unexpected are Open Door’s ways of organizing your choices, not Qloo scores.</p><p>Qloo results and prepared examples are labeled separately, so you can see where each recommendation came from. Open Door uses the interests you share; it does not infer your identity.</p></details>
        <details className="explain"><summary>How this path was assembled <ChevronDown size={16} /></summary><div className="explain-content"><div><h4>Start with your words</h4><p>Anchors, intent, context, budget, and location are explicit inputs. Nothing about identity is inferred.</p></div><div><h4>Separate source from route</h4><p>Qloo supplies returned entities and evidence. Open Door labels familiar, adjacent, or unexpected routes and keeps that presentation logic distinct.</p></div><div><h4>Keep limits visible</h4><p>External provenance and AI synthesis are absent when none were used. Results do not verify opening hours, cost, availability, accessibility, or travel time.</p></div></div></details>
     </section>}
     </>}

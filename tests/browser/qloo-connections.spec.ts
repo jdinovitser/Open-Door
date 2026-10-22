@@ -41,12 +41,14 @@ test("personal connect, discovery, switching and disconnect use the selected sou
   await page.getByLabel("Your Qloo API key").fill("fixture-personal-key");
   await page.getByRole("button", { name: "Connect key", exact: true }).click();
   await expect(page.getByText("Your Qloo key is connected.", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("discovery-connection-status")).toContainText("using your own connection");
   await expect(page.getByLabel("Your Qloo API key")).toHaveCount(0);
   expect(await page.evaluate(() => JSON.stringify({ ...localStorage, ...sessionStorage }))).not.toContain("fixture-personal-key");
   await page.getByRole("button", { name: "Explore with Qloo", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Fixture recommendation" })).toBeVisible();
   expect(sources).toEqual(["personal"]);
   await page.getByRole("button", { name: "Demo", exact: true }).click();
+  await expect(page.getByTestId("discovery-connection-status")).toContainText("using the shared Demo connection");
   await page.getByRole("button", { name: "Explore with Qloo", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Fixture recommendation" })).toBeVisible();
   expect(sources).toEqual(["personal", "shared"]);
@@ -80,5 +82,39 @@ test("prepared examples remain explicit and network-independent", async ({ page 
   await expect(page.locator(".door-card").first()).toBeVisible();
   expect(sources).toEqual([]);
   await expect(page.locator(".demo-note").first()).toContainText("authored activities");
+  await expect(page.getByTestId("discovery-connection-status")).toContainText("Prepared examples selected");
+  await expect(page.locator(".result-truth-note")).toContainText("prepared example activities");
   await page.locator(".qloo-connection-panel").screenshot({ path: "generated-artifacts/qloo-connection-desktop.png" });
+});
+
+test("loading status never claims that the shared connection is unavailable", async ({ page }) => {
+  let releaseStatus!: () => void;
+  const pending = new Promise<void>(resolve => { releaseStatus = resolve; });
+  await page.route("**/api/status", async route => {
+    await pending;
+    await route.fulfill({ json: {
+      qlooConfigured: true, sharedQlooConfigured: true,
+      personalQlooConnected: false, agent: "Test fixture", demoAvailable: true,
+    } });
+  });
+  await page.goto("/demo");
+  await expect(page.getByTestId("discovery-connection-status")).toContainText("Checking Qloo connection");
+  await expect(page.locator(".footer-note")).toContainText("PREPARED EXAMPLE RESULTS");
+  await expect(page.locator(".footer-note")).not.toContainText("DEMO PATHS ARE AUTHORED EXAMPLES");
+  await expect(page.getByText("Shared live recommendations aren’t available right now.", { exact: true })).toHaveCount(0);
+  releaseStatus();
+  await page.getByRole("button", { name: "Demo", exact: true }).click();
+  await expect(page.getByTestId("discovery-connection-status")).toContainText("Qloo ready");
+  await expect(page.getByTestId("discovery-connection-status")).toContainText("shared Demo connection");
+});
+
+test("a missing shared connection is reported only after status is known", async ({ page }) => {
+  await page.route("**/api/status", route => route.fulfill({ json: {
+    qlooConfigured: false, sharedQlooConfigured: false,
+    personalQlooConnected: false, agent: "Test fixture", demoAvailable: true,
+  } }));
+  await page.goto("/demo");
+  await expect(page.getByText("Shared live recommendations aren’t available right now.", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Connect your own", exact: true }).click();
+  await expect(page.getByTestId("discovery-connection-status")).toContainText("Connect your Qloo key below");
 });

@@ -191,7 +191,12 @@ export default function QlooConnectionPanel({
           </span>
         </div>
 
-        {!sharedConfigured && (
+        {!status && (
+          <p className="qloo-inline-note" role="status">
+            Checking Qloo connection status…
+          </p>
+        )}
+        {status && !sharedConfigured && (
           <p className="qloo-inline-note" role="status">
             Shared live recommendations aren’t available right now.
           </p>
