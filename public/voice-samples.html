@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Open Door · Voice samples</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#faf6ed;color:#214b3d;font:17px/1.6 system-ui,sans-serif}main{max-width:900px;margin:auto;padding:40px 22px}header{margin-bottom:28px}h1{font-size:clamp(30px,6vw,44px);line-height:1.15;margin:10px 0}h2{font-size:23px;margin:0 0 6px}p{margin:6px 0 16px}.eyebrow{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:#97523d}.samples{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:20px}article{background:white;border:1px solid #d9dfd6;border-radius:20px;padding:24px;box-shadow:0 4px 16px #214b3d08}audio{display:block;width:100%;margin:18px 0}a{color:#215d49;font-weight:600;text-underline-offset:4px}a:focus-visible{outline:3px solid #d89740;outline-offset:5px}blockquote{margin:30px 0;padding:20px 24px;background:#efe8d9;border-radius:16px;font-size:16px}.note{font-size:14px;color:#53645c}footer{margin-top:30px}.error{color:#a83225}
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <span class="eyebrow">Open Door · Narration auditions</span>
+      <h1>Find the right voice.</h1>
+      <p>Press Play to hear each sample. All four read the same short introduction in American English, without background music.</p>
+      <p class="note">These are AI-generated voices. Your existing demo has not been changed.</p>
+    </header>
+    <div class="samples">
+      <article>
+        <h2>A · Erin</h2><p>Confident and conversational.</p>
+        <audio controls preload="metadata" aria-label="Play sample A, Erin"><source src="/voice-samples-erin.mp3" type="audio/mpeg"></audio>
+        <a href="/voice-samples-erin.mp3" download="Open-Door-A-Erin.mp3">Download Erin’s sample</a>
+      </article>
+      <article>
+        <h2>B · Katie</h2><p>Relaxed and authentic.</p>
+        <audio controls preload="metadata" aria-label="Play sample B, Katie"><source src="/voice-samples-katie.mp3" type="audio/mpeg"></audio>
+        <a href="/voice-samples-katie.mp3" download="Open-Door-B-Katie.mp3">Download Katie’s sample</a>
+      </article>
+      <article>
+        <h2>C · Allison</h2><p>Warm and professional.</p>
+        <audio controls preload="metadata" aria-label="Play sample C, Allison"><source src="/voice-samples-allison.mp3" type="audio/mpeg"></audio>
+        <a href="/voice-samples-allison.mp3" download="Open-Door-C-Allison.mp3">Download Allison’s sample</a>
+      </article>
+      <article>
+        <h2>D · Savvy</h2><p>Grounded and friendly.</p>
+        <audio controls preload="metadata" aria-label="Play sample D, Savvy"><source src="/voice-samples-savvy.mp3" type="audio/mpeg"></audio>
+        <a href="/voice-samples-savvy.mp3" download="Open-Door-D-Savvy.mp3">Download Savvy’s sample</a>
+      </article>
+    </div>
+    <blockquote>“You finally have a free afternoon. But what should you do? Open Door starts with what you love, then uses Qloo to help you discover something new. Find a hidden gem, plan your day, and make it your own.”</blockquote>
+    <p>Tell me which voice you prefer in the chat: A, B, C, or D.</p>
+    <footer><a href="/">Back to Open Door</a></footer>
+  </main>
+  <script>
+    const players = [...document.querySelectorAll("audio")];
+    players.forEach(player => {
+      player.addEventListener("play", () => players.forEach(other => {
+        if (other !== player) other.pause();
+      }));
+      player.addEventListener("error", () => {
+        if (player.parentElement.querySelector(".error")) return;
+        const message = document.createElement("p");
+        message.className = "error";
+        message.setAttribute("role", "alert");
+        message.textContent = "Playback couldn’t start. Try the download link below.";
+        player.after(message);
+      });
+    });
+  </script>
+</body>
+</html>
