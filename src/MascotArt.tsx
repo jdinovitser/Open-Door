@@ -52,6 +52,26 @@ const SCENES = {
     still: "/mascot/music-guide-still.webp",
     alt: "The Open Door mascot enjoys music through headphones.",
   },
+  "company-business": {
+    image: "/mascot/company-business.webp",
+    still: "/mascot/company-business-still.webp",
+    alt: "The Open Door mascot travels for work with a briefcase and rolling suitcase.",
+  },
+  "company-real-estate": {
+    image: "/mascot/company-real-estate.webp",
+    still: "/mascot/company-real-estate-still.webp",
+    alt: "The Open Door mascot arrives at a welcoming house with moving luggage.",
+  },
+  "company-travel": {
+    image: "/mascot/company-travel.webp",
+    still: "/mascot/company-travel-still.webp",
+    alt: "The Open Door mascot walks through an airport with a rolling suitcase.",
+  },
+  "company-destination": {
+    image: "/mascot/company-destination.webp",
+    still: "/mascot/company-destination-still.webp",
+    alt: "The Open Door mascot relaxes on a beach beneath palm trees.",
+  },
 };
 
 export function MascotArt({ scene, priority = false }: { scene: keyof typeof SCENES; priority?: boolean }) {

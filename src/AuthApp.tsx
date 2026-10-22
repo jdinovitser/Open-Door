@@ -8,6 +8,9 @@ import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
 import { Link, Route, Router, Switch, useLocation } from "wouter";
 import App from "./App";
+import CompanyPortal from "./company/CompanyPortal";
+import CompanyExperience from "./company/CompanyExperience";
+import CompanyAdmin from "./company/CompanyAdmin";
 import "./auth.css";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -73,7 +76,7 @@ function SignInPage() {
       <span className="eyebrow">Open Door · a cultural field guide</span>
       <h1>Welcome back.</h1>
        <p>Keep your saved doors and rewards across devices. Guest-saved doors from this browser are added to your account when you sign in.</p>
-      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} />
+      <SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} forceRedirectUrl={new URLSearchParams(window.location.search).get("redirect_url") === "/companies/admin" ? `${basePath}/companies/admin` : undefined} />
       <ContinueAsGuest />
     </div>
   </main>;
@@ -112,10 +115,14 @@ function ClerkRoutes() {
     routerReplace={to => { setLocation(basePath && to.startsWith(basePath) ? to.slice(basePath.length) || "/" : to, { replace: true }); }}
   >
     <Switch>
-      <Route path="/" component={App} />
+      <Route path="/companies" component={CompanyPortal} />
+      <Route path="/companies/admin" component={CompanyAdmin} />
+      <Route path="/companies/discover" component={CompanyExperience} />
+      <Route path="/companies/lab" component={CompanyExperience} />
+      <Route path="/"><App /></Route>
       <Route path="/sign-in/*?" component={SignInPage} />
       <Route path="/sign-up/*?" component={SignUpPage} />
-      <Route component={App} />
+      <Route><App /></Route>
     </Switch>
   </ClerkProvider>;
 }

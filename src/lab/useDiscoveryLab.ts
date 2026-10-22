@@ -4,12 +4,12 @@ import { STORAGE_KEY, type Discovery, type DiscoveryProvider, type Feedback, typ
 
 const id = () => crypto.randomUUID();
 const now = () => new Date().toISOString();
-function load() {
-  try { return { state: parseLab(localStorage.getItem(STORAGE_KEY)), error: "" }; }
+function load(storageKey: string) {
+  try { return { state: parseLab(localStorage.getItem(storageKey)), error: "" }; }
   catch (error) { return { state: emptyLab(), error: error instanceof Error ? error.message : "Browser-local Lab data could not be read." }; }
 }
-export function useDiscoveryLab(demo: DiscoveryProvider, live: DiscoveryProvider, qlooConfigured: boolean) {
-  const [initial] = useState(load);
+export function useDiscoveryLab(demo: DiscoveryProvider, live: DiscoveryProvider, qlooConfigured: boolean, storageKey = STORAGE_KEY) {
+  const [initial] = useState(() => load(storageKey));
   const [state, setState] = useState(initial.state);
   const stateRef = useRef(state);
   const [loadError, setLoadError] = useState(initial.error);
@@ -21,9 +21,9 @@ export function useDiscoveryLab(demo: DiscoveryProvider, live: DiscoveryProvider
   const busyRef = useRef(false);
   useEffect(() => {
     if (loadError) return;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); setStorageWarning(""); }
+    try { localStorage.setItem(storageKey, JSON.stringify(state)); setStorageWarning(""); }
     catch { setStorageWarning("This Lab is only in memory: browser storage is disabled or full. Export it before leaving this page."); }
-  }, [state, loadError]);
+  }, [state, loadError, storageKey]);
   useEffect(() => () => request.current?.abort(), []);
   function commit(next: LabState) {
     stateRef.current = next;
@@ -96,11 +96,11 @@ export function useDiscoveryLab(demo: DiscoveryProvider, live: DiscoveryProvider
   }
   function clear() {
     cancel(); setLoadError(""); setError(""); setNotices([]); commit(emptyLab());
-    try { localStorage.removeItem(STORAGE_KEY); } catch { setStorageWarning("Browser storage could not be cleared."); }
+    try { localStorage.removeItem(storageKey); } catch { setStorageWarning("Browser storage could not be cleared."); }
   }
   function exportData() {
     let raw: string;
-    try { raw = loadError ? localStorage.getItem(STORAGE_KEY) || "{}" : JSON.stringify(stateRef.current, null, 2); }
+    try { raw = loadError ? localStorage.getItem(storageKey) || "{}" : JSON.stringify(stateRef.current, null, 2); }
     catch { raw = JSON.stringify(stateRef.current, null, 2); }
     const url = URL.createObjectURL(new Blob([raw], { type: "application/json" }));
     const link = document.createElement("a"); link.href = url; link.download = "open-door-discovery-lab.json"; link.click();

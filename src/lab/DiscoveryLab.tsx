@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AudioLines, GitBranch, MoveUpRight, Users, Sparkles, Map as MapIcon } from "lucide-react";
 import { MascotArt } from "../MascotArt";
+import { CompanyMascot } from "../company/CompanyMascot";
 import QlooConnectionPanel from "../QlooConnectionPanel";
 import type { AgentStatus } from "../agentApi";
 import { allDiscoveries, compareBranches } from "./engine.ts";
@@ -9,6 +10,7 @@ import { SCENARIOS } from "./scenarios.ts";
 import type { LabController } from "./useDiscoveryLab.ts";
 import "./lab.css";
 import { ScenarioFields } from "./ScenarioFields.tsx";
+import type { CompanyProfile } from "../company/profiles";
 
 type QlooConnectionSource = "shared" | "personal";
 type Connection = {
@@ -18,7 +20,7 @@ type Connection = {
   disabled: boolean;
   onSelect: (mode: "demo" | "live", source: QlooConnectionSource) => void;
 };
-type Props = { lab: LabController; qlooConfigured: boolean; connection: Connection };
+type Props = { lab: LabController; qlooConfigured: boolean; connection: Connection; companyProfile?: CompanyProfile };
 
 const strategyNotes: Record<Strategy, string> = {
   stay: "Keep close to your starting taste; look for a neighboring expression inside the same world.",
@@ -52,14 +54,14 @@ function discoveryIdentity(discovery: Discovery) {
   return `title:${domain}|${title}`;
 }
 
-export default function DiscoveryLab({ lab, connection }: Props) {
+export default function DiscoveryLab({ lab, connection, companyProfile }: Props) {
   const { state, busy, error, loadError, storageWarning, notices } = lab;
   const current = state.current;
-  const [anchors, setAnchors] = useState<string[]>([]);
-  const [anchorCategories, setAnchorCategories] = useState<Record<string, string>>({});
+  const [anchors, setAnchors] = useState<string[]>(() => companyProfile ? [...companyProfile.anchors] : []);
+  const [anchorCategories, setAnchorCategories] = useState<Record<string, string>>(() => companyProfile ? Object.fromEntries(Object.entries(companyProfile.categories).map(([anchor, category]) => [anchor, category === "Design" ? "Architecture" : category])) : {});
   const [anchorDraft, setAnchorDraft] = useState("");
-  const [location, setLocation] = useState("");
-  const [scenario, setScenario] = useState<Pick<Settings, "scenario" | "scenarioCategory">>({});
+  const [location, setLocation] = useState<string>(companyProfile?.location || "");
+  const [scenario, setScenario] = useState<Pick<Settings, "scenario" | "scenarioCategory">>(() => companyProfile ? { scenario: companyProfile.context.scenario, scenarioCategory: companyProfile.context.scenarioCategory } : {});
   const [selectedStrategy, setSelectedStrategy] = useState<Strategy>("stay");
   const [destination, setDestination] = useState<string>("Art");
   const [compareCheckpoint, setCompareCheckpoint] = useState("");
@@ -157,6 +159,7 @@ export default function DiscoveryLab({ lab, connection }: Props) {
   function makeSeed(mode: "demo" | "live"): LabSeed {
     const categories = Object.fromEntries(anchors.map(anchor => [anchor, anchorCategories[anchor] || "Other"]));
     return { anchors, categories, location: location.trim(), context: {
+      ...(companyProfile ? { ...companyProfile.context, groupInterests: anchors.join(", ") } : {}),
       ...(scenario.scenario ? { scenario: scenario.scenario } : {}),
       ...(scenario.scenarioCategory ? { scenarioCategory: scenario.scenarioCategory } : {}),
     }, mode, discoveries: [], feedback: {} };
@@ -231,9 +234,9 @@ export default function DiscoveryLab({ lab, connection }: Props) {
   return <div className="discovery-lab" aria-labelledby="lab-title">
     <header className="lab-heading">
       <div>
-        <span className="eyebrow">Open Door · Discovery Lab</span>
-        <h1 id="lab-title">A few ways <em>forward.</em></h1>
-        <p>Keep one discovery close. Save a place to return to, then open different doors from the same point.</p>
+        <span className="eyebrow">Open Door · {companyProfile ? "Company Discovery Lab" : "Discovery Lab"}</span>
+        <h1 id="lab-title">{companyProfile ? companyProfile.labTitle : <>A few ways <em>forward.</em></>}</h1>
+        <p>{companyProfile?.labCopy || "Keep one discovery close. Save a place to return to, then open different doors from the same point."}</p>
       </div>
       <div className="lab-heading-mark" aria-hidden="true"><span className="lab-door"><i /></span><span>FIELD<br />NOTES</span></div>
     </header>
@@ -262,7 +265,9 @@ export default function DiscoveryLab({ lab, connection }: Props) {
       <div className="lab-welcome-guide"><div>
         <div className="form-heading"><div><span className="eyebrow">Begin with what you love</span><h2 id="start-title">Set down a few anchors.</h2></div><span className="step-label">{connection.mode === "demo" ? "Prepared examples" : "Live Qloo"}</span></div>
         <p className="lab-start-copy">A person, place, sound, story, or practice is enough. Your saved checkpoints and branches stay available below.</p>
-      </div><MascotArt scene="coffee" /></div>
+      </div>{companyProfile
+        ? <CompanyMascot companyType={companyProfile.id} />
+        : <MascotArt scene="coffee" />}</div>
       <div className="field full"><label htmlFor="lab-anchor">Cultural interest</label><div className="anchor-input-row"><input id="lab-anchor" value={anchorDraft} onChange={event => setAnchorDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); addAnchor(); } }} placeholder="For example, experimental jazz" /><button className="text-button" type="button" onClick={addAnchor}>Add anchor</button></div>
         <p className="lab-category-help">Choose a category for each interest. New interests start as Other; no category is inferred from your words.</p>
         {!!anchors.length && <div className="lab-anchor-list">{anchors.map((anchor, index) => <div className="lab-anchor-edit" key={anchor}>

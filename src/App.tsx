@@ -11,6 +11,7 @@ import { createStoryCard } from "./storyCard";
 import DoorArtwork from "./DoorArtwork";
 import { DevSecurityTestView, TrustView } from "./TrustView";
 import { MascotArt } from "./MascotArt";
+import { CompanyMascot } from "./company/CompanyMascot";
 import DiscoveryLab from "./lab/DiscoveryLab";
 import { createDemoProvider } from "./lab/demoProvider";
 import { createLiveProvider } from "./lab/liveProvider";
@@ -26,6 +27,8 @@ import { demoIdeas, type DemoOptions } from "./demoIdeas";
 import { DayPlanner, mapsSearch, RecommendationTools } from "./RecommendationTools";
 import PreferencesMemory, { type PreferenceValues } from "./PreferencesMemory";
 import HiddenGem from "./HiddenGem";
+import CompanyBanner from "./company/CompanyBanner";
+import type { CompanyProfile } from "./company/profiles";
 
 type View = "discover" | "saved" | "how" | "trust" | "lab" | "judges" | "progress";
 type Intent = "Find my people" | "Go deeper" | "Try something new";
@@ -97,8 +100,8 @@ function readStore<T>(key: string, fallback: T): T {
   }
   catch { return fallback; }
 }
-function restoreFeedback(): Record<string, string> {
-  const stored = readStore<Record<string, unknown>>("opendoor.feedback", {});
+function restoreFeedback(key = "opendoor.feedback"): Record<string, string> {
+  const stored = readStore<Record<string, unknown>>(key, {});
   return Object.fromEntries(Object.entries(stored).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
 }
 function safeSetStore(key: string, value: unknown): void {
@@ -133,9 +136,9 @@ function makeDoors(_city: string, anchors: string[], categories: Record<string, 
     .map(idea => ({ ...idea, id: `demo-${crypto.randomUUID()}` }));
 }
 
-function restoreJourney(): Journey | null {
+function restoreJourney(key = "opendoor.journey"): Journey | null {
   if (!readStore<boolean>("opendoor.privacy.personalization", true)) return null;
-  const stored = readStore<StoredJourney | null>("opendoor.journey", null);
+  const stored = readStore<StoredJourney | null>(key, null);
   if (!stored || !Array.isArray(stored.anchors) || !Array.isArray(stored.doors)) return null;
   const anchors = stored.anchors.filter((anchor): anchor is string => typeof anchor === "string" && !/· step \d+/.test(anchor));
   const categories = { ...(stored.categories || {}) };
@@ -242,7 +245,11 @@ const labDemoProvider = createDemoProvider(snapshot => {
 });
 const labLiveProvider = createLiveProvider();
 
-export default function App() {
+export default function App({ companyProfile }: { companyProfile?: CompanyProfile } = {}) {
+  const storageScope = companyProfile ? `opendoor.company.${companyProfile.id}` : "opendoor";
+  const journeyKey = `${storageScope}.journey`;
+  const feedbackKey = `${storageScope}.feedback`;
+  const openedKey = `${storageScope}.opened`;
   const sound = useSoundEffects();
   const { signOut } = useClerk();
   const { isLoaded: authLoaded, isSignedIn, user } = useUser();
@@ -252,14 +259,21 @@ export default function App() {
   const [view, setView] = useState<View>(() =>
     /^\/judges\/?$/.test(window.location.pathname) ? "judges"
       : /^\/progress\/?$/.test(window.location.pathname) ? "progress"
-      : window.location.pathname === "/trust" ? "trust" : window.location.pathname === "/lab" ? "lab" : "discover",
+      : window.location.pathname === "/trust" ? "trust" : window.location.pathname.endsWith("/lab") ? "lab"
+        : companyProfile && ["saved", "how", "trust", "progress"].includes(new URLSearchParams(window.location.search).get("view") || "")
+          ? new URLSearchParams(window.location.search).get("view") as View : "discover",
   );
   useEffect(() => {
     // Keep directly shareable screens correct when entered through an in-app tab.
+    if (companyProfile) {
+      const route = `/companies/${view === "lab" ? "lab" : "discover"}?type=${companyProfile.id}${["discover", "lab"].includes(view) ? "" : `&view=${view}`}`;
+      if (`${window.location.pathname}${window.location.search}` !== route) window.history.replaceState(null, "", route);
+      return;
+    }
     const route = view === "judges" ? "/judges" : view === "progress" ? "/progress" : view === "lab" ? "/lab" : view === "trust" ? "/trust" : null;
     if (route && window.location.pathname !== route) window.history.replaceState(null, "", route);
     else if (!route && ["/judges", "/progress", "/lab", "/trust"].includes(window.location.pathname)) window.history.replaceState(null, "", "/");
-  }, [view]);
+  }, [view, companyProfile]);
   const [personalizationEnabled, setPersonalizationEnabled] = useState(() =>
     readStore<boolean>("opendoor.privacy.personalization", true),
   );
@@ -267,7 +281,7 @@ export default function App() {
   const [qlooSource, setQlooSource] = useState<QlooConnectionSource>(getQlooConnectionSource);
   const statusGeneration = useRef(0);
   const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null);
-  const lab = useDiscoveryLab(labDemoProvider, labLiveProvider, !!agentStatus?.qlooConfigured);
+  const lab = useDiscoveryLab(labDemoProvider, labLiveProvider, !!agentStatus?.qlooConfigured, companyProfile ? `${storageScope}.lab.v1` : undefined);
   const [statusError, setStatusError] = useState("");
   const [liveStages, setLiveStages] = useState<Extract<AgentEvent, { type: "stage" }>[]>([]);
   const [liveError, setLiveError] = useState("");
@@ -277,18 +291,18 @@ export default function App() {
   const abortRef = useRef<AbortController | null>(null);
   const demoRouteTried = useRef(false);
   const pendingDemoScroll = useRef<ScrollBehavior | null>(null);
-  const [city, setCity] = useState("Brooklyn, New York");
-  const [occasion, setOccasion] = useState(EMPTY_CONTEXT.time);
+  const [city, setCity] = useState<string>(companyProfile?.location ?? "Brooklyn, New York");
+  const [occasion, setOccasion] = useState(companyProfile?.occasion || EMPTY_CONTEXT.time);
   const [intent, setIntent] = useState<Intent>("Try something new");
   const [depth, setDepth] = useState<Depth>("A little further");
-  const [context, setContext] = useState<Context>(EMPTY_CONTEXT);
-  const [anchors, setAnchors] = useState<string[]>([]);
-  const [categories, setCategories] = useState<Record<string, Category>>({});
+  const [context, setContext] = useState<Context>(() => companyProfile ? { ...companyProfile.context } : EMPTY_CONTEXT);
+  const [anchors, setAnchors] = useState<string[]>(() => companyProfile ? [...companyProfile.anchors] : []);
+  const [categories, setCategories] = useState<Record<string, Category>>(() => companyProfile ? { ...companyProfile.categories } : {});
   const [categoryDraft, setCategoryDraft] = useState<Category>("Experiences");
   const [anchorDraft, setAnchorDraft] = useState("");
-  const [journey, setJourney] = useState<Journey | null>(() => restoreJourney());
+  const [journey, setJourney] = useState<Journey | null>(() => restoreJourney(journeyKey));
   const [threadExploration, setThreadExploration] = useState<ThreadExploration | null>(null);
-  const [entryPhase, setEntryPhase] = useState<"closed" | "opening" | "welcoming" | "entered">("closed");
+  const [entryPhase, setEntryPhase] = useState<"closed" | "opening" | "welcoming" | "entered">(companyProfile ? "entered" : "closed");
   const entryRunDemoRef = useRef(false);
   const [judgeDemo, setJudgeDemo] = useState(() => new URLSearchParams(window.location.search).get("demo") === "1");
   const [saved, setSaved] = useState<SavedDoor[]>(() => restoreSavedDoors());
@@ -307,10 +321,10 @@ export default function App() {
   const [accountProgressError, setAccountProgressError] = useState("");
   const [progressSyncAttempt, setProgressSyncAttempt] = useState(0);
   const [feedback, setFeedback] = useState<Record<string, string>>(() =>
-    personalizationEnabled ? restoreFeedback() : {},
+    personalizationEnabled ? restoreFeedback(feedbackKey) : {},
   );
   const [openedIds, setOpenedIds] = useState<string[]>(() =>
-    personalizationEnabled ? readStore<unknown[]>("opendoor.opened", []).filter((value): value is string => typeof value === "string") : [],
+    personalizationEnabled ? readStore<unknown[]>(openedKey, []).filter((value): value is string => typeof value === "string") : [],
   );
   const [selectedNode, setSelectedNode] = useState("");
   const [toast, setToast] = useState("");
@@ -536,17 +550,17 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (personalizationEnabled) safeSetStore("opendoor.journey", journey);
-    else safeRemoveStore("opendoor.journey");
-  }, [journey, personalizationEnabled]);
+    if (personalizationEnabled) safeSetStore(journeyKey, journey);
+    else safeRemoveStore(journeyKey);
+  }, [journey, personalizationEnabled, journeyKey]);
   useEffect(() => {
-    if (personalizationEnabled) safeSetStore("opendoor.feedback", feedback);
-    else safeRemoveStore("opendoor.feedback");
-  }, [feedback, personalizationEnabled]);
+    if (personalizationEnabled) safeSetStore(feedbackKey, feedback);
+    else safeRemoveStore(feedbackKey);
+  }, [feedback, personalizationEnabled, feedbackKey]);
   useEffect(() => {
-    if (personalizationEnabled) safeSetStore("opendoor.opened", openedIds);
-    else safeRemoveStore("opendoor.opened");
-  }, [openedIds, personalizationEnabled]);
+    if (personalizationEnabled) safeSetStore(openedKey, openedIds);
+    else safeRemoveStore(openedKey);
+  }, [openedIds, personalizationEnabled, openedKey]);
   useEffect(() => {
     if (!toast) return;
     const timer = window.setTimeout(() => setToast(""), 2600);
@@ -743,9 +757,9 @@ export default function App() {
     setPersonalizationEnabled(enabled);
     safeSetStore("opendoor.privacy.personalization", enabled);
     if (!enabled) {
-      safeRemoveStore("opendoor.journey");
-      safeRemoveStore("opendoor.feedback");
-      safeRemoveStore("opendoor.opened");
+      safeRemoveStore(journeyKey);
+      safeRemoveStore(feedbackKey);
+      safeRemoveStore(openedKey);
     }
   }
   function exportLocalData() {
@@ -779,7 +793,7 @@ export default function App() {
     if (!isSignedIn) setSaved([]);
     setFeedback({});
     setOpenedIds([]);
-    for (const key of ["opendoor.journey", "opendoor.feedback", "opendoor.opened"]) {
+    for (const key of [journeyKey, feedbackKey, openedKey]) {
       safeRemoveStore(key);
     }
     if (!isSignedIn) {
@@ -1119,15 +1133,16 @@ export default function App() {
     <header className="topbar">
       <button className="brand" onClick={() => setView("discover")} aria-label="Open Door, Discover">
         <span className="brand-mark"><img src="/mascot/qloo-guide-still.webp" alt="" width="400" height="225" /></span>
-        <span><span className="brand-name">open door</span><span className="brand-caption">a cultural field guide</span></span>
+        <span><span className="brand-name">open door</span><span className="brand-caption">{companyProfile ? "for companies" : "a cultural field guide"}</span></span>
       </button>
       <nav className="nav" aria-label="Main navigation">
-        <button className={`nav-btn ${view === "discover" ? "active" : ""}`} onClick={() => setView("discover")}>Discover</button>
+        <button className={`nav-btn ${view === "discover" ? "active" : ""}`} onClick={() => setView("discover")}>{companyProfile ? "Company Discovery" : "Discover"}</button>
         <button className={`nav-btn lab-nav ${view === "lab" ? "active" : ""}`} onClick={() => setView("lab")}><span className="lab-nav-full">Discovery </span>Lab</button>
         <button className={`nav-btn ${view === "saved" ? "active" : ""}`} onClick={() => setView("saved")}>My Doors<span className="nav-count">{saved.length || ""}</span></button>
         <button className={`nav-btn ${view === "how" ? "active" : ""}`} onClick={() => setView("how")}>How it works</button>
         <button className={`nav-btn ${view === "trust" ? "active" : ""}`} onClick={() => setView("trust")}>Trust</button>
         {isSignedIn && <button className={`nav-btn progress-nav ${view === "progress" ? "active" : ""}`} onClick={() => setView("progress")}>Progress</button>}
+        <a className="nav-btn" href="/companies">{companyProfile ? "Company portal" : "For companies"}</a>
       </nav>
       {isSignedIn
         ? <div className="account-control">
@@ -1148,10 +1163,11 @@ export default function App() {
     </header>
     {sound.notice && <p className="sound-notice" role="status">{sound.notice}</p>}
     <main className="page" id="main-content" tabIndex={-1}>
+      {companyProfile && <CompanyBanner profile={companyProfile} page={view === "lab" ? "lab" : "discover"} />}
       {accountSaveNotice && isSignedIn && <p className={`account-sync-notice${accountSaveStatus === "error" ? " is-error" : ""}`} role={accountSaveStatus === "error" ? "alert" : "status"}>
         {accountSaveNotice}{accountSaveStatus === "error" && <button type="button" onClick={() => setAccountSyncAttempt(attempt => attempt + 1)}>Retry account sync</button>}
       </p>}
-      {view === "discover" && <DiscoverView
+      {view === "discover" && <DiscoverView companyProfile={companyProfile}
         city={city} setCity={setCity} occasion={occasion} setOccasion={setOccasion} intent={intent} setIntent={setIntent}
         depth={depth} setDepth={setDepth} context={context} setContext={setContext} anchors={anchors} categories={categories}
         threadExploration={threadExploration} onReturnFromThread={returnFromThread}
@@ -1195,7 +1211,7 @@ export default function App() {
           <p>Your saved doors and reward tracks belong to your account. Keep exploring as a guest, or sign in to see account progress.</p>
           <div><a href="/sign-in" className="primary-btn">Sign in <ArrowRight size={16} /></a><button type="button" className="secondary-btn" onClick={() => setView("discover")}>Continue as guest</button></div>
         </section>)}
-      {view === "lab" && <DiscoveryLab lab={lab} qlooConfigured={!!agentStatus?.qlooConfigured} connection={{ status: agentStatus, mode: journeyMode, source: qlooSource, disabled: isRunning || lab.busy, onSelect: selectQlooConnection }} />}
+      {view === "lab" && <DiscoveryLab companyProfile={companyProfile} lab={lab} qlooConfigured={!!agentStatus?.qlooConfigured} connection={{ status: agentStatus, mode: journeyMode, source: qlooSource, disabled: isRunning || lab.busy, onSelect: selectQlooConnection }} />}
       {view === "how" && <HowView agentStatus={agentStatus} />}
       {view === "judges" && <JudgesGuide status={agentStatus} statusError={statusError} />}
       {view === "trust" && <TrustView
@@ -1222,6 +1238,7 @@ export default function App() {
         <a href="/lab">Discovery Lab</a>
         <a href="/trust">Trust &amp; privacy</a>
         <a href="/judges" aria-current={view === "judges" ? "page" : undefined}>Judge’s Guide</a>
+        <a href="/companies">For companies</a>
       </nav>
     </footer>
     {toast && <div role="status" className="toast">{toast}</div>}
@@ -1229,6 +1246,7 @@ export default function App() {
 }
 
 type DiscoverProps = {
+  companyProfile?: CompanyProfile;
   qlooSource: QlooConnectionSource;
   selectQlooConnection: (mode: "demo" | "live", source: QlooConnectionSource) => void;
   threadExploration: ThreadExploration | null; onReturnFromThread: () => void;
@@ -1354,32 +1372,34 @@ function DiscoverView(p: DiscoverProps) {
     <p className="helper" role="status" data-testid="discovery-connection-status">{connectionMessage}</p>
     {p.statusError && <p role="alert">{p.statusError}</p>}
     <section className="hero">
-      <div className="hero-copy"><span className="eyebrow">Arrive curious. Leave with a thread.</span>
-        <h1>Find your way<br />into <em>somewhere.</em></h1>
-        <p>Tell us about the music, films, food, or art you love. Find something to enjoy next, with a simple way to get started.</p>
-          <button className="primary-btn demo-start" type="button" disabled={p.isRunning || (p.journeyMode === "live" && !p.agentStatus?.qlooConfigured)} onClick={() => p.onStartDemo("smooth", true)}>{p.journeyMode === "live" ? "Start exploring with Qloo" : "Open the sample journey"} <ArrowRight size={15} /></button>
+      <div className="hero-copy"><span className="eyebrow">{p.companyProfile ? "Company Discovery · editable example" : "Arrive curious. Leave with a thread."}</span>
+        <h1>{p.companyProfile?.discoveryTitle || <>Find your way<br />into <em>somewhere.</em></>}</h1>
+        <p>{p.companyProfile?.discoveryCopy || "Tell us about the music, films, food, or art you love. Find something to enjoy next, with a simple way to get started."}</p>
+          {p.companyProfile ? <a className="primary-btn" href="#company-starting-point">Customize this experience <ArrowRight size={15} /></a> : <button className="primary-btn demo-start" type="button" disabled={p.isRunning || (p.journeyMode === "live" && !p.agentStatus?.qlooConfigured)} onClick={() => p.onStartDemo("smooth", true)}>{p.journeyMode === "live" ? "Start exploring with Qloo" : "Open the sample journey"} <ArrowRight size={15} /></button>}
       </div>
       <div className="hero-art mascot-welcome">
-        <DoorArtwork open hero showControls className="hero-welcome-art" />
+        {p.companyProfile
+          ? <CompanyMascot companyType={p.companyProfile.id} priority />
+          : <DoorArtwork open hero showControls className="hero-welcome-art" />}
       </div>
     </section>
     {p.journeyMode === "demo" && <div className="demo-note"><Info size={16} /><div><strong>Prepared examples.</strong> These are authored activities, not Qloo results or verified local listings. Choose Demo above for real recommendations using our shared Qloo connection. <button className="text-button" onClick={() => p.setView("how")}>Evidence &amp; method</button></div></div>}
     {p.journeyMode === "live" && <div className="demo-note live-note"><Info size={16} /><div><strong>{p.qlooSource === "personal" ? "Your Qloo connection." : "Demo · shared Qloo connection."}</strong> {p.agentStatus?.qlooConfigured ? "Explore to get cultural recommendations from Qloo based on your interests." : "Choose an available connection above to explore with Qloo."} Check opening hours, prices and accessibility before visiting.</div></div>}
     {p.liveError && <div className="live-error" role="alert"><strong>We couldn’t retrieve your recommendations.</strong><span>{p.liveError}</span><button className="secondary-btn" type="button" disabled={p.isRunning} onClick={() => p.onStartDemo()}>Try prepared examples <ArrowRight size={14} /></button></div>}
     {p.isRunning && p.liveStages.length === 0 && <div className="stage-wait" role="status" aria-live="polite"><span>Waiting for the first server event</span><i /><i /><small>No estimated stages or fabricated progress are shown.</small></div>}
-    <form className="form-panel" onSubmit={p.submit}>
+    <form className="form-panel" id="company-starting-point" onSubmit={p.submit}>
       <div className="form-heading"><div><span className="eyebrow">Begin with your own coordinates</span><h2>What brings you here?</h2></div><span className="step-label">01 — YOUR STARTING POINT</span></div>
       <div className="form-grid">
         <div className="field"><label htmlFor="city">Place you’re exploring</label><input id="city" value={p.city} onChange={event => p.setCity(event.target.value)} placeholder="City, neighborhood, or region" required /></div>
-        <div className="field"><label htmlFor="occasion">Time and occasion</label><select id="occasion" value={p.occasion} onChange={event => { p.setOccasion(event.target.value); setContextValue("time", event.target.value); }}><option>A free Saturday</option><option>A quiet weeknight</option><option>My first week here</option><option>A solo afternoon</option><option>A day with a friend</option><option>Just passing through</option><option>Something else, soon</option></select></div>
+        <div className="field"><label htmlFor="occasion">Time and occasion</label>{p.companyProfile ? <input id="occasion" value={p.occasion} maxLength={200} onChange={event => { p.setOccasion(event.target.value); setContextValue("time", event.target.value); }} required /> : <select id="occasion" value={p.occasion} onChange={event => { p.setOccasion(event.target.value); setContextValue("time", event.target.value); }}><option>A free Saturday</option><option>A quiet weeknight</option><option>My first week here</option><option>A solo afternoon</option><option>A day with a friend</option><option>Just passing through</option><option>Something else, soon</option></select>}</div>
         <div className="field full"><span className="label-text">What are you hoping to find?</span><div className="intent-options">{INTENTS.map(choice => <label key={choice} className={`intent-option ${p.intent === choice ? "selected" : ""}`}><input type="radio" name="intent" checked={p.intent === choice} onChange={() => { setPreferenceFormEdited(true); p.setIntent(choice); }} />{choice}</label>)}</div></div>
          <div className="field full exploration-control"><span className="label-text">How far do you want to go?</span><p>{p.journeyMode === "live" ? "The selection changes the documented Qloo result types Open Door requests; this route label is not a Qloo score." : "The selection changes the kind of cultural bridge the deterministic sample path explores—not a score."}</p>
           <div className="depth-options" role="radiogroup" aria-label="Exploration depth">{DEPTHS.map(item => <label key={item.value} className={`depth-option ${p.depth === item.value ? "selected" : ""}`}><input className="visually-hidden" type="radio" name="depth" checked={p.depth === item.value} onChange={() => { setPreferenceFormEdited(true); p.setDepth(item.value); }} /><strong>{item.value}</strong><span>{item.note}</span></label>)}</div>
         </div>
         <div className="field full"><span className="label-text">Your explicit context</span><div className="context-grid">
-          <div className="field"><label htmlFor="budget">Budget</label><select id="budget" value={p.context.budget} onChange={event => { setPreferenceFormEdited(true); setContextValue("budget", event.target.value); }}><option>Flexible</option><option>Free or low-cost</option><option>Moderate</option><option>Open to a splurge</option></select></div>
-          <div className="field"><label htmlFor="movement">Movement preference</label><select id="movement" value={p.context.movement} onChange={event => { setPreferenceFormEdited(true); setContextValue("movement", event.target.value); }}><option>Mostly seated</option><option>Easy walking</option><option>Active and moving</option><option>Transit is fine</option></select></div>
-          <div className="field"><label htmlFor="conditions">Conditions / energy</label><select id="conditions" value={p.context.conditions} onChange={event => setContextValue("conditions", event.target.value)}><option>Open to anything</option><option>Rainy day</option><option>Low energy</option><option>High energy</option><option>Quiet setting</option><option>Social setting</option><option>Early morning</option><option>Late evening</option></select></div>
+          <div className="field"><label htmlFor="budget">Budget</label>{p.companyProfile ? <input id="budget" value={p.context.budget} maxLength={200} onChange={event => { setPreferenceFormEdited(true); setContextValue("budget", event.target.value); }} /> : <select id="budget" value={p.context.budget} onChange={event => { setPreferenceFormEdited(true); setContextValue("budget", event.target.value); }}><option>Flexible</option><option>Free or low-cost</option><option>Moderate</option><option>Open to a splurge</option></select>}</div>
+          <div className="field"><label htmlFor="movement">Movement preference</label>{p.companyProfile ? <input id="movement" value={p.context.movement} maxLength={200} onChange={event => { setPreferenceFormEdited(true); setContextValue("movement", event.target.value); }} /> : <select id="movement" value={p.context.movement} onChange={event => { setPreferenceFormEdited(true); setContextValue("movement", event.target.value); }}><option>Mostly seated</option><option>Easy walking</option><option>Active and moving</option><option>Transit is fine</option></select>}</div>
+          <div className="field"><label htmlFor="conditions">Conditions / energy</label>{p.companyProfile ? <input id="conditions" value={p.context.conditions} maxLength={200} onChange={event => setContextValue("conditions", event.target.value)} /> : <select id="conditions" value={p.context.conditions} onChange={event => setContextValue("conditions", event.target.value)}><option>Open to anything</option><option>Rainy day</option><option>Low energy</option><option>High energy</option><option>Quiet setting</option><option>Social setting</option><option>Early morning</option><option>Late evening</option></select>}</div>
           <div className="field"><label htmlFor="mode">Journey mode</label><select id="mode" value={p.groupMode ? "group" : "solo"} onChange={event => p.setGroupMode(event.target.value === "group")}><option value="solo">Solo journey</option><option value="group">Small group / couples</option></select></div>
         </div></div>
          <div className="field full personal-considerations">
@@ -1405,7 +1425,7 @@ function DiscoverView(p: DiscoverProps) {
          <div className="submit-row"><span className="helper">{p.journeyMode === "demo" ? "Your words shape an illustrative sample. With no anchors, three clearly identified demo examples are used." : "Your stated interests and context are sent to the Open Door server, which calls Qloo. No browser-side Qloo request is made."}</span><button className="primary-btn" type="submit" disabled={p.isRunning || (p.journeyMode === "live" && !p.agentStatus?.qlooConfigured)}>{p.isRunning ? "Waiting for the real response…" : p.journeyMode === "live" ? "Explore with Qloo" : "Find my doors"} <ArrowRight size={16} /></button></div>
       </div>
     </form>
-    <PreferencesMemory
+    {!p.companyProfile && <PreferencesMemory
       key={p.accountUserId || "guest"}
       userId={p.accountUserId}
       signedIn={p.signedIn}
@@ -1419,7 +1439,7 @@ function DiscoverView(p: DiscoverProps) {
         p.setContext({ ...p.context, budget: values.budget, movement: values.movement });
       }}
       onRevisionChanged={p.onPreferenceRevisionChanged}
-    />
+    />}
 
     {p.groupMode && <section className="group-panel" aria-labelledby="group-title">
         <div className="module-heading"><div><span className="eyebrow">Open Door together · prepared group demo</span><h3 id="group-title">A shared path, without averaging people.</h3></div><div className="group-route-mark" aria-hidden="true"><span>YOU</span><MiniDoor /><ArrowRight size={17} /><MiniDoor /><span>SHARED PATH</span></div><p>Three fictional participants, with editable explicit interests. This group sketch is a demo and does not claim Qloo-matched group affinity.</p></div>

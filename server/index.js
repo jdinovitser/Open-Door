@@ -10,6 +10,7 @@ import { getAgentError, runDiscovery, validateDiscoveryRequest } from "./agent.j
 import { createQlooClient } from "./qloo.js";
 import { createQlooConnections } from "./qlooConnections.js";
 import { createAccountSavedDoorsRouter } from "./accountSavedDoors.js";
+import { createCompanyInquiriesRouter } from "./companyInquiries.js";
 import { startAccountCleanup } from "./accountLifecycle.js";
 import { CLERK_PROXY_PATH, clerkProxyMiddleware, getClerkProxyHost } from "./middlewares/clerkProxyMiddleware.js";
 import { APP_POLICY, publicPolicy } from "./policy.js";
@@ -62,6 +63,9 @@ app.use("/api/account", createAccountSavedDoorsRouter({
 if (pool) startAccountCleanup(pool, clerkClient.users);
 
 app.use("/api/qloo/connection", qlooConnections.router);
+app.use("/api/company", createCompanyInquiriesRouter({
+  pool, getUserId: request => getAuth(request)?.userId || null, users: clerkClient.users,
+}));
 
 app.get("/api/status", (request, response) => {
   response.setHeader("Cache-Control", "no-store");

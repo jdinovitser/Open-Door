@@ -146,7 +146,13 @@ Open Door remains usable without an account. Account-saved doors and reward even
 
 ## Future opportunities
 
-Potential extensions include verified local venue data, a public judge deployment, and more live group journeys. These require separate data sources or deployment and are not implied by Qloo results.
+Potential extensions include verified local venue data and more live group journeys. These require separate data sources and are not implied by Qloo results. Company-branded embeds, a public partner API, and an MCP server that external company assistants could call are roadmap ideas—not currently available integrations.
+
+## Company walkthrough
+
+Start at **`/companies`** for the featured hotel-guest example: a free afternoon before an evening show. The editable hotel Discovery page is **`/companies/discover?type=hospitality`** and its dedicated Lab is **`/companies/lab?type=hospitality`**. Destination celebrations provide a second example through the same portal. The Judge’s Guide at **`/judges#company-walkthrough`** explains how to try the company flow.
+
+Companies supply the occasion; individuals choose their interests and practical constraints. These are working, themed entry points into the existing discovery and branching tools, not customer endorsements, managed company workspaces, or booking services. Shared Demo and personal Qloo API access use the existing connection flow; prepared examples remain explicitly separate from live retrieval. Saved doors belong to the individual account, while company Lab histories stay in the browser.
 
 ## Technology stack
 
