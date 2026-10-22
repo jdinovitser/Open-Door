@@ -145,11 +145,11 @@ export default function QlooConnectionPanel({
       aria-label="Qloo connection"
     >
       <div className="qloo-panel-intro">
-        <span className="eyebrow">Choose your discovery source</span>
+        <span className="eyebrow">Qloo · cultural discovery</span>
         <h2>Explore with Qloo, or try prepared examples.</h2>
         <p>
-          Shared recommendations use this project’s Qloo quota. Connect your
-          own key to use your Qloo quota instead.
+          The shared Demo connection retrieves cultural recommendations through Qloo’s API.
+          Connect your own key to use your Qloo quota instead.
         </p>
       </div>
 

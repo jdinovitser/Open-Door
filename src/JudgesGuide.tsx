@@ -22,7 +22,7 @@ const STEPS = [
       "Review the Familiar, Adjacent, and Unexpected directions, where sufficient results are available. Open a discovery and inspect its explanation and source details.",
       "Select “Under the Door” in the journey toolbar to inspect the completed journey’s evidence.",
     ],
-    notice: "Qloo Search resolves the supplied interests; multiple Insights requests retrieve connected candidates. Open Door organizes the results into directions. The route labels are not Qloo confidence scores, and cultural entities are not verified venue listings or bookings.",
+    notice: "Qloo Search resolves the named interests; Insights retrieves cultural connections. Open Door organizes returned results into directions. The route labels are not Qloo confidence scores, and cultural entities are not verified venue listings or bookings.",
   },
   {
     title: "Turn a result into another exploration",
@@ -84,7 +84,7 @@ export default function JudgesGuide({ status, statusError }: { status: AgentStat
     <header className="judge-hero">
       <span className="eyebrow">Open Door · five-minute walkthrough</span>
       <h1 id="judges-title">Judge’s Guide</h1>
-      <p>Explore unfamiliar places through the culture you already love. Follow this walkthrough to inspect Qloo’s contribution, continue a discovery, and compare independent paths in the Discovery Lab.</p>
+      <p>Start with the culture a person names. Follow the Qloo-backed connections, inspect their evidence, continue a discovery, and compare independent paths in the Discovery Lab.</p>
       <div className="judge-actions">
         <a className="primary-btn" href="/" target="_blank" rel="noopener noreferrer">Open app in a new tab <ArrowUpRight size={16} /></a>
         <button className="secondary-btn" type="button" onClick={() => void copyLink()}><Copy size={15} /> Copy this guide’s link</button>
@@ -109,6 +109,7 @@ export default function JudgesGuide({ status, statusError }: { status: AgentStat
         <li><strong>Make it useful.</strong> Uncover a hidden gem, open a category search in Maps, or print/download the recommendations. The day planner and hospitality Lab offer a longer exploration: build a flexible plan or compare branches from the same checkpoint.</li>
       </ol>
       <p className="judge-company-note"><strong>Available today:</strong> editable company examples using the existing Qloo connection and discovery tools. These are not shared company workspaces. External company API, widget and MCP access are <strong>planned—not available yet</strong>; company-branded guest experiences are a potential business model, not existing customer contracts.</p>
+      <p className="judge-company-note"><strong>Business model:</strong> free discovery for individuals, with planned company-funded branded experiences, clearly labeled sponsorships and referral partnerships. Advertising, attribution and paid integrations are not live. <a href="/partners">Read the partnership and investor story.</a></p>
     </section>
     <section className={`judge-status ${status?.qlooConfigured ? "configured" : ""}`} aria-label="Qloo configuration status" aria-live="polite">
       <strong><Info size={16} />{status?.qlooConfigured ? "Qloo is configured on this server" : status ? "Live Qloo is not configured on this server" : statusError ? "Qloo configuration status is unavailable" : "Checking Qloo configuration…"}</strong>
@@ -130,7 +131,7 @@ export default function JudgesGuide({ status, statusError }: { status: AgentStat
     </ol>
     <section className="judge-takeaway">
       <h2>The key takeaway</h2>
-      <p>Qloo supplies the cultural grounding. Open Door turns that grounding into an exploration people can understand, control, and continue.</p>
+      <p>Qloo supplies retrieved cultural connections—not just plausible prose. Open Door makes those connections inspectable, organizes them into directions, and lets people choose what to continue.</p>
     </section>
   </article>;
 }

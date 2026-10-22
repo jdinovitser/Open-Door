@@ -12,7 +12,7 @@ export default function CompanyWalkthrough() {
         <span className="company-eyebrow">Featured company walkthrough · about 90 seconds</span>
         <h2 id="company-walkthrough-title">A free afternoon before the show.</h2>
       </div>
-      <p>A hotel guest has a few hours in New Orleans before an evening performance. Open Door gives them a cultural starting point—not a prewritten popularity list.</p>
+      <p>A hotel guest has a few hours in New Orleans before an evening performance. They choose the interests; Qloo retrieves cultural connections; Open Door shapes them into a starting point—not a prewritten popularity list.</p>
     </div>
 
     <div className="company-walkthrough-story">
@@ -30,7 +30,7 @@ export default function CompanyWalkthrough() {
         <div>
           <span className="company-walkthrough-kicker">The person chooses the interests</span>
           <h3>Follow their own cultural thread.</h3>
-          <p>Open the hospitality discovery flow. Adjust the example tastes, time and access context, then explore with the shared Demo Qloo connection or your own Qloo connection.</p>
+          <p>Open the hospitality discovery flow. Adjust the example tastes, time and access context, then explore with the shared Demo Qloo API connection or your own Qloo connection. Prepared examples are a separate authored sample.</p>
         </div>
       </div>
     </div>
@@ -45,7 +45,7 @@ export default function CompanyWalkthrough() {
       <article className="company-walkthrough-detail">
         <span className="company-walkthrough-detail-index">IN DISCOVERY</span>
         <h3>From a result to a real next step</h3>
-        <p>Open a result without leaving the page, uncover a hidden gem activity, search Maps by category, or shape a flexible day plan. Print or download a Word document. Save in this browser, or sign in to sync saved doors across devices.</p>
+        <p>Qloo supplies cultural entities, not verified venues. Open a result without leaving the page, uncover a hidden gem activity, search Maps by category, or shape a flexible day plan. Print or download a Word document. Save in this browser, or sign in to sync saved doors across devices.</p>
       </article>
       <article className="company-walkthrough-detail">
         <span className="company-walkthrough-detail-index">IN THE LAB</span>

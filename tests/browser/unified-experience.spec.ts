@@ -8,7 +8,7 @@ test("one identity and two avenues connect the individual, organizer and guest e
   await expect(avenues.getByRole("link", { name: "Explore for yourself" })).toBeVisible();
   await avenues.getByRole("link", { name: "Help others explore" }).click();
   await expect(page).toHaveURL(/\/companies$/);
-  await expect(page.locator(".brand-caption")).toHaveText("a cultural field guide");
+  await expect(page.locator(".brand-caption")).toHaveText("cultural discovery with Qloo");
   for (const label of ["Discover", "Discovery Lab", "My Doors", "How it works", "Trust", "For companies"]) {
     await expect(mainNav(page).getByRole("link", { name: label, exact: true })).toBeVisible();
   }
@@ -16,7 +16,7 @@ test("one identity and two avenues connect the individual, organizer and guest e
   await expect(mainNav(page).getByRole("button", { name: "Discover", exact: true })).toBeVisible();
   await expect(page.locator(".company-banner")).toContainText("Your occasion");
   await expect(page.locator(".company-banner")).toContainText("A free afternoon before an evening show");
-  await expect(page.locator(".brand-caption")).toHaveText("a cultural field guide");
+  await expect(page.locator(".brand-caption")).toHaveText("cultural discovery with Qloo");
 });
 
 test("organizers share public context; visitor edits persist across Discover, Lab, sign-in return and reload", async ({ page }) => {

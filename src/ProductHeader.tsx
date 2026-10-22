@@ -54,7 +54,7 @@ export function ProductHeader({ view, onNavigate, savedCount = 0, signedIn = fal
   return <header className="topbar product-header">
     <Link className="brand" href="/?explore=1" aria-label="Open Door, Discover">
       <span className="brand-mark"><img src="/mascot/qloo-guide-still.webp" alt="" width="400" height="225" /></span>
-      <span><span className="brand-name">open door</span><span className="brand-caption">a cultural field guide</span></span>
+      <span><span className="brand-name">open door</span><span className="brand-caption">cultural discovery with Qloo</span></span>
     </Link>
     <nav className="nav" aria-label="Main navigation">
       {items.map(item => onNavigate

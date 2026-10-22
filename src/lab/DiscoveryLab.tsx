@@ -3,6 +3,7 @@ import { AudioLines, GitBranch, MoveUpRight, Users, Sparkles, Map as MapIcon } f
 import { MascotArt } from "../MascotArt";
 import { CompanyMascot } from "../company/CompanyMascot";
 import QlooConnectionPanel from "../QlooConnectionPanel";
+import { QlooGrounding } from "../QlooGrounding";
 import type { AgentStatus } from "../agentApi";
 import { allDiscoveries, compareBranches } from "./engine.ts";
 import { DOMAINS, STRATEGIES, type Discovery, type LabSeed, type Settings, type Strategy } from "./model.ts";
@@ -249,7 +250,7 @@ export default function DiscoveryLab({ lab, connection, companyProfile, onCompan
       <div>
         <span className="eyebrow">Open Door · Discovery Lab{companyProfile ? " · your occasion" : ""}</span>
         <h1 id="lab-title">{companyProfile ? companyProfile.labTitle : <>A few ways <em>forward.</em></>}</h1>
-        <p>{companyProfile?.labCopy || "Keep one discovery close. Save a place to return to, then open different doors from the same point."}</p>
+        <p>{companyProfile?.labCopy || "Keep one discovery close. Follow the Qloo-grounded cultural thread, save a place to return to, then open different directions from the same point."}</p>
       </div>
       <div className="lab-heading-mark" aria-hidden="true"><span className="lab-door"><i /></span><span>FIELD<br />NOTES</span></div>
     </header>
@@ -277,7 +278,8 @@ export default function DiscoveryLab({ lab, connection, companyProfile, onCompan
     {!current && <section className="lab-start form-panel" aria-labelledby="start-title">
       <div className="lab-welcome-guide"><div>
         <div className="form-heading"><div><span className="eyebrow">Begin with what you love</span><h2 id="start-title">Set down a few anchors.</h2></div><span className="step-label">{connection.mode === "demo" ? "Prepared examples" : "Live Qloo"}</span></div>
-        <p className="lab-start-copy">A person, place, sound, story, or practice is enough. Your saved checkpoints and branches stay available below.</p>
+        <p className="lab-start-copy">A person, place, sound, story, or practice is enough. In live mode, Qloo Search resolves named interests and Insights retrieves cultural connections; Open Door organizes the next directions. Your saved checkpoints and branches stay available below.</p>
+        <QlooGrounding mode={connection.mode} configured={connection.status?.qlooConfigured} compact />
       </div>{companyProfile
         ? <CompanyMascot companyType={companyProfile.id} />
         : <MascotArt scene="coffee" />}</div>

@@ -4,12 +4,14 @@ export function safeAppReturnTo(value: string | null): string {
   try {
     const url = new URL(value, "https://open-door.invalid");
     if (url.origin !== "https://open-door.invalid") return "/";
-    if (!["/", "/lab", "/trust", "/progress", "/judges", "/companies", "/companies/discover", "/companies/lab", "/companies/admin"].includes(url.pathname)) return "/";
+    if (!["/", "/lab", "/trust", "/progress", "/judges", "/partners", "/companies", "/companies/discover", "/companies/lab", "/companies/admin"].includes(url.pathname)) return "/";
     const params = new URLSearchParams();
     for (const name of ["type", "place", "occasion", "view", "explore"]) {
       const entry = url.searchParams.get(name);
       if (entry) params.set(name, entry.slice(0, 200));
     }
+    const inquiry = url.searchParams.get("inquiry");
+    if (inquiry === "partnership" || inquiry === "investment") params.set("inquiry", inquiry);
     return `${url.pathname}${params.size ? `?${params}` : ""}`;
   } catch { return "/"; }
 }

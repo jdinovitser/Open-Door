@@ -1,10 +1,11 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "wouter";
 import { useUser } from "@clerk/react";
 import { ProductAvenues, ProductHeader } from "../ProductHeader";
 import { COMPANY_PROFILES, companyProfile, type CompanyType } from "./profiles";
 import { CompanyMascot } from "./CompanyMascot";
 import CompanyWalkthrough from "./CompanyWalkthrough";
+import { inquiryIntentFromSearch } from "./inquiryIntent";
 import { companyExperienceUrl, readPublicOccasion } from "./experienceContext";
 import "./company.css";
 
@@ -40,20 +41,28 @@ export default function CompanyPortal() {
   const { isSignedIn } = useUser();
   const initialSearch = typeof window === "undefined" ? "" : window.location.search;
   const initialParams = new URLSearchParams(initialSearch);
+  const inquiryIntent = inquiryIntentFromSearch(initialSearch);
   const initialType = COMPANY_PROFILES.some(profile => profile.id === initialParams.get("type"))
-    ? initialParams.get("type") as CompanyType : "hospitality";
+    ? initialParams.get("type") as CompanyType : inquiryIntent?.id === "investment" ? "other" : "hospitality";
   const initialProfile = companyProfile(initialType);
   const initialOccasion = readPublicOccasion(initialSearch);
   const [companyType, setCompanyType] = useState<CompanyType>(initialType);
   const [location, setLocation] = useState(initialOccasion.location ?? initialProfile.location);
   const [occasion, setOccasion] = useState(initialOccasion.occasion ?? initialProfile.occasion);
-  const [form, setForm] = useState<InquiryForm>(blankForm);
+  const freshForm: InquiryForm = { ...blankForm, details: inquiryIntent?.details || "", typeDescription: inquiryIntent?.typeDescription || "" };
+  const [form, setForm] = useState<InquiryForm>(freshForm);
   const [error, setError] = useState("");
   const [shareMessage, setShareMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<SubmissionReceipt | null>(null);
   const requestIdRef = useRef<string | null>(null);
   const selectedProfile = COMPANY_PROFILES.find(profile => profile.id === companyType) || COMPANY_PROFILES[0];
+
+  useEffect(() => {
+    if (window.location.hash !== "#inquiry") return;
+    const frame = requestAnimationFrame(() => document.getElementById("inquiry")?.scrollIntoView({ block: "start" }));
+    return () => cancelAnimationFrame(frame);
+  }, [inquiryIntent?.id]);
 
   function changeCompanyType(value: string) {
     const nextType = COMPANY_PROFILES.some(profile => profile.id === value) ? value as CompanyType : "hospitality";
@@ -102,7 +111,7 @@ export default function CompanyPortal() {
         throw new Error(getErrorMessage(result, "Your request was not confirmed. Please review it and try again."));
       }
       setReceipt({ id: result.id, submittedAt: result.submittedAt });
-      setForm(blankForm);
+      setForm(freshForm);
       requestIdRef.current = null;
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "We could not send your request. Please try again.");
@@ -129,13 +138,14 @@ export default function CompanyPortal() {
       <nav className="company-local-nav" aria-label="Company page sections">
         <a href="#company-walkthrough">Walkthrough</a>
         <a href="#use-cases">Use cases</a>
+        <Link href="/partners">Partnerships &amp; business model</Link>
         <a href="#inquiry">Talk with us</a>
       </nav>
       <section className="company-hero" aria-labelledby="company-hero-title">
         <div>
           <span className="company-eyebrow">Open Door for organizations</span>
           <h1 id="company-hero-title">Make room for <em>their kind</em> of discovery.</h1>
-          <p className="company-hero-copy">Give wedding guests, future neighbors and travelers a more personal way into a place. Open Door starts with the interests people choose to share—not a one-size-fits-all itinerary.</p>
+          <p className="company-hero-copy">Give wedding guests, future neighbors and travelers a more personal way into a place. They choose the interests; Qloo grounds cultural discovery in its taste graph; Open Door turns the returned connections into directions to explore—not a one-size-fits-all itinerary.</p>
         </div>
         <div className="company-hero-art"><CompanyMascot companyType={selectedProfile.id} priority /></div>
       </section>
@@ -152,7 +162,7 @@ export default function CompanyPortal() {
           <div>
             <span className="company-eyebrow">Choose a starting point</span>
             <h2 id="company-type-title">Who are you helping explore?</h2>
-            <p>The company context shapes editable example inputs and copy. Each person's saved doors and discoveries remain theirs, not a shared company workspace.</p>
+            <p>The company context shapes editable example inputs and copy. Each person's saved doors and discoveries remain theirs, not a shared company workspace. Live discovery uses the same Qloo connection as the individual guide.</p>
           </div>
           <div>
             <label className="company-form-control" htmlFor="company-type">
@@ -215,8 +225,8 @@ export default function CompanyPortal() {
       <section className="company-inquiry-section" id="inquiry" aria-labelledby="company-inquiry-title">
         <form className="company-inquiry-form" onSubmit={submitInquiry}>
           <div className="company-inquiry-heading">
-            <div><span className="company-eyebrow">A note to Open Door</span><h2 id="company-inquiry-title">Tell us what you’re imagining.</h2><p>Share the audience, the occasion and what a useful discovery experience might look like. We’ll review the request and follow up using the contact details you provide.</p></div>
-            <span className="company-eyebrow">Customization inquiry</span>
+            <div><span className="company-eyebrow">A note to Open Door</span><h2 id="company-inquiry-title">{inquiryIntent?.heading || "Tell us what you’re imagining."}</h2><p>{inquiryIntent?.intro || "Share the audience, the occasion and what a useful discovery experience might look like. We’ll review the request and follow up using the contact details you provide."}</p></div>
+            <span className="company-eyebrow">{inquiryIntent ? `${inquiryIntent.id === "investment" ? "Investment" : "Partnership"} conversation` : "Customization inquiry"}</span>
           </div>
           <div className="company-form-grid">
             <label className="company-form-control">
@@ -229,9 +239,9 @@ export default function CompanyPortal() {
               <span>Explain the use case <b aria-hidden="true">*</b></span>
               <input value={form.typeDescription} onChange={event => update("typeDescription", event.target.value.slice(0, 200))} maxLength={200} required placeholder="Up to 200 characters" />
             </label>}
-            <label className="company-form-control"><span>Company or organization <b aria-hidden="true">*</b></span><input value={form.company} onChange={event => update("company", event.target.value)} maxLength={160} required autoComplete="organization" /></label>
+            <label className="company-form-control"><span>{inquiryIntent?.id === "investment" ? "Company, fund or independent investor" : "Company or organization"} <b aria-hidden="true">*</b></span><input value={form.company} onChange={event => update("company", event.target.value)} maxLength={160} required autoComplete="organization" /></label>
             <label className="company-form-control"><span>Your name <b aria-hidden="true">*</b></span><input value={form.name} onChange={event => update("name", event.target.value)} maxLength={120} required autoComplete="name" /></label>
-            <label className="company-form-control"><span>Work email <b aria-hidden="true">*</b></span><input type="email" value={form.email} onChange={event => update("email", event.target.value)} maxLength={254} required autoComplete="email" /></label>
+            <label className="company-form-control"><span>{inquiryIntent?.id === "investment" ? "Email" : "Work email"} <b aria-hidden="true">*</b></span><input type="email" value={form.email} onChange={event => update("email", event.target.value)} maxLength={254} required autoComplete="email" /></label>
             <label className="company-form-control"><span>Website <small>(optional)</small></span><input type="url" value={form.website} onChange={event => update("website", event.target.value)} maxLength={300} pattern="https?://.+" placeholder="https://example.org" autoComplete="url" /></label>
             <label className="company-form-control full"><span>What would you like to explore together? <b aria-hidden="true">*</b></span><textarea value={form.details} onChange={event => update("details", event.target.value)} minLength={20} maxLength={4000} required placeholder="Tell us about the audience, context, and the kind of experience you have in mind. Please leave out sensitive participant information." /><small>{form.details.length}/4000 characters · at least 20 characters</small></label>
             <label className="company-checkbox full"><input type="checkbox" checked={form.consent} onChange={event => update("consent", event.target.checked)} required /><span>I agree that Open Door may store this inquiry for administrators to review and contact me about it. <b aria-hidden="true">*</b></span></label>
@@ -251,7 +261,7 @@ export default function CompanyPortal() {
     </main>
 
     <footer className="company-footer">
-      <div className="company-shell company-footer-inner"><p>Open Door · Cultural discovery, led by individual taste.</p><Link href="/companies/admin">Administrator access</Link></div>
+      <div className="company-shell company-footer-inner"><p>Open Door · Cultural discovery, led by individual taste.</p><Link href="/partners">Partnerships &amp; business model</Link><Link href="/companies/admin">Administrator access</Link></div>
     </footer>
   </div>;
 }

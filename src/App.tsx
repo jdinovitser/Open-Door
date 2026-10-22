@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { getAgentStatus, getQlooConnectionSource, setQlooConnectionSource, runAgentDiscovery, type QlooConnectionSource, type AgentEvent, type AgentStatus, type DiscoveryRequest, type LiveDoor, type LiveJourney, type ProgressSummary } from "./agentApi";
 import QlooConnectionPanel from "./QlooConnectionPanel";
+import { QlooGrounding } from "./QlooGrounding";
 import { createStoryCard } from "./storyCard";
 import DoorArtwork from "./DoorArtwork";
 import { DevSecurityTestView, TrustView } from "./TrustView";
@@ -1269,6 +1270,7 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
          <a href={companyProfile ? `${companyExperienceUrl("discover", companyProfile.id, invitation)}&view=trust` : "/trust"}>Trust &amp; privacy</a>
         <a href="/judges" aria-current={view === "judges" ? "page" : undefined}>Judge’s Guide</a>
         <a href="/companies">For companies</a>
+         <a href="/partners">Partnerships &amp; business model</a>
       </nav>
     </footer>
     {toast && <div role="status" className="toast">{toast}</div>}
@@ -1385,10 +1387,11 @@ function DiscoverView(p: DiscoverProps) {
           : "The shared Qloo connection is unavailable. Connect your own key or try prepared examples.";
   return <>
     {p.entryPhase !== "entered" && <section className={`entry-scene ${p.entryPhase === "opening" ? "is-opening" : ""}`} data-entry-phase={p.entryPhase} aria-label="Open Door introduction">
-      <div className="entry-copy"><span className="eyebrow">Open Door · a cultural field guide</span><p className="entry-index">FIELD NOTE 001 <span>—</span> ARRIVAL</p><h1>What’s behind<br /><em>your next door?</em></h1><p className="entry-deck">Start with the films, music, food, or books you love. Open three cultural directions—and choose where to go next.</p>
+      <div className="entry-copy"><span className="eyebrow">Open Door · culturally grounded by Qloo</span><p className="entry-index">FIELD NOTE 001 <span>—</span> ARRIVAL</p><h1>What’s behind<br /><em>your next door?</em></h1><p className="entry-deck">Start with the films, music, food, or books you love. Qloo’s taste graph grounds live discovery in cultural connections. Open Door helps you choose what to explore next.</p>
         <button className="entry-action" type="button" data-sound="door-open" onClick={() => p.onOpenEntry()} disabled={p.entryPhase !== "closed"}><span>{p.entryPhase !== "closed" ? "The room is opening" : "Open the door"}</span><ArrowRight size={17} /></button>
         <button className="entry-demo-link" type="button" data-sound="door-open" onClick={() => p.onOpenEntry(true)} disabled={p.entryPhase !== "closed"}>Open the prepared sample door</button>
         <p className="entry-caveat">{connectionMessage}</p>
+        <QlooGrounding compact />
       </div>
       <div className="entry-architecture" data-testid="entry-art">
         <button className="entry-door-trigger supplied-entry-trigger" type="button" data-sound="door-open" aria-label="Open the illustrated door" onClick={() => p.onOpenEntry()} disabled={p.entryPhase !== "closed"}>
@@ -1400,11 +1403,14 @@ function DiscoverView(p: DiscoverProps) {
     {p.entryPhase === "entered" && <>
     <QlooConnectionPanel status={p.agentStatus} mode={p.journeyMode} source={p.qlooSource} disabled={p.isRunning} onSelect={p.selectQlooConnection} />
     <p className="helper" role="status" data-testid="discovery-connection-status">{connectionMessage}</p>
+    <QlooGrounding mode={p.journeyMode} configured={p.agentStatus?.qlooConfigured} received={p.journey?.mode === "live"} compact />
     {p.statusError && <p role="alert">{p.statusError}</p>}
     <section className="hero">
       <div className="hero-copy"><span className="eyebrow">{p.companyProfile ? "Your interests. Your occasion. Your Open Door." : "Arrive curious. Leave with a thread."}</span>
         <h1>{p.companyProfile?.discoveryTitle || <>Find your way<br />into <em>somewhere.</em></>}</h1>
-        <p>{p.companyProfile?.discoveryCopy || "Tell us about the music, films, food, or art you love. Find something to enjoy next, with a simple way to get started."}</p>
+        <p>{p.companyProfile?.discoveryCopy || (p.journeyMode === "demo"
+          ? "Try an authored example journey, or switch to Qloo for cultural connections retrieved from its taste graph."
+          : "Tell us what you love. Qloo finds cultural connections; Open Door helps you explore them around your occasion, pace and preferences.")}</p>
           {p.companyProfile ? <a className="primary-btn" href="#company-starting-point">Customize this experience <ArrowRight size={15} /></a> : <button className="primary-btn demo-start" type="button" disabled={p.isRunning || (p.journeyMode === "live" && !p.agentStatus?.qlooConfigured)} onClick={() => p.onStartDemo("smooth", true)}>{p.journeyMode === "live" ? "Start exploring with Qloo" : "Open the sample journey"} <ArrowRight size={15} /></button>}
       </div>
       <div className="hero-art mascot-welcome">
@@ -1719,14 +1725,15 @@ function SavedView({ saved, signedIn, remove, onDiscover, explore }: { saved: Sa
 
 function HowView({ agentStatus }: { agentStatus: AgentStatus | null }) {
   return <section>
-     <div className="how-hero"><span className="eyebrow">A little more about the method</span><h1>Curiosity is a<br /><em>good compass.</em></h1><p>Open Door begins with the things you choose to share, then offers cultural threads to follow. It is an invitation to explore—not a verdict on who you are.</p><div className="journey-badge"><Info size={12} /> {agentStatus?.qlooConfigured ? "Live requests available · success required for a Live label" : "Demo available · Qloo not configured"}</div></div>
+     <div className="how-hero"><span className="eyebrow">The cultural grounding behind every live door</span><h1>Curiosity is a<br /><em>good compass.</em></h1><p>Open Door begins with the things you choose to share. Qloo grounds the next cultural connections; you decide which thread to follow. It is an invitation to explore—not a verdict on who you are.</p><div className="journey-badge"><Info size={12} /> {agentStatus?.qlooConfigured ? "Qloo connection available · a completed response earns the Live label" : agentStatus ? "Connect Qloo for live discovery · prepared examples remain separate" : "Checking Qloo connection availability…"}</div></div>
+    <QlooGrounding />
      <aside className="guide-illustration" aria-label="Open Door field guide">
        <MascotArt scene="explorer" />
        <p><span className="eyebrow">A field guide, not a verdict</span><span>Three directions to follow. The next step is yours.</span></p>
      </aside>
     <div className="steps">
       <div className="step"><span className="step-num">01 / BEGIN</span><h2>Name what you love.</h2><p>Choose a place, a time, explicit conditions, exploration depth, and cultural anchors. A sound, a meal, a film, a ritual—your own words are enough.</p></div>
-      <div className="step"><span className="step-num">02 / CONNECT</span><h2>Follow a thread.</h2><p>Choose Demo for our shared Qloo connection, or Connect your own to use your key. Both retrieve actual Qloo Search and Insights responses. Try prepared examples is a separate authored sample path. Familiar, adjacent, and unexpected are Open Door route labels, not Qloo scores.</p></div>
+      <div className="step"><span className="step-num">02 / CONNECT</span><h2>Follow a thread.</h2><p>Choose Demo for the shared Qloo API connection, or Connect your own to use your key. Qloo Search resolves named interests; Qloo Insights retrieves related cultural entities. Prepared examples are authored separately, not Qloo results. Familiar, adjacent, and unexpected are Open Door route labels—not Qloo scores.</p></div>
       <div className="step"><span className="step-num">03 / MAKE IT YOURS</span><h2>Keep what resonates.</h2><p>Save a door locally, open a Qloo-returned entity as a new anchor, or provide a reason it missed. Your explicit feedback is included in the next live request.</p></div>
     </div>
     <section className="mascot-showcase" aria-labelledby="mascot-showcase-title">
@@ -1738,7 +1745,7 @@ function HowView({ agentStatus }: { agentStatus: AgentStatus | null }) {
         <figure><MascotArt scene="curiosity" /><figcaption>A little wonder</figcaption></figure>
       </div>
     </section>
-    <div className="trust-box"><Info size={20} /><div><h3>Evidence, without pretending</h3><p>{agentStatus?.qlooConfigured ? "A server-side Qloo key is configured, but configuration does not make results live; only a successful real Qloo-backed response earns the Live label." : "Qloo is not currently configured. Demo connections remain authored sample content, not retrieved results."} The API key stays on the server. External provider data and AI synthesis are absent unless explicitly evidenced.</p></div></div>
+    <div className="trust-box"><Info size={20} /><div><h3>Retrieved connections, not just convincing words</h3><p>Qloo is the source of cultural relationships in live discovery—not a decorative add-on. Without a successful Qloo response, Open Door does not produce a live cultural match. Prepared examples can demonstrate the tools, but cannot replace that retrieval. API credentials stay on the server; source details remain available to inspect.</p></div></div>
      <section className="architecture-section" aria-labelledby="architecture-title">
        <div className="architecture-heading">
          <div><span className="eyebrow">The live path, with provenance attached</span><h2 id="architecture-title">Architecture</h2></div>
@@ -1748,9 +1755,9 @@ function HowView({ agentStatus }: { agentStatus: AgentStatus | null }) {
          <ol className="architecture-flow">
            <li><span className="architecture-step">01</span><div><strong>Explicit user interests</strong><p>You choose the anchors and context sent for discovery.</p></div></li>
            <li><span className="architecture-step">02</span><div><strong>Bounded Open Door server orchestrator</strong><p>The server coordinates the request; provider credentials remain server-side.</p></div></li>
-           <li><span className="architecture-step">03</span><div><strong>Qloo Search entity resolution</strong><p>Search resolves the explicitly supplied interests into provider entities.</p></div></li>
-           <li><span className="architecture-step">04</span><div><strong>Qloo Insights results and evidence</strong><p>Returned candidates and evidence inform the available directions.</p></div></li>
-           <li><span className="architecture-step">05</span><div><strong>Open Door route labels and inspectable choices</strong><p>Familiar, adjacent, and unexpected are Open Door route labels—not Qloo scores. You can inspect the evidence and choose what to open.</p></div></li>
+           <li><span className="architecture-step">03</span><div><strong>Qloo Search resolves named interests</strong><p>Search resolves the interests a person explicitly supplies into provider entities.</p></div></li>
+           <li><span className="architecture-step">04</span><div><strong>Qloo Insights retrieves cultural connections</strong><p>Returned entities and evidence inform the directions Open Door can organize.</p></div></li>
+           <li><span className="architecture-step">05</span><div><strong>Open Door organizes choices</strong><p>Familiar, adjacent, and unexpected are Open Door route labels—not Qloo scores. Inspect the available evidence, then choose what to open.</p></div></li>
          </ol>
          <div className="architecture-art">
            <MascotArt scene="qloo" />
@@ -1761,10 +1768,10 @@ function HowView({ agentStatus }: { agentStatus: AgentStatus | null }) {
          <Info size={16} />
          <p>{agentStatus?.qlooConfigured
            ? "Qloo is currently configured on the server. Configuration alone does not count as Live success; only a successful Qloo-backed response is labeled Live."
-           : "Qloo is currently not configured. Demo remains available while Live discovery is unavailable."}</p>
+           : "Connect Qloo for live discovery. Prepared examples are authored separately and do not contain retrieved Qloo results."}</p>
        </div>
-       <div className="architecture-demo"><strong>Prepared examples are separate.</strong> The Demo connection retrieves real Qloo recommendations. Prepared examples are authored content, never a silent replacement for a failed Qloo request.</div>
+       <div className="architecture-demo"><strong>Prepared examples are separate.</strong> The shared Demo connection retrieves Qloo results. “Try prepared examples” is authored content, never a silent replacement for a failed Qloo request. Qloo describes its taste graph as spanning 250M+ entities; that scale is not a claim about the subset returned in any Open Door journey.</div>
      </section>
-    <div className="how-future"><strong>Responsible discovery.</strong> Open Door uses explicit taste signals, does not infer sensitive identity, does not assign cultural identity, and does not tell anyone what they should like. Cultural intelligence should create possibilities, not judgments. Business, event, and creator applications are future possibilities only; they are not functional features in this demo.</div>
+    <div className="how-future"><strong>One culturally grounded product.</strong> Individual discovery and company occasions use the same Qloo-backed workflow. Company examples are available today; external company API, widget and MCP access remain future plans. Open Door uses explicit taste signals, not inferred sensitive identities. Cultural intelligence should create possibilities, not judgments.</div>
   </section>;
 }

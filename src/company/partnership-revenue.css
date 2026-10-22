@@ -1,0 +1,7 @@
+.partnerships-revenue-heading { margin:32px 0 18px; }
+.partnerships-revenue-heading h3 { margin:9px 0; font-size:25px; color:#204d40; }
+.partnerships-revenue-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.partnerships-revenue-grid article { padding:24px; border:1px solid #c7d8cb; border-radius:14px; background:#f1f5ec; }
+.partnerships-revenue-grid h4 { margin:14px 0 10px; color:#204d40; font-size:20px; line-height:1.35; }
+.partnerships-revenue-grid p { margin:0; color:#446052; line-height:1.8; font-size:14px; }
+@media(max-width:760px) { .partnerships-revenue-grid { grid-template-columns:minmax(0,1fr); } }

@@ -11,6 +11,7 @@ import App from "./App";
 import CompanyPortal from "./company/CompanyPortal";
 import CompanyExperience from "./company/CompanyExperience";
 import CompanyAdmin from "./company/CompanyAdmin";
+import Partnerships from "./company/Partnerships";
 import "./auth.css";
 import { safeAppReturnTo } from "./authReturn";
 
@@ -120,6 +121,7 @@ function ClerkRoutes() {
     routerReplace={to => { setLocation(basePath && to.startsWith(basePath) ? to.slice(basePath.length) || "/" : to, { replace: true }); }}
   >
     <Switch>
+      <Route path="/partners" component={Partnerships} />
       <Route path="/companies" component={CompanyPortal} />
       <Route path="/companies/admin" component={CompanyAdmin} />
       <Route path="/companies/discover" component={CompanyExperience} />
