@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { getAgentStatus, getQlooConnectionSource, setQlooConnectionSource, runAgentDiscovery, type QlooConnectionSource, type AgentEvent, type AgentStatus, type DiscoveryRequest, type LiveDoor, type LiveJourney, type ProgressSummary } from "./agentApi";
 import QlooConnectionPanel from "./QlooConnectionPanel";
+import { createStoryCard } from "./storyCard";
 import DoorArtwork from "./DoorArtwork";
 import { DevSecurityTestView, TrustView } from "./TrustView";
 import { MascotArt } from "./MascotArt";
@@ -105,9 +106,6 @@ function safeSetStore(key: string, value: unknown): void {
 }
 function safeRemoveStore(key: string): void {
   try { localStorage.removeItem(key); } catch { /* Storage can be disabled. */ }
-}
-function escapeXml(value: string): string {
-  return value.replace(/[<>&'"]/g, character => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", "\"": "&quot;" })[character] || character);
 }
 function publicTrace(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(publicTrace);
@@ -948,42 +946,45 @@ export default function App() {
     if (!journey) return;
     const story = `My Open Door ${journey.mode === "live" ? "live" : "demo"} journey\nI started with ${journey.anchors.join(", ")}.\nThe journey opened toward ${journey.doors.map(door => door.title).join(", ")}.\n${journey.mode === "live" ? "Qloo-backed response; not verified venue availability." : "Demo only: authored illustrative cultural paths, not Qloo data or venue recommendations."}`;
     try {
-      if (navigator.share) await navigator.share({ title: "My Open Door story", text: story });
-      else { await navigator.clipboard.writeText(story); setStoryCopied(true); setToast("Selected story details copied"); }
+      const card = await createStoryCard(journey);
+      if (navigator.share && navigator.canShare?.({ files: [card] })) {
+        await navigator.share({ title: "My Open Door story", text: story, files: [card] });
+      } else if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+        await navigator.clipboard.write([new ClipboardItem({
+          "image/png": card,
+          "text/plain": new Blob([story], { type: "text/plain" }),
+        })]);
+        setStoryCopied(true);
+        setToast("Story card and text copied");
+      } else if (navigator.share) {
+        await navigator.share({ title: "My Open Door story", text: story });
+        setToast("Text story shared. Download the story card to share its image.");
+      } else {
+        await navigator.clipboard.writeText(story);
+        setStoryCopied(true);
+        setToast("Text story copied. Download the story card to share its image.");
+      }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         setToast("Sharing canceled");
         return;
       }
-      try { await navigator.clipboard.writeText(story); setStoryCopied(true); setToast("Selected story details copied"); }
+      try { await navigator.clipboard.writeText(story); setStoryCopied(true); setToast("Image sharing unavailable. Story text copied; use Download story card for the image."); }
       catch { setToast("Share is unavailable in this browser"); }
     }
   }
-  function downloadStoryCard() {
+  async function downloadStoryCard() {
     if (!journey) return;
-    const start = escapeXml(journey.anchors[0] || "your chosen interests");
-    const first = escapeXml(journey.doors[0]?.title || "A familiar door");
-    const unexpected = escapeXml(journey.doors[2]?.title || "An unexpected door");
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-      <defs><linearGradient id="paper" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#f3eddf"/><stop offset="1" stop-color="#dedbca"/></linearGradient><linearGradient id="inside" x1="0" x2="1"><stop stop-color="#24423a"/><stop offset="1" stop-color="#917b55"/></linearGradient></defs>
-      <rect width="1200" height="630" fill="url(#paper)"/><path d="M0 44H1200M0 586H1200" stroke="#c8c0ae"/>
-      <text x="82" y="105" fill="#9b604b" font-family="monospace" font-size="15" letter-spacing="4">OPEN DOOR · ${journey.mode === "live" ? "QLOO JOURNEY" : "DEMO STORY"}</text>
-      <text x="82" y="205" fill="#28332d" font-family="Georgia,serif" font-size="62">I started with</text>
-      <text x="82" y="270" fill="#31594f" font-family="Georgia,serif" font-size="45">${start}</text>
-      <text x="82" y="345" fill="#777b70" font-family="monospace" font-size="14" letter-spacing="2">A FAMILIAR DOOR</text>
-      <text x="82" y="390" fill="#28332d" font-family="Georgia,serif" font-size="31">${first}</text>
-      <text x="82" y="454" fill="#777b70" font-family="monospace" font-size="14" letter-spacing="2">THEN AN UNEXPECTED THREAD</text>
-      <text x="82" y="498" fill="#28332d" font-family="Georgia,serif" font-size="28">${unexpected}</text>
-      <path d="M900 586V253a145 145 0 0 1 290 0v333" fill="#6b6351"/><path d="M921 586V254a124 124 0 0 1 248 0v332" fill="url(#inside)" stroke="#c3ad7f" stroke-width="3"/>
-      <path d="M964 586V254a81 81 0 0 1 162 0v332" fill="none" stroke="#d6c79d" stroke-width="2" opacity=".65"/>
-      <circle cx="1101" cy="430" r="6" fill="#d6c79d"/>
-      <text x="82" y="610" fill="#777b70" font-family="monospace" font-size="12">${journey.mode === "live" ? "QLOO RESPONSE · NOT VERIFIED VENUE AVAILABILITY" : "ILLUSTRATIVE SAMPLE PATH · NOT QLOO OUTPUT OR A REAL-WORLD LISTING"}</text>
-    </svg>`;
-    const url = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml;charset=utf-8" }));
-    const link = document.createElement("a");
-    link.href = url; link.download = "my-open-door-story.svg"; link.click();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setToast("Your Open Door story card was downloaded");
+    try {
+      const card = await createStoryCard(journey);
+      const url = URL.createObjectURL(card);
+      const link = document.createElement("a");
+      link.href = url; link.download = card.name; link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setToast("Your Open Door story card was downloaded");
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Your story card couldn’t download. Please try again.");
+    }
   }
   function buildGroup() { setGroupBuilt(true); }
   function updateParticipant(index: number, field: keyof Participant, value: string) {
@@ -1425,9 +1426,11 @@ function DiscoverView(p: DiscoverProps) {
       </div>}
     </section>}
 
-      {p.liveStages.length > 0 && p.journeyMode === "live" && <section className="stream-stages" aria-live="polite" aria-label="Actual live orchestration stages"><div className="module-heading"><div><span className="eyebrow">Live request trace</span><h3>What the server actually did.</h3></div><p>Only stage events received from the real orchestration stream appear here; no estimated progress is shown.</p></div>
+      {p.liveStages.length > 0 && p.journeyMode === "live" && <details className="stream-stages" aria-label="Actual live orchestration stages">
+        <summary><span className="eyebrow">Live request trace</span><ChevronDown size={18} aria-hidden="true" /></summary>
+        <div className="module-heading"><div><h3>What the server actually did.</h3></div><p>Only stage events received from the real orchestration stream appear here; no estimated progress is shown.</p></div>
         <ol>{p.liveStages.map((stage, index) => <li key={`${stage.id}-${index}`} className={`stage-${stage.status}`}><span className="stage-number">{String(index + 1).padStart(2, "0")}</span><div><b>{stage.label}</b><p>{stage.detail}</p><small>{stage.provenance} · {stage.status}</small></div></li>)}</ol>
-      </section>}
+      </details>}
       {p.journey && <section className="journey-result" id="journey-result" aria-live="polite">
       <div className="result-top"><div><div className={`journey-badge ${p.journey.mode === "live" ? "live-badge" : ""}`}><Compass size={12} /> {p.journey.mode === "live" ? "Live Qloo" : "Demo"}</div><span className="eyebrow" style={{ display: "block", marginTop: 12 }}>{p.journey.occasion} · {p.journey.depth}</span><h2>{p.journey.doors.length ? `${p.journey.doors.length} ideas for you` : "Ready for a different interest?"}</h2><div className="journey-city"><MapPin size={13} /> {p.journey.city} <span>·</span> {p.journey.intent}</div></div>
          <div className="journey-tools"><button className="secondary-btn" type="button" onClick={() => p.onLab()}>Explore in Discovery Lab <ArrowRight size={14} /></button><button className="secondary-btn" type="button" onClick={() => p.setShowInspector(!p.showInspector)} aria-expanded={p.showInspector}><Info size={14} /> {p.showInspector ? "Close evidence" : "Under the Door"}</button><button className="secondary-btn" type="button" onClick={p.reset}><RotateCcw size={14} /> Reset the Compass</button></div></div>
@@ -1471,8 +1474,9 @@ function DiscoverView(p: DiscoverProps) {
       <div className="dna-strip"><div className="dna-title"><span>Your Discovery DNA</span><p>Changes as you explore</p></div><div className="dna-items">{p.journey.anchors.map((anchor, i) => <span className="dna-chip" key={anchor}><b>0{i + 1}</b> {anchor} · {p.journey?.categories[anchor] || inferredCategory(anchor)}</span>)}</div></div>
       <div className="dna-edit" aria-label="Edit Discovery DNA categories"><label>Edit explicit categories</label>{p.journey.anchors.map(anchor => <label key={anchor}>{anchor}<select className="dna-category" aria-label={`Category for ${anchor}`} value={p.journey?.categories[anchor] || inferredCategory(anchor)} onChange={event => p.setCategory({ anchor, value: event.target.value as Category })}>{CATEGORIES.map(category => <option key={category}>{category}</option>)}</select></label>)}</div>
 
-      {p.journey.mode === "live" ? <section className="constellation live-graph" aria-labelledby="constellation-title">
-        <div className="module-heading"><div><span className="eyebrow">Retrieved cultural graph · provenance separated</span><h3 id="constellation-title">Only returned nodes and edges.</h3></div><p>Qloo edges describe returned Search or Insights evidence. USER edges identify an explicit choice to continue from a Qloo entity; both sources are labeled.</p></div>
+      {p.journey.mode === "live" ? <details className="constellation live-graph">
+        <summary><span className="eyebrow">Retrieved cultural graph · provenance separated</span><ChevronDown size={18} aria-hidden="true" /></summary>
+        <div className="module-heading"><div><h3 id="constellation-title">Only returned nodes and edges.</h3></div><p>Qloo edges describe returned Search or Insights evidence. USER edges identify an explicit choice to continue from a Qloo entity; both sources are labeled.</p></div>
         <div className="graph-columns">
           <div><span className="legend-pill">USER INPUT</span><div className="constellation-nodes">{(p.journey.graph?.nodes || []).filter(node => node.provenance === "USER").map(node => <button key={node.id} className="constellation-node" onClick={() => p.setSelectedNode(node.id)} aria-pressed={selectedNode?.id === node.id}>{node.label}</button>)}</div></div>
           <div><span className="legend-pill qloo-legend">QLOO RETURN</span><div className="constellation-nodes">{(p.journey.graph?.nodes || []).filter(node => node.provenance === "QLOO").map(node => <button key={node.id} className="constellation-node experience" onClick={() => p.setSelectedNode(node.id)} aria-pressed={selectedNode?.id === node.id}>{node.label}</button>)}</div></div>
@@ -1486,7 +1490,7 @@ function DiscoverView(p: DiscoverProps) {
             return <span key={node.id} className="coordinate-dot" style={{ left: `${x}%`, top: `${y}%` }} title={`${node.label}: ${node.coordinates!.latitude}, ${node.coordinates!.longitude}`} />;
           })}</div><ul className="coordinate-list">{qlooCoordinateNodes.map(node => <li key={node.id}><b>{node.label}</b><span>{node.coordinates!.latitude}, {node.coordinates!.longitude}</span></li>)}</ul></> : <div className="coordinate-empty">No coordinates were returned by Qloo. Nothing is plotted.</div>}
         </div>
-      </section> : <section className="constellation" aria-labelledby="constellation-title">
+      </details> : <section className="constellation" aria-labelledby="constellation-title">
         <div className="module-heading"><div><span className="eyebrow">Demo constellation · authored sample relationships</span><h3 id="constellation-title">A compact map of the path.</h3></div><p>Sample connections are editorial examples, not retrieved entities or Qloo relationships.</p></div>
         <div className="constellation-legend" aria-label="Constellation legend"><span className="legend-pill">User input</span><span className="legend-pill">Sample connection</span><span className="legend-pill">Demo experience</span></div>
         <div className="constellation-nodes" role="group" aria-label="Selectable sample constellation nodes">{p.nodes.map(node => <button type="button" key={node.id} className={`constellation-node ${node.kind === "SAMPLE CONNECTION" ? "connection" : node.kind === "DEMO EXPERIENCE" ? "experience" : ""}`} aria-pressed={selectedNode?.id === node.id} onClick={() => p.setSelectedNode(node.id)}>{node.label}</button>)}</div>
@@ -1497,10 +1501,10 @@ function DiscoverView(p: DiscoverProps) {
          <article><h4>Open Door · {p.journey.mode === "live" ? "retrieved path" : "sample path"}</h4><p>“What cultural thread might {p.journey.anchors[0] || "an interest"} open next?”</p><small>{p.journey.mode === "live" ? "Qloo returned the entity and evidence; Open Door assigned the route label. This is not a confidence or affinity score." : "Starts from an anchor and makes an authored bridge visible. This is sample data, not Qloo output."}</small></article>
       </div>
        {wildcardDoor && <div className="bridge-callout"><span className="eyebrow">{p.journey.mode === "live" ? "Returned connection evidence" : "Surprise with purpose · illustrative bridge"}</span><h3>{p.journey.mode === "live" ? "What connects this result to your starting point." : "A detour should show its connecting thread."}</h3><div className="bridge-chain"><span>{p.journey.anchors[0]}</span><ArrowRight size={14} aria-hidden="true" /><span>{wildcardDoor.thread}</span><ArrowRight size={14} aria-hidden="true" /><span>{wildcardDoor.title}</span></div><p>{wildcardDoor.evidence}</p></div>}
-      <div className="story-card"><MiniDoor className="story-door-mark" /><span className="eyebrow">A story with selected details</span><h3>Your Open Door Story</h3>
+      <div className="story-card" data-story-source={p.journey.mode === "live" ? "Qloo journey" : "Prepared example story"}><DoorArtwork open hero className="story-mascot-art" /><span className="eyebrow">A story with selected details</span><h3>Your Open Door Story</h3>
          <p>You started with <strong>{p.journey.anchors.join(", ")}</strong>.</p><p>This {p.journey.mode === "live" ? "Qloo-backed response" : "demo path"} moved through <strong>{storyDoors.map(door => door.title).join(" → ") || "no returned candidates"}</strong>.</p>
          <p>The story includes the anchors and discoveries shown here—not your city or budget. Review it before sharing: the interests you enter may still be personal. {p.journey.mode === "demo" && "Sample paths are illustrative, not Qloo data."}</p>
-        <div className="story-actions"><button className="secondary-btn" type="button" onClick={p.onShare}><Share2 size={14} /> {p.storyCopied ? "Copy story again" : "Share / copy story"}</button><button className="secondary-btn" type="button" onClick={p.onDownloadStory}>Download story card <ArrowDownRight size={14} /></button><span className="helper">Share sheet where supported; otherwise copies a text-only story.</span></div>
+        <div className="story-actions"><button className="secondary-btn" type="button" onClick={p.onShare}><Share2 size={14} /> {p.storyCopied ? "Copy story again" : "Share / copy story"}</button><button className="secondary-btn" type="button" onClick={p.onDownloadStory}>Download story card <ArrowDownRight size={14} /></button><span className="helper">Share or copy the illustrated PNG card where supported; otherwise share/copy text. Downloads include the new door mascot artwork.</span></div>
       </div>
         <section className="helpful-insights">
           <div className="helpful-art"><MascotArt scene="map" /></div>

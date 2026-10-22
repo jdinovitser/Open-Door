@@ -67,7 +67,7 @@ test("live requests exclude the local scenario while returned results and Lab re
     const input = sent as { location: string; occasion: string; intent: string; depth: string; context: Record<string, string>; anchors: { label: string; category: string }[] };
     await route.fulfill({
       contentType: "application/x-ndjson",
-      body: JSON.stringify({ type: "complete", journey: {
+      body: JSON.stringify({ type: "stage", id: "fixture-search", status: "complete", label: "Fixture search", detail: "Returned test search evidence.", provenance: "QLOO" }) + "\n" + JSON.stringify({ type: "complete", journey: {
         mode: "live", city: input.location, occasion: input.occasion, intent: input.intent, depth: input.depth,
         context: input.context, anchors: input.anchors.map(anchor => anchor.label),
         categories: Object.fromEntries(input.anchors.map(anchor => [anchor.label, anchor.category])),
@@ -85,6 +85,23 @@ test("live requests exclude the local scenario while returned results and Lab re
   await page.getByRole("button", { name: "Demo", exact: true }).click();
   await page.getByRole("button", { name: "Explore with Qloo", exact: true }).click();
   await expect(page.locator(".door-card h3")).toHaveText("Test cultural discovery");
+  const trace = page.locator("details.stream-stages");
+  await expect(trace.locator("ol")).not.toBeVisible();
+  await trace.locator("summary").click();
+  await expect(trace.locator("ol")).toBeVisible();
+  await expect(trace.locator("ol")).toContainText("Fixture search");
+  await trace.locator("summary").focus();
+  await page.keyboard.press("Enter");
+  await expect(trace.locator("ol")).not.toBeVisible();
+  const graph = page.locator("details.live-graph");
+  const graphToggle = graph.locator("summary");
+  await expect(graph).not.toHaveAttribute("open", "");
+  await expect(graph.locator(".graph-columns")).not.toBeVisible();
+  await graphToggle.click();
+  await expect(graph.locator(".graph-columns")).toBeVisible();
+  await graphToggle.focus();
+  await page.keyboard.press("Enter");
+  await expect(graph.locator(".graph-columns")).not.toBeVisible();
   expect(JSON.stringify(sent)).not.toContain(brief);
   expect(JSON.stringify(sent)).not.toContain("scenario");
   await page.locator(".door-preview").click();
