@@ -93,3 +93,10 @@ Maps/planner/download, Lab, save/sign-in, and labeled rewards-preview footage
 from the multi-occasion version is reused with the new narration. The Lab
 footage is modestly accelerated to fit its chapter. The final cut is 179
 seconds, and the earlier exports are preserved.
+
+For the Allison voice-only revision, generate the same scene narration with
+voice `5jVVMAv2LzffTcLGarKh` under `generated-artifacts/demo-story/allison-voice/`
+(stability 0.42, similarityBoost 0.75, style 0.08, speed 1.0), then run the
+same renderer command with `allison` instead of `upbeat`. No new capture is
+needed. This variant keeps natural speaking speed, only accelerating slightly
+when a chapter requires it, and exports a separate MP4 and updated captions.

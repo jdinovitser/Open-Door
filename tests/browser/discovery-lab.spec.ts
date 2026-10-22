@@ -6,12 +6,12 @@ async function stored(page: Page) {
 }
 async function begin(page: Page) {
   await page.goto("/lab");
+  await page.getByRole("button", { name: "Try prepared examples", exact: true }).click();
   await page.getByLabel("Cultural interest", { exact: true }).fill("experimental jazz");
   await page.getByRole("button", { name: "Add anchor", exact: true }).click();
   await page.getByRole("button", { name: /^Start exploring/ }).click();
-  page.once("dialog", dialog => dialog.accept("Shared start"));
-  await page.getByRole("button", { name: "Save checkpoint", exact: true }).click();
   await expect(page.locator(".lab-checkpoint")).toHaveCount(1);
+  await expect(page.locator(".lab-discovery")).toHaveCount(3);
 }
 async function branch(page: Page, name: string) {
   await page.locator(".lab-direction").filter({ hasText: name }).click();
@@ -23,7 +23,6 @@ test("checkpoint, independent siblings, comparison, continuation, fork and reloa
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await begin(page);
-  await branch(page, "Stay in Your World");
   await page.locator(".lab-discovery").first().getByRole("button", { name: "Keep", exact: true }).click();
   const first = await stored(page);
   const firstBranch = first.branches[0];
@@ -49,12 +48,12 @@ test("checkpoint, independent siblings, comparison, continuation, fork and reloa
   await page.locator(".lab-compare-branch").first().getByRole("button", { name: "Fork from this discovery", exact: true }).first().click();
   state = await stored(page);
   expect(state.checkpoints).toHaveLength(2);
-  expect(state.activeBranchId).toBeNull();
+  expect(state.activeBranchId).not.toBeNull();
   expect(state.checkpoints[1].parentBranchId).toBe(firstBranch.id);
   expect(state.branches[0]).toEqual(firstBranch);
   await page.reload();
   await expect(page.locator(".lab-checkpoint")).toHaveCount(2);
-  expect((await stored(page)).branches).toHaveLength(2);
+  expect((await stored(page)).branches).toHaveLength(3);
   expect(errors).toEqual([]);
 });
 test("edited constraints apply to new branches; all six strategies can be explored", async ({ page }) => {
@@ -76,12 +75,11 @@ test("edited constraints apply to new branches; all six strategies can be explor
     if (name === "Make It Real") expect(state.current.candidates[0].plan.join(" ")).toContain("Brooklyn");
   }
   expect(new Set(signatures).size).toBe(6);
-  expect((await stored(page)).branches).toHaveLength(6);
+  expect((await stored(page)).branches).toHaveLength(7);
   await page.locator(".lab-direction-layout").screenshot({ path: "generated-artifacts/lab-directions-desktop.png" });
 });
 test("rename, confirmed deletion, restoration and fresh journey retain siblings", async ({ page }) => {
   await begin(page);
-  await branch(page, "Stay in Your World");
   page.once("dialog", dialog => dialog.accept("My close study"));
   await page.locator(".lab-branch-row").first().getByRole("button", { name: "Rename", exact: true }).click();
   await expect(page.locator(".lab-branch-row").first()).toContainText("My close study");
@@ -127,7 +125,7 @@ test("phone layout has no horizontal overflow and keeps core controls accessible
   await page.setViewportSize({ width: 402, height: 874 });
   await begin(page);
   await branch(page, "Make It Real");
-  await expect(page.getByText(/^Demo discovery mode — (Qloo credentials pending|authored sample data)\.$/)).toBeVisible();
+  await expect(page.getByText("Prepared examples · authored demo content.", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
   await expect(page.locator(".lab-discovery").first().getByRole("button", { name: "Tell me more", exact: true })).toBeVisible();
   await page.locator(".lab-discovery").first().getByRole("button", { name: "Tell me more", exact: true }).click();

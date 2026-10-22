@@ -160,6 +160,7 @@ export type DiscoveryRequest = {
   excludedEntityIds?: string[];
   feedback?: string[];
   iteration?: number;
+  resultTypes?: string[];
 };
 
 export type AgentEvent = AgentStageEvent | { type: "complete"; journey: LiveJourney } | {

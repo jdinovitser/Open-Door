@@ -9,6 +9,7 @@ const scenarios = [
 for (const [id, label] of scenarios) {
   test(`${label} loads, edits, explores and restores inside the existing Lab`, async ({ page }) => {
     await page.goto("/lab");
+    await page.getByRole("button", { name: "Try prepared examples", exact: true }).click();
     const selector = page.getByRole("combobox", { name: "Lab scenario", exact: true });
     await expect(selector.getByRole("option", { name: label, exact: true })).toHaveCount(1);
     await selector.selectOption(id);
@@ -39,6 +40,7 @@ for (const [id, label] of scenarios) {
 
 test("custom text works without a preset and all existing discovery directions remain", async ({ page }) => {
   await page.goto("/lab");
+  await page.getByRole("button", { name: "Try prepared examples", exact: true }).click();
   await page.getByRole("textbox", { name: "Your scenario", exact: true }).fill("Explore independently at my own pace.");
   await page.getByLabel("Cultural interest", { exact: true }).fill("books");
   await page.getByRole("button", { name: "Add anchor", exact: true }).click();

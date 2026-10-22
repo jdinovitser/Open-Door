@@ -271,6 +271,7 @@ export default function App() {
   const [statusError, setStatusError] = useState("");
   const [liveStages, setLiveStages] = useState<Extract<AgentEvent, { type: "stage" }>[]>([]);
   const [liveError, setLiveError] = useState("");
+  const [compassStatus, setCompassStatus] = useState<{ state: "loading" | "success" | "error"; intent: Intent } | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [showInspector, setShowInspector] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -824,18 +825,28 @@ export default function App() {
       setAccountSyncAttempt(attempt => attempt + 1);
     }
   }
-  function resetCompass(nextIntent: Intent) {
+  async function resetCompass(nextIntent: Intent) {
+    if (isRunning || !journey) return;
     setIntent(nextIntent);
+    setCompassStatus({ state: "loading", intent: nextIntent });
     const selectedFeedback = Object.values(feedback).filter(value => value && value !== "choose");
-    if (journeyMode === "live") {
-      void runLive(journey?.anchors || anchors, nextIntent, (journey?.iteration || 0) + 1, selectedFeedback).then(result => {
-        if (result) { setFeedback({}); setToast(`Compass reset: ${nextIntent.toLowerCase()}`); }
-      });
+    if (journey.mode === "live") {
+      setJourneyMode("live");
+      const result = await runLive(journey.anchors, nextIntent, journey.iteration + 1, selectedFeedback);
+      if (!result) {
+        setCompassStatus({ state: "error", intent: nextIntent });
+        return;
+      }
+      setFeedback({});
+      setCompassStatus({ state: "success", intent: nextIntent });
+      setToast(`New ideas ready: ${nextIntent.toLowerCase()}`);
       return;
     }
-    generate(journey?.anchors || anchors, nextIntent, (journey?.iteration || 0) + 1, selectedFeedback);
+    setJourneyMode("demo");
+    generate(journey.anchors, nextIntent, journey.iteration + 1, selectedFeedback);
     setFeedback({});
-    setToast(`Compass reset: ${nextIntent.toLowerCase()}`);
+    setCompassStatus({ state: "success", intent: nextIntent });
+    setToast(`New example ideas ready: ${nextIntent.toLowerCase()}`);
   }
   function toggleSave(door: Door, location: string, chosenAnchors: string[]) {
     if (cloudBusyRef.current) return;
@@ -1155,7 +1166,7 @@ export default function App() {
           const opened = lab.start(journeyToLab(journey, door?.id, feedback, groupMode ? participants.map(person => person.anchors).filter(Boolean).join("; ") : ""));
           if (opened) { setView("lab"); window.scrollTo({ top: 0, behavior: "smooth" }); }
         }}
-        resetCompass={resetCompass} openNext={openNext} onDoorOpened={door => {
+        resetCompass={resetCompass} compassStatus={compassStatus} openNext={openNext} onDoorOpened={door => {
           const visit = `${door.id}|${door.category}|${door.tier}`;
           setOpenedIds(current => current.includes(visit) ? current : [...current, visit]);
           void recordProgressDoor(door);
@@ -1184,7 +1195,7 @@ export default function App() {
           <p>Your saved doors and reward tracks belong to your account. Keep exploring as a guest, or sign in to see account progress.</p>
           <div><a href="/sign-in" className="primary-btn">Sign in <ArrowRight size={16} /></a><button type="button" className="secondary-btn" onClick={() => setView("discover")}>Continue as guest</button></div>
         </section>)}
-      {view === "lab" && <DiscoveryLab lab={lab} qlooConfigured={!!agentStatus?.qlooConfigured} />}
+      {view === "lab" && <DiscoveryLab lab={lab} qlooConfigured={!!agentStatus?.qlooConfigured} connection={{ status: agentStatus, mode: journeyMode, source: qlooSource, disabled: isRunning || lab.busy, onSelect: selectQlooConnection }} />}
       {view === "how" && <HowView agentStatus={agentStatus} />}
       {view === "judges" && <JudgesGuide status={agentStatus} statusError={statusError} />}
       {view === "trust" && <TrustView
@@ -1231,6 +1242,7 @@ type DiscoverProps = {
   submit: (event: FormEvent<HTMLFormElement>) => void; journey: Journey | null; savedIds: Set<string>;
   toggleSave: (door: Door, location: string, anchors: string[]) => void; feedback: Record<string, string>;
   setFeedback: (id: string, reason: string) => void; reset: () => void; resetCompass: (intent: Intent) => void;
+  compassStatus: { state: "loading" | "success" | "error"; intent: Intent } | null;
   openNext: (door: Door) => void; onDoorOpened: (door: Door) => void; setView: (view: View) => void; nodes: { id: string; label: string; kind: string; category: Category; detail: string; result: string }[];
   selectedNode: string; setSelectedNode: (value: string) => void; onShare: () => void; onDownloadStory: () => void; storyCopied: boolean;
   openedCount: number; openedIds: string[]; openedCategories: Set<string>; openedTiers: Record<string, number>; groupMode: boolean; setGroupMode: (value: boolean) => void;
@@ -1472,7 +1484,10 @@ function DiscoverView(p: DiscoverProps) {
         refreshDisabled={p.isRunning || (p.journeyMode === "live" && !p.agentStatus?.qlooConfigured)}
         refreshing={p.isRunning} oneHour={p.oneHour} setOneHour={p.setOneHour} />
       <div className="dna-strip"><div className="dna-title"><span>Your Discovery DNA</span><p>Changes as you explore</p></div><div className="dna-items">{p.journey.anchors.map((anchor, i) => <span className="dna-chip" key={anchor}><b>0{i + 1}</b> {anchor} · {p.journey?.categories[anchor] || inferredCategory(anchor)}</span>)}</div></div>
-      <div className="dna-edit" aria-label="Edit Discovery DNA categories"><label>Edit explicit categories</label>{p.journey.anchors.map(anchor => <label key={anchor}>{anchor}<select className="dna-category" aria-label={`Category for ${anchor}`} value={p.journey?.categories[anchor] || inferredCategory(anchor)} onChange={event => p.setCategory({ anchor, value: event.target.value as Category })}>{CATEGORIES.map(category => <option key={category}>{category}</option>)}</select></label>)}</div>
+      <div className="dna-edit" aria-label="Edit Discovery DNA categories">
+        <div className="dna-edit-intro"><h3>Edit interest categories</h3><p>Choose a category from each dropdown. Your changes will be used the next time you explore.</p></div>
+        {p.journey.anchors.map(anchor => <label key={anchor}><span>{anchor}</span><span className="dna-select-wrap"><select className="dna-category" aria-label={`Category for ${anchor}`} disabled={p.isRunning} value={p.journey?.categories[anchor] || inferredCategory(anchor)} onChange={event => p.setCategory({ anchor, value: event.target.value as Category })}>{CATEGORIES.map(category => <option key={category}>{category}</option>)}</select><ChevronDown size={20} aria-hidden="true" /></span></label>)}
+      </div>
 
       {p.journey.mode === "live" ? <details className="constellation live-graph">
         <summary><span className="eyebrow">Retrieved cultural graph · provenance separated</span><ChevronDown size={18} aria-hidden="true" /></summary>
@@ -1530,8 +1545,13 @@ function DiscoverView(p: DiscoverProps) {
       <section className="unopened-panel"><div className="module-heading"><div><span className="eyebrow">Doors left unopened</span><h3>Choose another cultural direction.</h3></div><p>{p.journey.mode === "live" ? "Each choice starts a new Qloo Search and Insights run in the selected category." : "Each choice becomes an explicit starting anchor for a new deterministic sample path."}</p></div>
         <div className="unopened-doors">{(["Art", "Books", "Design", "Food", "Music", "Outdoors"] as Category[]).map(category => <button className="unopened-door" type="button" key={category} onClick={() => p.exploreCategory(category)}><MiniDoor /><span>{category}</span><ArrowRight size={14} /></button>)}</div>
       </section>
-      <section className="group-panel" style={{ marginTop: 28 }}><div className="module-heading"><div><span className="eyebrow">Reset the compass</span><h3>Keep the anchors. Change the intention.</h3></div><p>{p.journey.mode === "live" ? "A new intention sends another Qloo Insights request with the same explicit anchors. Chosen feedback is passed along." : "One tap creates another deterministic sample path. Feedback you explicitly chose can also shape the next path."}</p></div>
-        <div className="intent-options">{INTENTS.map(choice => <button type="button" className={`intent-option ${p.journey?.intent === choice ? "selected" : ""}`} key={choice} onClick={() => p.resetCompass(choice)}>{choice}<ArrowRight size={13} /></button>)}</div>
+      <section className="group-panel compass-panel" style={{ marginTop: 28 }} aria-label="Reset the compass" aria-busy={p.compassStatus?.state === "loading"}><div className="module-heading"><div><span className="eyebrow">Reset the compass</span><h3>Keep the anchors. Change the intention.</h3></div><p>Keep your interests and get fresh ideas for what you want to do next. {p.journey.mode === "live" ? "Uses your selected Qloo connection." : "Updates your prepared examples."}</p></div>
+        <div className="intent-options">{INTENTS.map(choice => <button type="button" className={`intent-option ${p.journey?.intent === choice ? "selected" : ""}`} key={choice} disabled={p.isRunning} aria-pressed={p.journey?.intent === choice} onClick={() => p.resetCompass(choice)}>{p.compassStatus?.state === "loading" && p.compassStatus.intent === choice ? "Finding new ideas…" : choice}<ArrowRight size={16} /></button>)}</div>
+        {p.compassStatus && <p className={`compass-feedback ${p.compassStatus.state}`} role={p.compassStatus.state === "error" ? "alert" : "status"}>
+          {p.compassStatus.state === "loading" ? `Looking for ideas to help you ${p.compassStatus.intent.toLowerCase()}. Your current recommendations are still here.`
+            : p.compassStatus.state === "error" ? `Couldn’t refresh your ideas. ${p.liveError || "Please try again."} Your previous recommendations haven’t changed.`
+            : `New ideas ready for “${p.compassStatus.intent}”. Your interests stayed the same; updated recommendations are above.`}
+        </p>}
       </section>
        {p.showInspector && <details className="provenance" open><summary>Under the Door · evidence from this journey <ChevronDown size={16} /></summary>
          {p.journey.mode === "live" ? <>

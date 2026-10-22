@@ -40,7 +40,7 @@ export function useDiscoveryLab(demo: DiscoveryProvider, live: DiscoveryProvider
     if (busyRef.current || loadError) return;
     const branch = from.branches.find(item => item.id === from.activeBranchId);
     if (!from.current || !branch) { setError("Choose a discovery branch first."); return; }
-    if (from.current.mode === "live" && !qlooConfigured) { setError("Qloo is not configured. This Live branch was not changed. Start a separate Demo exploration to try the Lab."); return; }
+    if (from.current.mode === "live" && !qlooConfigured) { setError("Connect to shared Demo access or your own Qloo account above, then retry this path. Your saved branches are unchanged; no prepared examples were substituted."); return; }
     const controller = new AbortController();
     request.current = controller; busyRef.current = true; setBusy(true); setError(""); setNotices([]);
     try {
@@ -71,8 +71,17 @@ export function useDiscoveryLab(demo: DiscoveryProvider, live: DiscoveryProvider
     const anchored = change(previous => anchorDiscovery(previous, discovery));
     if (anchored) await explore(anchored);
   }
-  function fork(discovery: Discovery) {
-    return change(previous => forkDiscovery(previous, discovery, id(), now()));
+  async function startAndExplore(seed: LabSeed, strategy: Strategy = "stay") {
+    if (seed.mode === "live" && !qlooConfigured) {
+      setError("Choose shared Demo access or connect your own Qloo account before starting.");
+      return;
+    }
+    const started = start(seed);
+    if (started) await branch(strategy);
+  }
+  async function fork(discovery: Discovery) {
+    const forked = change(previous => forkDiscovery(previous, discovery, id(), now()));
+    if (forked) await branch("thread", forked.activeCheckpointId || undefined);
   }
   function feedback(discoveryId: string, value?: Feedback) {
     change(previous => {
@@ -98,7 +107,7 @@ export function useDiscoveryLab(demo: DiscoveryProvider, live: DiscoveryProvider
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   return {
-    state, busy, error, loadError, storageWarning, notices, start, checkpoint, branch, explore, next, fork, feedback, settings, cancel, clear, exportData,
+    state, busy, error, loadError, storageWarning, notices, start, startAndExplore, checkpoint, branch, explore, next, fork, feedback, settings, cancel, clear, exportData,
     restore: (checkpointId: string) => change(previous => restoreCheckpoint(previous, checkpointId)),
     resume: (branchId: string) => change(previous => resumeBranch(previous, branchId)),
     rename: (kind: "branch" | "checkpoint", itemId: string, name: string) => change(previous => renameItem(previous, kind, itemId, name)),

@@ -41,6 +41,17 @@ const request = {
     { label: "Japanese breakfast", category: "Food" },
   ],
 };
+test("Lab result types are validated and repeated route types reuse a single Qloo response", async () => {
+  assert.throws(() => validateDiscoveryRequest({ ...request, resultTypes: ["unsupported-type"] }), /supported Qloo result types/);
+  assert.throws(() => validateDiscoveryRequest({ ...request, resultTypes: [] }), /supported Qloo result types/);
+  const { qloo, calls } = fakeQloo();
+  const journey = await runDiscovery({ ...request, resultTypes: ["book"] }, { qloo });
+  assert.equal(calls.insights.length, 1);
+  assert.ok(calls.insights.every(item => item.entityType === "book"));
+  assert.ok(journey.doors.length > 0);
+  assert.ok(journey.doors.every(door => door.entityType === "book"));
+  assert.ok(journey.doors.every(door => door.discoveryDistance.isQlooScore === false));
+});
 
 test("the live agent resolves anchors, makes multiple Qloo insight queries, and returns provenance", async () => {
   const { qloo, calls } = fakeQloo();
@@ -81,6 +92,19 @@ test("explicit feedback changes the next Qloo route", async () => {
   assert.deepEqual(calls.insights.map(call => call.entityType), ["movie", "artist", "podcast"]);
   assert.deepEqual(journey.feedbackApplied, ["Too familiar"]);
   assert.ok(journey.notices.some(notice => notice.includes("changed the next Qloo route")));
+});
+
+test("each compass intention changes Qloo routing without replacing the user's anchors", async () => {
+  const plans = [];
+  for (const intent of ["Find my people", "Go deeper", "Try something new"]) {
+    const { qloo, calls } = fakeQloo();
+    const journey = await runDiscovery({ ...request, intent }, { qloo });
+    plans.push(calls.insights.map(call => call.entityType).join(","));
+    assert.equal(journey.intent, intent);
+    assert.deepEqual(journey.anchors, request.anchors.map(anchor => anchor.label));
+    assert.ok(calls.insights.every(call => call.entityIds.length === request.anchors.length));
+  }
+  assert.equal(new Set(plans).size, 3);
 });
 
 test("opening a live door reuses its Qloo entity ID instead of re-searching the title", async () => {

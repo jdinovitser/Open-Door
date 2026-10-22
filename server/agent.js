@@ -120,9 +120,12 @@ function safeExplainability(value, depth = 0) {
   return Object.fromEntries(entries);
 }
 
-function selectedRouteTypes(sourceType, depth, feedback) {
+function selectedRouteTypes(sourceType, depth, feedback, intent) {
   const routes = TYPE_ROUTES[sourceType] ?? TYPE_ROUTES.artist;
   let offset = DEPTH_OFFSET[depth] ?? 0;
+  // Open Door routing choices, not claims about Qloo affinity or social fit.
+  if (intent === "Find my people") offset += 1;
+  if (intent === "Go deeper") offset -= 1;
   if (feedback.includes("Too familiar") || feedback.includes("Not my scene") || feedback.includes("Just not interested")) offset += 1;
   if (feedback.includes("Too far")) offset -= 1;
   const avoidingPlaceResults = feedback.includes("Too expensive") || feedback.includes("Wrong time");
@@ -181,6 +184,10 @@ export function validateDiscoveryRequest(input) {
     throw new AgentRequestError("INVALID_DEPTH", "Choose one of the available discovery depths.");
   }
   const contextInput = input.context && typeof input.context === "object" && !Array.isArray(input.context) ? input.context : {};
+  if (input.resultTypes !== undefined && (!Array.isArray(input.resultTypes) || input.resultTypes.length < 1
+    || input.resultTypes.length > 3 || input.resultTypes.some(type => !SUPPORTED_ENTITY_TYPES.has(type)))) {
+    throw new AgentRequestError("INVALID_RESULT_TYPES", "Choose supported Qloo result types for this path.");
+  }
   const context = {
     time: cleanText(contextInput.time ?? input.occasion, 100),
     startTime: cleanText(contextInput.startTime, 60),
@@ -214,6 +221,7 @@ export function validateDiscoveryRequest(input) {
     intent: cleanText(input.intent, 100) || "Try something new",
     depth: depth || "A little further",
     context,
+    resultTypes: input.resultTypes ? [...new Set(input.resultTypes)] : undefined,
     excludedEntityIds: Array.isArray(input.excludedEntityIds)
       ? input.excludedEntityIds.filter(value => typeof value === "string").slice(0, 40)
       : [],
@@ -421,11 +429,15 @@ export async function runDiscovery(input, { qloo, emit = () => {}, signal, onToo
   );
 
   const entityIds = [...new Set(resolved.map(anchor => anchor.entityId))];
-  const { plan: routePlan, avoidingPlaceResults } = selectedRouteTypes(
+  const { plan: defaultRoutePlan, avoidingPlaceResults } = selectedRouteTypes(
     resolved[0].entityType,
     request.depth,
     request.feedback,
+    request.intent,
   );
+  const routePlan = request.resultTypes?.length
+    ? defaultRoutePlan.map((route, index) => ({ ...route, entityType: request.resultTypes[index % request.resultTypes.length] }))
+    : defaultRoutePlan;
   const rawResults = [];
   const tools = [{
     name: "resolveEntities",
@@ -440,16 +452,21 @@ export async function runDiscovery(input, { qloo, emit = () => {}, signal, onToo
     })),
   }];
 
-  stage(emit, "qloo-exploration", "running", "Exploring Qloo cultural insights", `Querying three documented entity types using ${entityIds.length} resolved Qloo entities.`, "QLOO INSIGHTS");
+  stage(emit, "qloo-exploration", "running", "Exploring Qloo cultural insights", `Querying ${new Set(routePlan.map(route => route.entityType)).size} documented entity types using ${entityIds.length} resolved Qloo entities.`, "QLOO INSIGHTS");
   let insightCalls = 0;
   let insightFailures = 0;
+  const insightCache = new Map();
   for (const route of routePlan) {
     const toolStartedAt = Date.now();
-    onToolEvent({ toolName: "qlooInsights", outcome: "started" });
+    const cached = insightCache.has(route.entityType);
+    if (!cached) onToolEvent({ toolName: "qlooInsights", outcome: "started" });
     try {
-      const result = await qloo.getInsights(route.entityType, entityIds, request.location, { signal });
-      onToolEvent({ toolName: "qlooInsights", outcome: "success", durationMs: Date.now() - toolStartedAt });
-      insightCalls += 1;
+      const result = cached ? insightCache.get(route.entityType) : await qloo.getInsights(route.entityType, entityIds, request.location, { signal });
+      if (!cached) {
+        insightCache.set(route.entityType, result);
+        onToolEvent({ toolName: "qlooInsights", outcome: "success", durationMs: Date.now() - toolStartedAt });
+        insightCalls += 1;
+      }
       const candidates = (Array.isArray(result?.entities) ? result.entities : [])
         .map(entity => normalizeQlooCandidate(entity, route.entityType))
         .filter(Boolean);
@@ -462,6 +479,7 @@ export async function runDiscovery(input, { qloo, emit = () => {}, signal, onToo
         inputEntityCount: entityIds.length,
         locationApplied: Boolean(request.location && ["place", "destination"].includes(route.entityType)),
         candidateCount: candidates.length,
+        reusedResponse: cached,
         explainabilityRequested: true,
       });
     } catch (error) {
@@ -516,7 +534,9 @@ export async function runDiscovery(input, { qloo, emit = () => {}, signal, onToo
     const exactMatchNote = resolved.every(anchor => anchor.exactNameMatch)
       ? " Qloo Search names matched the entered text exactly."
       : " Review the resolved entity names in Under the Door before relying on an ambiguous match.";
-    const distanceRationale = result.tier === "Familiar"
+    const distanceRationale = request.resultTypes?.length
+      ? `Qloo entity type (${result.entityType}) requested for this Lab direction. Route labels are Open Door's presentation, not measured Qloo distances.`
+      : result.tier === "Familiar"
       ? `Same Qloo entity type as the first resolved starting interest (${result.entityType}).`
       : `Different Qloo entity type selected by Open Door's ${request.depth.toLowerCase()} routing taxonomy; not a Qloo distance score.`;
     const contextText = contextSummary(request.context, request.occasion);

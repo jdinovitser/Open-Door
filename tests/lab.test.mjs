@@ -18,6 +18,57 @@ const base = snapshot => [
   { category: "Food", title: "Original sample three", evidence: "Authored sample" },
 ];
 const provider = createDemoProvider(base);
+test("a new branch cannot display inherited checkpoint candidates as its own discoveries", () => {
+  const populated = seed();
+  populated.discoveries = [{ id: "old", title: "Earlier result", mode: "demo" }];
+  const saved = saveCheckpoint(seedLab(emptyLab(), populated), "Shared", "root", date);
+  const branched = createBranch(saved, "root", "stay", "new", date);
+  assert.deepEqual(branched.current.candidates, []);
+  assert.equal(branched.checkpoints[0].snapshot.candidates[0].title, "Earlier result");
+});
+test("comparison separates new branch discoveries from shared checkpoint ancestry", async () => {
+  const parent = await explored();
+  const saved = saveCheckpoint(parent, "Later start", "later", date);
+  const checkpoint = saved.checkpoints.find(item => item.id === "later");
+  const branched = createBranch(saved, "later", "wild", "child", date);
+  assert.deepEqual(allDiscoveries(branched.branches[1], checkpoint), []);
+  const result = await provider.discover({ snapshot: branched.current, strategy: "wild" });
+  const finished = recordResults(branched, result, "child-step", date);
+  assert.deepEqual(allDiscoveries(finished.branches[1], checkpoint).map(item => item.id), result.discoveries.map(item => item.id));
+  assert.deepEqual(finished.branches[0], parent.branches[0]);
+});
+test("live Lab domains request Qloo entity types without discarding normalized place or brand categories", async () => {
+  const expected = {
+    Music: ["artist", "podcast"], Film: ["movie", "tv_show"], Books: ["book"],
+    Food: ["place", "brand"], Fashion: ["brand"], Architecture: ["place", "brand"],
+    Art: ["person", "artist"], Places: ["place", "destination"],
+  };
+  for (const [domain, types] of Object.entries(expected)) {
+    let captured;
+    const live = createLiveProvider(async request => {
+      captured = request;
+      return { mode: "live", notices: [], doors: types.map(type => ({
+        id: type, entityId: `entity-${type}`, entityType: type,
+        title: `Returned ${type}`, category: type === "place" ? "Experiences" : type === "brand" ? "Design" : "Music",
+        description: "Returned by the test provider", why: "Recorded connection", evidence: "Fixture evidence",
+        source: "Fixture", tier: "Adjacent", thread: "A connection",
+      })) };
+    });
+    const snapshot = seedLab(emptyLab(), { ...seed(), mode: "live" }).current;
+    snapshot.settings.domain = domain;
+    const result = await live.discover({ snapshot, strategy: "cross" });
+    assert.deepEqual(captured.resultTypes, types, domain);
+    assert.equal(result.discoveries.length, types.length, domain);
+    assert.ok(result.discoveries.every(item => item.mode === "live"));
+  }
+});
+test("people and practical live branches request places without asserting social or access suitability", () => {
+  const snapshot = seedLab(emptyLab(), { ...seed(), mode: "live" }).current;
+  for (const strategy of ["people", "real"]) {
+    assert.deepEqual(liveRequest(snapshot, strategy).resultTypes, ["place", "destination"]);
+  }
+  assert.equal(liveRequest(snapshot, "wild").resultTypes, undefined);
+});
 function checkpointed() { return saveCheckpoint(seedLab(emptyLab(), seed()), "Common start", "cp", date); }
 async function explored(strategy = "stay", id = "a", state = checkpointed()) {
   const branched = createBranch(state, "cp", strategy, id, date);

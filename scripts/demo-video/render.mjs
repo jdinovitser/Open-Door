@@ -73,7 +73,7 @@ for (const [index, scene] of plan.entries()) {
   console.log(`${renderOnly && !renderOnly.includes(scene.id) ? "Reusing" : "Rendering"} ${scene.id}`);
   const voice = `${voiceDirectory}/${scene.id}.mp3`;
   const voiceDuration = duration(voice);
-  const speed = Math.max(variant === "upbeat" ? 0.96 : 0.84, Math.min(variant === "upbeat" ? 1.4 : 1.18, voiceDuration / (scene.duration - 2)));
+  const speed = Math.max(variant === "allison" ? 1 : variant === "upbeat" ? 0.96 : 0.84, Math.min(variant === "upbeat" ? 1.4 : 1.18, voiceDuration / (scene.duration - 2)));
   const spokenDuration = voiceDuration / speed;
   if (spokenDuration > scene.duration - 0.9) throw new Error(`${scene.id}: narration is too long for its scene.`);
   const captionChunks = chunks(scene.voice);

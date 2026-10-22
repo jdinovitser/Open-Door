@@ -59,6 +59,8 @@ export function createBranch(state: LabState, checkpointId: string, strategy: St
   if (state.branches.length >= 100) throw new Error("This browser has 100 branches. Remove an unused branch first.");
   const snapshot = copy(checkpoint.snapshot);
   snapshot.settings.adventure = definition.adventure;
+  // Inherited results belong to the shared checkpoint, not this unexplored path.
+  snapshot.candidates = [];
   const branch: Branch = {
     id, checkpointId, strategy, name: definition.name, createdAt: now, updatedAt: now, snapshot,
   };
@@ -115,8 +117,12 @@ export function compareBranches(state: LabState, checkpointId: string, ids: stri
 export function freshLab(state: LabState): LabState {
   return { ...state, current: null, activeBranchId: null, activeCheckpointId: null };
 }
-export function allDiscoveries(branch: Branch): Discovery[] {
-  return [...new Map([...branch.snapshot.history.flatMap(step => step.discoveries), ...branch.snapshot.candidates].map(item => [item.id, item])).values()];
+export function allDiscoveries(branch: Branch, checkpoint?: LabState["checkpoints"][number]): Discovery[] {
+  const steps = checkpoint ? branch.snapshot.history.slice(checkpoint.snapshot.history.length) : branch.snapshot.history;
+  const candidates = !checkpoint || steps.length ? branch.snapshot.candidates : [];
+  return [...new Map([...steps.flatMap(step => step.discoveries), ...candidates].map(item => [
+    item.entityId || `${item.domain}:${item.title.trim().toLocaleLowerCase()}`, item,
+  ])).values()];
 }
 // Reject malformed local data rather than trusting a parsed JSON cast.
 export function parseLab(raw: string | null): LabState {
