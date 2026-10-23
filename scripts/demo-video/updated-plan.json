@@ -1,0 +1,73 @@
+[
+  {
+    "id": "01-welcome",
+    "duration": 15,
+    "introMascot": true,
+    "artwork": "attached_assets/door_mascot_appear_1792627604179.gif",
+    "headline": "Your interests.\nYour circumstances.\nYour kind of day.",
+    "title": "Find your kind of day.",
+    "kicker": "OPEN DOOR / CULTURAL DISCOVERY WITH QLOO",
+    "label": "User-supplied mascot artwork · AI-generated Allison narration",
+    "voice": "You have a free afternoon in a new place. You want to explore, but what fits your interests, your energy, and your time? Open Door helps you find your kind of day.",
+    "metadata": "Current Open Door app recording with successful live Qloo API results, an independent live branch comparison, a real Word download, a browser-local save, and a public guest link. Voice-input interface preview uses a scripted transcript, not live speech recognition. Partnership placements are fictional mockups. No signed-in account is shown. AI-generated Allison narration.",
+    "chimeSeconds": [42, 56, 83]
+  },
+  {
+    "id": "02-your-day",
+    "duration": 25,
+    "title": "Describe your day. Open a possibility.",
+    "kicker": "01 / A FRIENDLIER START",
+    "label": "Real app UI · Voice interaction preview: scripted transcript, not live transcription",
+    "voice": "Start with what you already love. Then describe what matters today. Type, or use voice input in a supported browser. Here's the kind of brief you might give: I'm visiting for a wedding. I'd love a relaxed afternoon, with easy walking, something creative, and time for a coffee. Review your words, make any changes, and explore."
+  },
+  {
+    "id": "03-open-a-door",
+    "duration": 30,
+    "title": "Qloo grounds the cultural connections.",
+    "kicker": "02 / LIVE CULTURAL INTELLIGENCE",
+    "label": "Live Qloo retrieval · Hidden-gem activities are authored ideas, not verified venues",
+    "voice": "Here's where Qloo makes the difference. Its Search and Insights APIs connect the cultural interests I chose with new directions to explore. Open Door turns those connections into understandable recommendations, not just another list. I can open a door without leaving the page, try a hidden-gem activity, and inspect the evidence behind the cultural connection. Use the shared live connection, or connect your own Qloo credentials."
+  },
+  {
+    "id": "04-make-a-plan",
+    "duration": 20,
+    "title": "Make a plan. Take it with you.",
+    "kicker": "03 / DISCOVERY YOU CAN USE",
+    "label": "Guest save and Word download · Maps searches do not verify local businesses",
+    "voice": "Now discovery becomes something I can use. Search Maps, shape a flexible day, or download a plan to take along. Save a door in this browser, or sign in for account-backed saves and optional preference memory. Personal planning notes don't need to become permanent account memory."
+  },
+  {
+    "id": "05-discovery-lab",
+    "duration": 25,
+    "title": "Explore two paths. Keep your starting point.",
+    "kicker": "04 / DISCOVERY LAB",
+    "label": "Live Qloo exploration · Checkpoints and branch histories stay in this browser",
+    "voice": "Not sure which direction to take? Discovery Lab makes room to experiment. Keep a checkpoint, explore two different paths, and compare what each one returns. Each branch continues independently, so trying something unexpected doesn't mean losing your starting point. It's a clearer way to explore your options before choosing."
+  },
+  {
+    "id": "06-help-others",
+    "duration": 25,
+    "title": "One shared occasion. Their own discoveries.",
+    "kicker": "05 / HELP OTHERS EXPLORE",
+    "label": "Actual organizer tools · Guest links include public place and occasion, not private preferences",
+    "voice": "And sometimes, you're helping other people explore. A wedding organizer can set the place and occasion, then share a starting link with guests. The same tools support travelers and future neighbors, too. Everyone starts with a shared context, but each person chooses their own interests and shapes their own experience."
+  },
+  {
+    "id": "07-partners",
+    "duration": 25,
+    "title": "Free discovery. A company-funded opportunity.",
+    "kicker": "06 / BUSINESS MODEL AND PARTNERSHIPS",
+    "label": "Proposed business model · Fictional sponsored mockups, not Qloo endorsements",
+    "voice": "There's a potential business model here, too: keep individual exploration free, while companies could fund branded guest experiences and clearly labeled partner placements. These interactive mockups show how a featured hotel or dining partner could appear. They're illustrative, not existing partnerships or Qloo endorsements. Interested companies can already send an inquiry."
+  },
+  {
+    "id": "08-goodbye",
+    "duration": 14.5,
+    "artwork": "attached_assets/door_mascot_appear_1792627604179.gif",
+    "title": "Open up what's possible.",
+    "tagline": "Your interests.\nYour circumstances.\nYour kind of day.",
+    "kicker": "OPEN DOOR / POWERED BY QLOO CULTURAL INTELLIGENCE",
+    "label": "AI-generated narration · User-supplied mascot artwork",
+    "voice": "Qloo grounds the cultural connections. Open Door helps people take the next step. Your interests. Your circumstances. Your kind of day. Open Door. Open up what's possible."
+  }
+]

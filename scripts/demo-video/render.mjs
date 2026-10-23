@@ -12,7 +12,7 @@ const renderOnly = process.env.OPEN_DOOR_DEMO_SCENES?.split(",");
 const plan = JSON.parse(readFileSync(process.env.OPEN_DOOR_DEMO_PLAN || "scripts/demo-video/plan.json", "utf8"));
 const totalDuration = plan.reduce((sum, scene) => sum + scene.duration, 0);
 const sceneStart = id => plan.slice(0, plan.findIndex(scene => scene.id === id)).reduce((sum, scene) => sum + scene.duration, 0);
-const chimeDelays = plan[0].introMascot
+const chimeDelays = plan[0].chimeSeconds ? plan[0].chimeSeconds.map(seconds => seconds * 1000) : plan[0].introMascot
   ? [(sceneStart("03-open-a-door") + 3) * 1000, (sceneStart("03-open-a-door") + 19) * 1000, (sceneStart("07-save") + 1) * 1000]
   : [20500, 46000, 138000];
 const captures = JSON.parse(readFileSync(`${out}/captures.json`, "utf8"));
@@ -107,7 +107,7 @@ ${lines.join("\n")}\n`);
   let voiceIndex;
   if (index === 0 && scene.introMascot) {
     inputArgs.push("-f", "lavfi", "-i", `color=c=0xf4f3eb:s=1920x1080:r=24:d=${scene.duration}`,
-      "-stream_loop", "-1", "-i", "attached_assets/a051ea45-aa64-4a38-86da-f3032d124566_1792509667580.gif", "-i", voice);
+      "-stream_loop", "-1", "-i", scene.artwork || "attached_assets/a051ea45-aa64-4a38-86da-f3032d124566_1792509667580.gif", "-i", voice);
     voiceIndex = 2;
     base = `[1:v]scale=1000:562:flags=lanczos,setsar=1[mascot];[0:v][mascot]overlay=x=900:y=260:shortest=1,${draw(kickerFile, 110, 155, 22, "0x947233", bold)},${draw(text(scene.id, "headline", scene.headline), 110, 290, 76, "0x173e33", serif)},${draw(text(scene.id, "subhead", "Open Door\nDiscover a day that feels like you."), 115, 725, 30)},${draw(labelFile, 110, 930, 21, "0x66746B")}[base]`;
   } else if (index === 0) {
@@ -116,7 +116,7 @@ ${lines.join("\n")}\n`);
     base = `[0:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,zoompan=z='1+on*0.00009':x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':d=1:s=1920x1080:fps=24,drawbox=x=0:y=0:w=1030:h=1080:color=0x102d25@0.76:t=fill,${draw(kickerFile, 110, 155, 23, "0xE5C487", bold)},${draw(text(scene.id, "headline", "A new address.\nA personal\nbeginning."), 110, 290, 83, "white", serif)},${draw(text(scene.id, "subhead", "Open Door\nFind your place. Find your people."), 115, 690, 31, "0xF2E9D8")},${draw(labelFile, 110, 930, 21, "0xE5C487")}[base]`;
   } else if (index === plan.length - 1) {
     inputArgs.push("-f", "lavfi", "-i", `color=c=0xf4f3eb:s=1920x1080:r=24:d=${scene.duration}`,
-      "-stream_loop", "-1", "-i", "attached_assets/a051ea45-aa64-4a38-86da-f3032d124566_1792509667580.gif",
+      "-stream_loop", "-1", "-i", scene.artwork || "attached_assets/a051ea45-aa64-4a38-86da-f3032d124566_1792509667580.gif",
       "-i", voice);
     voiceIndex = 2;
     base = `[1:v]scale=800:450:flags=lanczos,setsar=1[mascot];[0:v][mascot]overlay=x=1010:y=250:shortest=1,${draw(kickerFile, 120, 145, 25, "0x947233", bold)},${draw(text(scene.id, "brand", "Open Door"), 115, 305, 112, "0x173e33", serif)},${draw(text(scene.id, "tagline", scene.tagline || "Find your place.\nFind your people."), 120, 475, 62, "0x173e33", serif)},${draw(text(scene.id, "directions", "FAMILIAR   /   ADJACENT   /   UNEXPECTED"), 125, 735, 22, "0x947233", bold)},${draw(text(scene.id, "guide", "Explore the app. Judge's Guide in the footer."), 125, 845, 26)},${draw(text(scene.id, "credits", scene.introMascot || plan[0].introMascot ? "Real product recording | Your mascot artwork | AI-generated narration" : "Real product capture + labeled UI preview | AI narration and illustrative opening"), 125, 936, 19, "0x66746B")}[base]`;
@@ -155,6 +155,6 @@ run("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y",
   "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
   "-t", String(totalDuration), "-movflags", "+faststart",
   "-metadata", plan[0].introMascot ? "title=Open Door — A Day That Feels Like You" : "title=Open Door — Find Your Place. Find Your People.",
-  "-metadata", plan[0].introMascot ? "comment=Real app recording with labeled demo examples; rewards component preview uses sample milestones. No live Qloo response or signed-in account shown. AI-generated narration. User-supplied mascot artwork." : "comment=Authored Demo footage; no live Qloo response shown. Rewards sequence is a labeled component UI preview. AI narration and illustrative opening.",
+  "-metadata", plan[0].metadata ? `comment=${plan[0].metadata}` : plan[0].introMascot ? "comment=Real app recording with labeled demo examples; rewards component preview uses sample milestones. No live Qloo response or signed-in account shown. AI-generated narration. User-supplied mascot artwork." : "comment=Authored Demo footage; no live Qloo response shown. Rewards sequence is a labeled component UI preview. AI narration and illustrative opening.",
   `${out}/Open-Door-Demo${suffix}.mp4`]);
 console.log(`Finished: ${out}/Open-Door-Demo${suffix}.mp4`);
