@@ -213,6 +213,7 @@ export default function Partnerships() {
         <nav aria-label="Footer links">
           <Link href="/contact">Talk to us</Link>
           <Link href="/judges">Judge’s Guide</Link>
+          <a href="/Open-Door-Judges-Guide.pdf" target="_blank" rel="noopener noreferrer">Judge’s Guide (PDF)</a>
         </nav>
       </div>
     </footer>

@@ -1,5 +1,19 @@
 import { expect, test } from "@playwright/test";
 
+test("footer links directly to the downloadable four-page judge PDF", async ({ page, request }) => {
+  await page.goto("/judges");
+  const pdfLink = page.getByRole("navigation", { name: "Footer navigation" }).getByRole("link", { name: "Judge’s Guide (PDF)", exact: true });
+  await expect(pdfLink).toHaveAttribute("href", "/Open-Door-Judges-Guide.pdf");
+  await expect(pdfLink).toHaveAttribute("target", "_blank");
+  await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("link", { name: "Judge’s Guide (PDF)", exact: true })).toHaveCount(0);
+  const response = await request.get("/Open-Door-Judges-Guide.pdf");
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toContain("application/pdf");
+  expect((await response.body()).subarray(0, 5).toString()).toBe("%PDF-");
+  await page.goto("/partners");
+  await expect(page.locator("footer").getByRole("link", { name: "Judge’s Guide (PDF)", exact: true })).toHaveAttribute("href", "/Open-Door-Judges-Guide.pdf");
+});
+
 test("direct judge URL survives reload and is linked only from the footer navigation", async ({ page }) => {
   await page.goto("/judges");
   await expect(page.getByRole("heading", { name: "Judge’s Guide", exact: true })).toBeVisible();

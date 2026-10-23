@@ -1282,6 +1282,7 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
          <a href={companyProfile ? companyExperienceUrl("lab", companyProfile.id, invitation) : "/lab"}>Discovery Lab</a>
          <a href={companyProfile ? `${companyExperienceUrl("discover", companyProfile.id, invitation)}&view=trust` : "/trust"}>Trust &amp; privacy</a>
         <a href="/judges" aria-current={view === "judges" ? "page" : undefined}>Judge’s Guide</a>
+        <a href="/Open-Door-Judges-Guide.pdf" target="_blank" rel="noopener noreferrer">Judge’s Guide (PDF)</a>
         <a href="/partners">Business Model and Partnerships</a>
         <a href="/contact">Talk to us</a>
         <a href="/mockups">Partnership mockups</a>
