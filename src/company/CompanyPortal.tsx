@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "wouter";
 import { useUser } from "@clerk/react";
-import { ProductAvenues, ProductHeader } from "../ProductHeader";
-import { COMPANY_PROFILES, companyProfile, type CompanyType } from "./profiles";
-import { CompanyMascot } from "./CompanyMascot";
-import CompanyWalkthrough from "./CompanyWalkthrough";
+import { ProductHeader } from "../ProductHeader";
+import { COMPANY_PROFILES, type CompanyType } from "./profiles";
 import { inquiryIntentFromSearch } from "./inquiryIntent";
-import { companyExperienceUrl, readPublicOccasion } from "./experienceContext";
+import CommercialNav from "./CommercialNav";
 import "./company.css";
 
 type InquiryForm = {
@@ -44,19 +42,27 @@ export default function CompanyPortal() {
   const inquiryIntent = inquiryIntentFromSearch(initialSearch);
   const initialType = COMPANY_PROFILES.some(profile => profile.id === initialParams.get("type"))
     ? initialParams.get("type") as CompanyType : inquiryIntent?.id === "investment" ? "other" : "hospitality";
-  const initialProfile = companyProfile(initialType);
-  const initialOccasion = readPublicOccasion(initialSearch);
+  let storedOtherDescription = "";
+  if (initialType === "other" && typeof window !== "undefined") {
+    try { storedOtherDescription = sessionStorage.getItem("opendoor.company.other.description") || ""; } catch { /* Optional browser-session convenience. */ }
+  }
+  const freshForm: InquiryForm = {
+    ...blankForm,
+    details: inquiryIntent?.details || "",
+    typeDescription: inquiryIntent?.typeDescription || storedOtherDescription,
+  };
   const [companyType, setCompanyType] = useState<CompanyType>(initialType);
-  const [location, setLocation] = useState(initialOccasion.location ?? initialProfile.location);
-  const [occasion, setOccasion] = useState(initialOccasion.occasion ?? initialProfile.occasion);
-  const freshForm: InquiryForm = { ...blankForm, details: inquiryIntent?.details || "", typeDescription: inquiryIntent?.typeDescription || "" };
   const [form, setForm] = useState<InquiryForm>(freshForm);
   const [error, setError] = useState("");
-  const [shareMessage, setShareMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [receipt, setReceipt] = useState<SubmissionReceipt | null>(null);
   const requestIdRef = useRef<string | null>(null);
-  const selectedProfile = COMPANY_PROFILES.find(profile => profile.id === companyType) || COMPANY_PROFILES[0];
+
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = "Talk to us | Open Door";
+    return () => { document.title = previousTitle; };
+  }, []);
 
   useEffect(() => {
     if (window.location.hash !== "#inquiry") return;
@@ -64,22 +70,20 @@ export default function CompanyPortal() {
     return () => cancelAnimationFrame(frame);
   }, [inquiryIntent?.id]);
 
-  function changeCompanyType(value: string) {
-    const nextType = COMPANY_PROFILES.some(profile => profile.id === value) ? value as CompanyType : "hospitality";
-    const nextProfile = companyProfile(nextType);
-    setCompanyType(nextType);
-    setLocation(nextProfile.location);
-    setOccasion(nextProfile.occasion);
-    setShareMessage("");
-  }
   function update<K extends keyof InquiryForm>(key: K, value: InquiryForm[K]) {
     setForm(current => ({ ...current, [key]: value }));
     setError("");
   }
-  function rememberOtherContext() {
-    if (companyType !== "other") return;
-    try { sessionStorage.setItem("opendoor.company.other.description", form.typeDescription.trim().slice(0, 200)); }
-    catch { /* The selected example remains usable when browser storage is disabled. */ }
+
+  function changeCompanyType(value: string) {
+    const nextType = COMPANY_PROFILES.some(profile => profile.id === value) ? value as CompanyType : "hospitality";
+    setCompanyType(nextType);
+    if (nextType === "other" && !form.typeDescription) {
+      try {
+        const description = sessionStorage.getItem("opendoor.company.other.description") || "";
+        if (description) setForm(current => ({ ...current, typeDescription: description }));
+      } catch { /* The inquiry remains usable without browser storage. */ }
+    }
   }
 
   async function submitInquiry(event: FormEvent<HTMLFormElement>) {
@@ -120,107 +124,15 @@ export default function CompanyPortal() {
     }
   }
 
-  async function copyGuestLink() {
-    setShareMessage("");
-    try {
-      const relativeUrl = companyExperienceUrl("discover", companyType, { location, occasion });
-      await navigator.clipboard.writeText(new URL(relativeUrl, window.location.origin).toString());
-      setShareMessage("Guest link copied. It includes only the public place and occasion.");
-    } catch {
-      setShareMessage("We couldn’t copy the link here. You can still open a preview and copy its address.");
-    }
-  }
-
   return <div className="company-portal">
     <ProductHeader view="companies" signedIn={Boolean(isSignedIn)} />
-    <ProductAvenues active="company" />
+    <CommercialNav active="contact" />
     <main className="company-main company-shell">
-      <nav className="company-local-nav" aria-label="Company page sections">
-        <a href="#company-walkthrough">Walkthrough</a>
-        <a href="#use-cases">Use cases</a>
-        <Link href="/partners">Partnerships &amp; business model</Link>
-        <a href="#inquiry">Talk with us</a>
-      </nav>
-      <section className="company-hero" aria-labelledby="company-hero-title">
-        <div>
-          <span className="company-eyebrow">Open Door for organizations</span>
-          <h1 id="company-hero-title">Make room for <em>their kind</em> of discovery.</h1>
-          <p className="company-hero-copy">Give wedding guests, future neighbors and travelers a more personal way into a place. They choose the interests; Qloo grounds cultural discovery in its taste graph; Open Door turns the returned connections into directions to explore—not a one-size-fits-all itinerary.</p>
-        </div>
-        <div className="company-hero-art"><CompanyMascot companyType={selectedProfile.id} priority /></div>
-      </section>
-
-      <CompanyWalkthrough />
-
-      <div className="company-intro-note">
-        <span aria-hidden="true">01</span>
-        <div><strong>Explore a working example.</strong> Choose the kind of organization you have in mind, then try a dedicated discovery flow or a side-by-side idea lab. Every example is illustrative—not an endorsement, customer story, availability promise, or industry guarantee.</div>
-      </div>
-
-      <section aria-labelledby="company-type-title">
-        <div className="company-selector-panel">
-          <div>
-            <span className="company-eyebrow">Choose a starting point</span>
-            <h2 id="company-type-title">Who are you helping explore?</h2>
-            <p>The company context shapes editable example inputs and copy. Each person's saved doors and discoveries remain theirs, not a shared company workspace. Live discovery uses the same Qloo connection as the individual guide.</p>
-          </div>
-          <div>
-            <label className="company-form-control" htmlFor="company-type">
-              <span>Company use case</span>
-              <select id="company-type" value={companyType} onChange={event => changeCompanyType(event.target.value)}>
-                {COMPANY_PROFILES.map(profile => <option value={profile.id} key={profile.id}>{profile.name}</option>)}
-              </select>
-              <small>{selectedProfile.audience}. These are starting points to explore, not a claim about what your organization offers.</small>
-            </label>
-            {companyType === "other" && <label className="company-form-control company-other-field" htmlFor="company-type-description">
-              <span>What kind of company use case do you have in mind?</span>
-              <input id="company-type-description" value={form.typeDescription} onChange={event => update("typeDescription", event.target.value.slice(0, 200))} maxLength={200} placeholder="A short explanation (up to 200 characters)" />
-              <small>Optional while exploring; required if you send a customization inquiry.</small>
-            </label>}
-            <div className="company-public-context">
-              <span className="company-public-context-heading">Set the public occasion</span>
-              <p>These two details can be shared with guests. Their tastes and practical needs stay personal.</p>
-              <div className="company-public-context-fields">
-                <label className="company-form-control" htmlFor="company-public-place">
-                  <span>Place</span>
-                  <input id="company-public-place" value={location} maxLength={120} onChange={event => { setLocation(event.target.value.slice(0, 120)); setShareMessage(""); }} placeholder="City, neighborhood or destination" />
-                </label>
-                <label className="company-form-control" htmlFor="company-public-occasion">
-                  <span>Occasion</span>
-                  <input id="company-public-occasion" value={occasion} maxLength={200} onChange={event => { setOccasion(event.target.value.slice(0, 200)); setShareMessage(""); }} placeholder="A weekend around the celebration" />
-                </label>
-              </div>
-            </div>
-          </div>
-        </div>
-        <article className="company-profile-spotlight">
-          <div>
-            <span className="company-eyebrow">Illustrative use case</span>
-            <h3>{selectedProfile.example}</h3>
-            <p>{selectedProfile.summary}</p>
-          </div>
-          <div className="company-path-links" aria-label={`Explore ${selectedProfile.name} example`}>
-            <Link className="company-button" onClick={rememberOtherContext} href={companyExperienceUrl("discover", selectedProfile.id, { location, occasion })}>Try discovery <span aria-hidden="true">→</span></Link>
-            <Link className="company-button secondary" onClick={rememberOtherContext} href={companyExperienceUrl("lab", selectedProfile.id, { location, occasion })}>Open the idea lab</Link>
-            <button className="company-button secondary" type="button" onClick={() => void copyGuestLink()}>Copy guest link</button>
-          </div>
-          {shareMessage && <p className="company-share-message" role="status">{shareMessage}</p>}
-        </article>
-      </section>
-
-      <section className="company-use-cases" id="use-cases" aria-labelledby="company-use-cases-title">
-        <div className="company-section-head">
-          <div><span className="company-eyebrow">Made for many kinds of welcome</span><h2 id="company-use-cases-title">One guide. Different reasons to arrive.</h2></div>
-          <p>These scenarios show how an organization might introduce cultural discovery. They are illustrative use cases, not endorsements, existing customers, or promises about results.</p>
-        </div>
-        <div className="company-usecase-list">
-          {COMPANY_PROFILES.filter(profile => profile.id !== "other").map((profile, index) => <article className="company-usecase" key={profile.id}>
-            <span className="company-usecase-number">0{index + 1}</span>
-            <div><h3>{profile.name}</h3><p>{profile.summary}</p></div>
-            <p className="company-usecase-example"><strong>For instance</strong>{profile.example}</p>
-          </article>)}
-        </div>
-      </section>
+      <header className="company-contact-intro">
+        <span className="company-eyebrow">Open Door · conversations</span>
+        <h1>Talk to us</h1>
+        <p>Partnerships, guest experiences, customization ideas and investor conversations all start here. Tell us what you have in mind; there is no booking or commitment on this form.</p>
+      </header>
 
       <section className="company-inquiry-section" id="inquiry" aria-labelledby="company-inquiry-title">
         <form className="company-inquiry-form" onSubmit={submitInquiry}>
@@ -231,7 +143,7 @@ export default function CompanyPortal() {
           <div className="company-form-grid">
             <label className="company-form-control">
               <span>Company use case <b aria-hidden="true">*</b></span>
-               <select value={companyType} onChange={event => changeCompanyType(event.target.value)} required>
+              <select value={companyType} onChange={event => changeCompanyType(event.target.value)} required>
                 {COMPANY_PROFILES.map(profile => <option value={profile.id} key={profile.id}>{profile.name}</option>)}
               </select>
             </label>
@@ -261,7 +173,7 @@ export default function CompanyPortal() {
     </main>
 
     <footer className="company-footer">
-      <div className="company-shell company-footer-inner"><p>Open Door · Cultural discovery, led by individual taste.</p><Link href="/partners">Partnerships &amp; business model</Link><Link href="/companies/admin">Administrator access</Link></div>
+      <div className="company-shell company-footer-inner"><p>Open Door · Cultural discovery, led by individual taste.</p><Link href="/partners">Business Model and Partnerships</Link><Link href="/companies/admin">Administrator access</Link></div>
     </footer>
   </div>;
 }

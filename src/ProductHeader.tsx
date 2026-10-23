@@ -14,7 +14,6 @@ type ProductHeaderProps = {
   savedCount?: number;
   signedIn?: boolean;
   controls?: ReactNode;
-  companyLink?: string;
 };
 
 type AvenueProps = { active: "individual" | "company" };
@@ -41,7 +40,7 @@ function ProductAccountControls() {
   </div>;
 }
 
-export function ProductHeader({ view, onNavigate, savedCount = 0, signedIn = false, controls, companyLink }: ProductHeaderProps) {
+export function ProductHeader({ view, onNavigate, savedCount = 0, signedIn = false, controls }: ProductHeaderProps) {
   const items: { view: ProductView; label: string; href: string }[] = [
     { view: "discover", label: "Discover", href: "/?explore=1" },
     { view: "lab", label: "Discovery Lab", href: "/lab" },
@@ -65,21 +64,22 @@ export function ProductHeader({ view, onNavigate, savedCount = 0, signedIn = fal
           {item.label}{item.view === "saved" && <span className="nav-count">{savedCount || ""}</span>}
         </Link>)}
       {onNavigate
-        ? <a className={`nav-btn ${view === "companies" ? "active" : ""}`} href={companyLink || "/companies"} aria-current={view === "companies" ? "page" : undefined}>For companies</a>
-        : <Link className={`nav-btn ${view === "companies" ? "active" : ""}`} href={companyLink || "/companies"} aria-current={view === "companies" ? "page" : undefined}>For companies</Link>}
+        ? <a className={`nav-btn ${view === "companies" ? "active" : ""}`} href="/partners" aria-current={view === "companies" ? "page" : undefined}>Business Model and Partnerships</a>
+        : <Link className={`nav-btn ${view === "companies" ? "active" : ""}`} href="/partners" aria-current={view === "companies" ? "page" : undefined}>Business Model and Partnerships</Link>}
     </nav>
     {controls ?? <ProductAccountControls />}
   </header>;
 }
 
 export function ProductAvenues({ active }: AvenueProps) {
+  const lab = typeof window !== "undefined" && (window.location.pathname.includes("lab") || new URLSearchParams(window.location.search).get("view") === "lab");
   return <nav className="product-avenues" aria-label="Ways to use Open Door">
     <span className="product-avenues-intro">One guide, two ways in</span>
-    <Link href="/?explore=1" className={`product-avenue ${active === "individual" ? "is-active" : ""}`} aria-current={active === "individual" ? "page" : undefined}>
+    <a href={lab ? "/lab" : "/?explore=1"} className={`product-avenue ${active === "individual" ? "is-active" : ""}`} aria-current={active === "individual" ? "page" : undefined}>
       <span className="product-avenue-index">01</span><span>Explore for yourself</span>
-    </Link>
-    <Link href="/companies" className={`product-avenue ${active === "company" ? "is-active" : ""}`} aria-current={active === "company" ? "page" : undefined}>
+    </a>
+    <a href={lab ? "/lab?audience=company#company-tools" : "/?explore=1&audience=company#company-tools"} className={`product-avenue ${active === "company" ? "is-active" : ""}`} aria-current={active === "company" ? "page" : undefined}>
       <span className="product-avenue-index">02</span><span>Help others explore</span>
-    </Link>
+    </a>
   </nav>;
 }

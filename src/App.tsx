@@ -33,6 +33,9 @@ import type { CompanyProfile } from "./company/profiles";
 import { ProductHeader, ProductAvenues, type ProductView } from "./ProductHeader";
 import { clearCompanyDraft, companyContextScope, companyExperienceUrl, companyOrganizerUrl, readPublicOccasion, writeCompanyDraft, type CompanyDraftChange } from "./company/experienceContext";
 import { signInFor } from "./authReturn";
+import { FriendlyBrief } from "./FriendlyBrief";
+import "./friendly-discovery.css";
+import CompanyJourneyTools from "./company/CompanyJourneyTools";
 
 type View = "discover" | "saved" | "how" | "trust" | "lab" | "judges" | "progress";
 type Intent = "Find my people" | "Go deeper" | "Try something new";
@@ -321,7 +324,7 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
     setContext(current => current.scenario === draft.scenario && current.scenarioCategory === draft.scenarioCategory
       ? current : { ...current, scenario: draft.scenario, scenarioCategory: draft.scenarioCategory });
   }, []);
-  const [categoryDraft, setCategoryDraft] = useState<Category>("Experiences");
+  const [categoryDraft, setCategoryDraft] = useState<Category>("Other");
   const [anchorDraft, setAnchorDraft] = useState("");
   const [journey, setJourney] = useState<Journey | null>(() => restoreJourney(journeyKey));
   const [threadExploration, setThreadExploration] = useState<ThreadExploration | null>(null);
@@ -632,9 +635,9 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
     setCategories(current => ({ ...current, [anchor]: category }));
     setJourney(current => current ? { ...current, categories: { ...current.categories, [anchor]: category } } : current);
   }
-  function generate(nextAnchors: string[], nextIntent = intent, iteration = 0, feedbackValues = Object.values(feedback).filter(value => value && value !== "choose")) {
+  function generate(nextAnchors: string[], nextIntent = intent, iteration = 0, feedbackValues = Object.values(feedback).filter(value => value && value !== "choose"), selectedCategories = categories) {
     const usedAnchors = nextAnchors.length ? nextAnchors : EXAMPLES;
-    const nextCategories = { ...categories };
+    const nextCategories = { ...selectedCategories };
     usedAnchors.forEach(anchor => { if (!nextCategories[anchor]) nextCategories[anchor] = inferredCategory(anchor); });
     const next: Journey = {
       city: city.trim() || "Your chosen place", occasion, intent: nextIntent, anchors: usedAnchors,
@@ -655,9 +658,9 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
       discoveryDistance: item.discoveryDistance, explainability: item.explainability, imageUrl: item.imageUrl,
     };
   }
-  function createRequest(nextAnchors: string[], nextIntent = intent, nextIteration = 0, feedbackValues = Object.values(feedback).filter(value => value && value !== "choose")): DiscoveryRequest {
+  function createRequest(nextAnchors: string[], nextIntent = intent, nextIteration = 0, feedbackValues = Object.values(feedback).filter(value => value && value !== "choose"), selectedCategories = categories): DiscoveryRequest {
     const used = nextAnchors.length ? nextAnchors : EXAMPLES;
-    const cats = { ...categories };
+    const cats = { ...selectedCategories };
     used.forEach(anchor => { cats[anchor] ||= inferredCategory(anchor); });
     return {
       location: city.trim() || "Your chosen place", occasion, intent: nextIntent, depth,
@@ -706,13 +709,24 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
   }
   function runJourney(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const pending = anchorDraft.trim();
+    const isNew = Boolean(pending) && !anchors.some(anchor => anchor.toLocaleLowerCase() === pending.toLocaleLowerCase());
+    if (isNew && anchors.length >= 5) { setToast("You have five interests. Remove one before adding another."); return; }
+    const nextAnchors = isNew ? [...anchors, pending] : anchors;
+    const nextCategories = isNew ? { ...categories, [pending]: categoryDraft } : categories;
+    if (pending) {
+      setAnchors(nextAnchors);
+      setCategories(nextCategories);
+      setAnchorDraft("");
+    }
     const selectedFeedback = Object.values(feedback).filter(value => value && value !== "choose");
     if (journeyMode === "live") {
-      void runLive(anchors, intent, journey?.iteration || 0, selectedFeedback).then(result => {
+      void runLive(nextAnchors, intent, journey?.iteration || 0, selectedFeedback,
+        createRequest(nextAnchors, intent, journey?.iteration || 0, selectedFeedback, nextCategories)).then(result => {
         if (result) { setFeedback({}); setToast("Live Qloo journey received"); }
       });
     } else {
-      generate(anchors, intent, 0, selectedFeedback);
+      generate(nextAnchors, intent, 0, selectedFeedback, nextCategories);
       setFeedback({});
       if (selectedFeedback.length) setToast("Your explicit feedback will shape the next live exploration");
     }
@@ -1162,7 +1176,6 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
     <ProductHeader view={view === "judges" ? undefined : view}
       onNavigate={(next: ProductView) => { if (next !== "companies") setView(next); }}
       savedCount={saved.length} signedIn={!!isSignedIn}
-      companyLink={companyProfile ? companyOrganizerUrl(companyProfile.id, invitation) : "/companies"}
       controls={<>{isSignedIn
         ? <div className="account-control">
           <span className="account-label" aria-live="polite">
@@ -1182,7 +1195,7 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
         <span>Sound {sound.enabled ? "on" : "off"}</span>
       </button>
     </>} />
-    <ProductAvenues active={companyProfile ? "company" : "individual"} />
+    <ProductAvenues active={companyProfile || new URLSearchParams(window.location.search).get("audience") === "company" ? "company" : "individual"} />
     {sound.notice && <p className="sound-notice" role="status">{sound.notice}</p>}
     <main className="page" id="main-content" tabIndex={-1}>
       {companyProfile && <CompanyBanner profile={companyProfile} location={city} occasion={occasion}
@@ -1269,8 +1282,9 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
          <a href={companyProfile ? companyExperienceUrl("lab", companyProfile.id, invitation) : "/lab"}>Discovery Lab</a>
          <a href={companyProfile ? `${companyExperienceUrl("discover", companyProfile.id, invitation)}&view=trust` : "/trust"}>Trust &amp; privacy</a>
         <a href="/judges" aria-current={view === "judges" ? "page" : undefined}>Judge’s Guide</a>
-        <a href="/companies">For companies</a>
-         <a href="/partners">Partnerships &amp; business model</a>
+        <a href="/partners">Business Model and Partnerships</a>
+        <a href="/contact">Talk to us</a>
+        <a href="/mockups">Partnership mockups</a>
       </nav>
     </footer>
     {toast && <div role="status" className="toast">{toast}</div>}
@@ -1391,7 +1405,10 @@ function DiscoverView(p: DiscoverProps) {
         <button className="entry-action" type="button" data-sound="door-open" onClick={() => p.onOpenEntry()} disabled={p.entryPhase !== "closed"}><span>{p.entryPhase !== "closed" ? "The room is opening" : "Open the door"}</span><ArrowRight size={17} /></button>
         <button className="entry-demo-link" type="button" data-sound="door-open" onClick={() => p.onOpenEntry(true)} disabled={p.entryPhase !== "closed"}>Open the prepared sample door</button>
         <p className="entry-caveat">{connectionMessage}</p>
-        <QlooGrounding compact />
+        <details className="friendly-grounding">
+          <summary>How Qloo powers your recommendations <ChevronDown size={15} /></summary>
+          <QlooGrounding compact />
+        </details>
       </div>
       <div className="entry-architecture" data-testid="entry-art">
         <button className="entry-door-trigger supplied-entry-trigger" type="button" data-sound="door-open" aria-label="Open the illustrated door" onClick={() => p.onOpenEntry()} disabled={p.entryPhase !== "closed"}>
@@ -1401,17 +1418,25 @@ function DiscoverView(p: DiscoverProps) {
       </div>
     </section>}
     {p.entryPhase === "entered" && <>
-    <QlooConnectionPanel status={p.agentStatus} mode={p.journeyMode} source={p.qlooSource} disabled={p.isRunning} onSelect={p.selectQlooConnection} />
-    <p className="helper" role="status" data-testid="discovery-connection-status">{connectionMessage}</p>
-    <QlooGrounding mode={p.journeyMode} configured={p.agentStatus?.qlooConfigured} received={p.journey?.mode === "live"} compact />
+    <details className="friendly-connection">
+      <summary>
+        <span className="friendly-connection-status" role="status" data-testid="discovery-connection-status">{connectionMessage}</span>
+        <span className="friendly-change-connection">Change connection <ChevronDown size={15} /></span>
+      </summary>
+      <QlooConnectionPanel status={p.agentStatus} mode={p.journeyMode} source={p.qlooSource} disabled={p.isRunning} onSelect={p.selectQlooConnection} />
+      <details className="friendly-grounding">
+        <summary>How Qloo powers your recommendations <ChevronDown size={15} /></summary>
+        <QlooGrounding mode={p.journeyMode} configured={p.agentStatus?.qlooConfigured} received={p.journey?.mode === "live"} compact />
+      </details>
+    </details>
     {p.statusError && <p role="alert">{p.statusError}</p>}
     <section className="hero">
       <div className="hero-copy"><span className="eyebrow">{p.companyProfile ? "Your interests. Your occasion. Your Open Door." : "Arrive curious. Leave with a thread."}</span>
-        <h1>{p.companyProfile?.discoveryTitle || <>Find your way<br />into <em>somewhere.</em></>}</h1>
+        <h1>{p.companyProfile?.discoveryTitle || <>Find your way into <em>somewhere.</em></>}</h1>
         <p>{p.companyProfile?.discoveryCopy || (p.journeyMode === "demo"
           ? "Try an authored example journey, or switch to Qloo for cultural connections retrieved from its taste graph."
           : "Tell us what you love. Qloo finds cultural connections; Open Door helps you explore them around your occasion, pace and preferences.")}</p>
-          {p.companyProfile ? <a className="primary-btn" href="#company-starting-point">Customize this experience <ArrowRight size={15} /></a> : <button className="primary-btn demo-start" type="button" disabled={p.isRunning || (p.journeyMode === "live" && !p.agentStatus?.qlooConfigured)} onClick={() => p.onStartDemo("smooth", true)}>{p.journeyMode === "live" ? "Start exploring with Qloo" : "Open the sample journey"} <ArrowRight size={15} /></button>}
+          {p.companyProfile && <a className="primary-btn demo-start" href="#company-starting-point">Customize this experience <ArrowRight size={15} /></a>}
       </div>
       <div className="hero-art mascot-welcome">
         {p.companyProfile
@@ -1419,14 +1444,35 @@ function DiscoverView(p: DiscoverProps) {
           : <DoorArtwork open hero showControls className="hero-welcome-art" />}
       </div>
     </section>
-    {p.journeyMode === "demo" && <div className="demo-note"><Info size={16} /><div><strong>Prepared examples.</strong> These are authored activities, not Qloo results or verified local listings. Choose Demo above for real recommendations using our shared Qloo connection. <button className="text-button" onClick={() => p.setView("how")}>Evidence &amp; method</button></div></div>}
-    {p.journeyMode === "live" && <div className="demo-note live-note"><Info size={16} /><div><strong>{p.qlooSource === "personal" ? "Your Qloo connection." : "Demo · shared Qloo connection."}</strong> {p.agentStatus?.qlooConfigured ? "Explore to get cultural recommendations from Qloo based on your interests." : "Choose an available connection above to explore with Qloo."} Check opening hours, prices and accessibility before visiting.</div></div>}
+    {p.journeyMode === "demo" && <div className="demo-note"><Info size={16} /><div><strong>Prepared examples.</strong> Authored activities, not live Qloo results or verified local listings. Choose a Qloo connection above for live recommendations. <button className="text-button" onClick={() => p.setView("how")}>Evidence &amp; method</button></div></div>}
+    {p.journeyMode === "live" && <div className="demo-note live-note"><Info size={16} /><div><strong>{p.qlooSource === "personal" ? "Your Qloo connection." : "Demo · shared Qloo connection."}</strong> {p.agentStatus?.qlooConfigured ? "Explore to retrieve cultural recommendations from Qloo based on your named interests." : "Choose an available connection above to explore with Qloo."} Check opening hours, prices and accessibility before visiting.</div></div>}
     {p.liveError && <div className="live-error" role="alert"><strong>We couldn’t retrieve your recommendations.</strong><span>{p.liveError}</span><button className="secondary-btn" type="button" disabled={p.isRunning} onClick={() => p.onStartDemo()}>Try prepared examples <ArrowRight size={14} /></button></div>}
     {p.isRunning && p.liveStages.length === 0 && <div className="stage-wait" role="status" aria-live="polite"><span>Waiting for the first server event</span><i /><i /><small>No estimated stages or fabricated progress are shown.</small></div>}
     <form className="form-panel" id="company-starting-point" onSubmit={p.submit}>
       <div className="form-heading"><div><span className="eyebrow">Begin with your own coordinates</span><h2>What brings you here?</h2></div><span className="step-label">01 — YOUR STARTING POINT</span></div>
+      <CompanyJourneyTools view="discover" profile={p.companyProfile} />
       <div className="form-grid">
         <div className="field"><label htmlFor="city">Place you’re exploring</label><input id="city" value={p.city} onChange={event => p.setCity(event.target.value)} placeholder="City, neighborhood, or region" required /></div>
+        <div className="field full friendly-brief-wrap">
+          <FriendlyBrief
+            value={p.context.scenario || ""}
+            label="A little about what you want (optional)"
+            onChange={text => { setPreferenceFormEdited(true); setContextValue("scenario", text); }}
+            disabled={p.isRunning}
+            maxLength={1000}
+          />
+        </div>
+        <div className="field full friendly-interests"><label htmlFor="anchor-input">What do you already enjoy?</label>
+          <div className="anchor-input-row"><input id="anchor-input" value={p.anchorDraft} onChange={event => p.setAnchorDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); p.addAnchor(p.anchorDraft); } }} placeholder="A sound, meal, film, ritual, place…" aria-describedby="anchor-hint" />
+            <select className="category-select" aria-label="Category for new anchor" value={p.categoryDraft} onChange={event => p.setCategoryDraft(event.target.value as Category)}>{CATEGORIES.map(item => <option key={item} value={item}>{item === "Other" ? "Any category" : item}</option>)}</select>
+            <button type="button" className="text-button" onClick={() => p.addAnchor(p.anchorDraft)}><Plus size={14} /> Add</button></div>
+          <div className="anchor-pills">{p.anchors.map(anchor => <span className="anchor-pill" key={anchor}>{anchor}<button type="button" onClick={() => p.removeAnchor(anchor)} aria-label={`Remove ${anchor}`}><X size={13} /></button></span>)}</div>
+          <div id="anchor-hint" className="example-line">{p.anchors.length ? `${p.anchors.length} of 5 interests added. Choose a category for each; these named interests provide Qloo cultural matches.` : <>Need a starting point? <button type="button" onClick={() => EXAMPLES.forEach((anchor, index) => p.addAnchor(anchor, (["Film", "Food", "Music"] as Category[])[index]))}>Try three example interests</button></>}</div>
+        </div>
+        <div className="submit-row"><span className="helper">{p.journeyMode === "demo" ? "Your words shape an illustrative sample. With no anchors, three clearly identified demo examples are used." : "Only named cultural interests are used for Qloo matching; your brief stays local."}</span><button className="primary-btn" type="submit" disabled={p.isRunning || (p.journeyMode === "live" && !p.agentStatus?.qlooConfigured)}>{p.isRunning ? "Waiting for the real response…" : p.journeyMode === "live" ? "Explore with Qloo" : "Find my doors"} <ArrowRight size={16} /></button></div>
+        <details className="friendly-advanced field full">
+          <summary>More ways to shape your outing <span>Occasion, intent, pace, budget &amp; preferences</span><ChevronDown size={16} /></summary>
+          <div className="friendly-advanced-content">
         <div className="field"><label htmlFor="occasion">Time and occasion</label>{p.companyProfile ? <input id="occasion" value={p.occasion} maxLength={200} onChange={event => { p.setOccasion(event.target.value); setContextValue("time", event.target.value); }} required /> : <select id="occasion" value={p.occasion} onChange={event => { p.setOccasion(event.target.value); setContextValue("time", event.target.value); }}><option>A free Saturday</option><option>A quiet weeknight</option><option>My first week here</option><option>A solo afternoon</option><option>A day with a friend</option><option>Just passing through</option><option>Something else, soon</option></select>}</div>
         <div className="field full"><span className="label-text">What are you hoping to find?</span><div className="intent-options">{INTENTS.map(choice => <label key={choice} className={`intent-option ${p.intent === choice ? "selected" : ""}`}><input type="radio" name="intent" checked={p.intent === choice} onChange={() => { setPreferenceFormEdited(true); p.setIntent(choice); }} />{choice}</label>)}</div></div>
          <div className="field full exploration-control"><span className="label-text">How far do you want to go?</span><p>{p.journeyMode === "live" ? "The selection changes the documented Qloo result types Open Door requests; this route label is not a Qloo score." : "The selection changes the kind of cultural bridge the deterministic sample path explores—not a score."}</p>
@@ -1439,26 +1485,21 @@ function DiscoverView(p: DiscoverProps) {
           <div className="field"><label htmlFor="mode">Journey mode</label><select id="mode" value={p.groupMode ? "group" : "solo"} onChange={event => p.setGroupMode(event.target.value === "group")}><option value="solo">Solo journey</option><option value="group">Small group / couples</option></select></div>
         </div></div>
          <div className="field full personal-considerations">
-           <details open>
-             <summary>Personal considerations <span>Optional · explicit preferences only</span><ChevronDown size={15} /></summary>
+           <details>
+             <summary>Style, age, wellbeing &amp; other needs <span>Optional · explicit preferences only</span><ChevronDown size={15} /></summary>
              <p className="personal-considerations-intro">Personal style, age-related needs, health and wellbeing, or any other situation: choose an example below, then make it your own. Open Door uses what you tell it, not assumptions about age, health, or identity.</p>
              <ScenarioFields
                value={p.context}
                onChange={patch => p.setContext({ ...p.context, ...patch })}
                label="Personal considerations"
                helpId="discover-scenario-help"
+               hideText
                helperText="Optional text stays in this browser and local journey/Lab data/exports; it is not sent to Qloo or your account. Suggestions use explicit preferences only, are not medical advice or verified suitability, and do not check venue facts. Avoid identifying or sensitive details."
              />
            </details>
          </div>
-        <div className="field full"><label htmlFor="anchor-input">Cultural anchors — things you already love</label>
-          <div className="anchor-input-row"><input id="anchor-input" value={p.anchorDraft} onChange={event => p.setAnchorDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); p.addAnchor(p.anchorDraft); } }} placeholder="A sound, meal, film, ritual, place…" aria-describedby="anchor-hint" />
-            <select className="category-select" aria-label="Category for new anchor" value={p.categoryDraft} onChange={event => p.setCategoryDraft(event.target.value as Category)}>{CATEGORIES.map(item => <option key={item}>{item}</option>)}</select>
-            <button type="button" className="text-button" onClick={() => p.addAnchor(p.anchorDraft)}><Plus size={14} /> Add</button></div>
-          <div className="anchor-pills">{p.anchors.map(anchor => <span className="anchor-pill" key={anchor}>{anchor}<button type="button" onClick={() => p.removeAnchor(anchor)} aria-label={`Remove ${anchor}`}><X size={13} /></button></span>)}</div>
-          <div id="anchor-hint" className="example-line">{p.anchors.length ? `${p.anchors.length} of 5 interests added. You can change their categories below.` : <>Need a starting point? <button type="button" onClick={() => EXAMPLES.forEach((anchor, index) => p.addAnchor(anchor, (["Film", "Food", "Music"] as Category[])[index]))}>Try three example interests</button></>}</div>
-        </div>
-         <div className="submit-row"><span className="helper">{p.journeyMode === "demo" ? "Your words shape an illustrative sample. With no anchors, three clearly identified demo examples are used." : "Your stated interests and context are sent to the Open Door server, which calls Qloo. No browser-side Qloo request is made."}</span><button className="primary-btn" type="submit" disabled={p.isRunning || (p.journeyMode === "live" && !p.agentStatus?.qlooConfigured)}>{p.isRunning ? "Waiting for the real response…" : p.journeyMode === "live" ? "Explore with Qloo" : "Find my doors"} <ArrowRight size={16} /></button></div>
+          </div>
+        </details>
       </div>
     </form>
     {!p.companyProfile && <PreferencesMemory

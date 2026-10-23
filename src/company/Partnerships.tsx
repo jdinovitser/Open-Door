@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import { Link } from "wouter";
 import { useUser } from "@clerk/react";
-import { ProductAvenues, ProductHeader } from "../ProductHeader";
+import { ProductHeader } from "../ProductHeader";
 import { CompanyMascot } from "./CompanyMascot";
+import CommercialNav from "./CommercialNav";
 import "./company.css";
 import "./partnerships.css";
 import "./partnership-revenue.css";
@@ -47,22 +48,15 @@ export default function Partnerships() {
 
   useEffect(() => {
     const previousTitle = document.title;
-    document.title = "Partnerships & Business Model | Open Door";
+    document.title = "Business Model and Partnerships | Open Door";
     return () => { document.title = previousTitle; };
   }, []);
 
   return <div className="company-portal partnerships-page">
     <ProductHeader view="companies" signedIn={Boolean(isSignedIn)} />
-    <ProductAvenues active="company" />
+    <CommercialNav active="partners" />
 
     <main className="company-shell partnerships-main">
-      <nav className="company-local-nav partnerships-local-nav" aria-label="Partnership page sections">
-        <a href="#model">Business model</a>
-        <a href="#today">Today &amp; next</a>
-        <a href="#trust">Trust boundaries</a>
-        <a href="#investors">Investor conversations</a>
-      </nav>
-
       <section className="partnerships-hero" aria-labelledby="partnerships-title">
         <div className="partnerships-hero-copy">
           <span className="company-eyebrow">Open Door · Partnerships</span>
@@ -70,7 +64,7 @@ export default function Partnerships() {
           <p>Open Door is a warm cultural field guide, grounded in Qloo’s taste graph. Companies bring the occasion. People stay in control of what they choose to explore.</p>
           <div className="partnerships-hero-actions">
             <Link className="company-button" href="/?explore=1">Explore for free <span aria-hidden="true">→</span></Link>
-            <Link className="company-button secondary" href="/companies?inquiry=partnership#inquiry">Discuss a partnership</Link>
+            <Link className="company-button secondary" href="/contact?inquiry=partnership#inquiry">Discuss a partnership</Link>
           </div>
           <p className="partnerships-hero-note">Individual discovery is free today. Planned revenue is company-funded—not a charge to explorers.</p>
         </div>
@@ -142,7 +136,7 @@ export default function Partnerships() {
           <span className="company-eyebrow">Honest about what exists</span>
           <h2 id="today-title">Working today.<br /><em>Planned for partners.</em></h2>
           <p>The distinction matters: a useful live product can be explored now, while commercial delivery and measurement still need to be built and validated.</p>
-          <Link className="company-text-button" href="/companies">See the company experience <span aria-hidden="true">→</span></Link>
+          <Link className="company-text-button" href="/?explore=1&audience=company#company-tools">See the company experience <span aria-hidden="true">→</span></Link>
         </div>
         <div className="partnerships-state-columns">
           <article className="partnerships-state is-live">
@@ -154,7 +148,7 @@ export default function Partnerships() {
               <li>Qloo-grounded discovery when connected, with personal choice at the center.</li>
               <li>Actual partnership inquiries through the existing intake.</li>
             </ul>
-            <Link className="company-button secondary" href="/companies/discover?type=hospitality">Try the hotel experience <span aria-hidden="true">→</span></Link>
+            <Link className="company-button secondary" href="/?explore=1&audience=company&type=hospitality#company-tools">Try the hotel experience <span aria-hidden="true">→</span></Link>
           </article>
           <article className="partnerships-state is-planned">
             <div className="partnerships-state-head"><span className="partnerships-state-dash" aria-hidden="true" /><span>PLANNED COMMERCIAL FEATURES</span></div>
@@ -199,7 +193,7 @@ export default function Partnerships() {
         </div>
         <div className="partnerships-investor-footer">
           <p>Investor conversations are welcome; this is not an investment offer. Pilot pricing and commercial terms would be agreed with partners, not presented as existing revenue or projected returns.</p>
-          <Link className="company-button" href="/companies?type=other&inquiry=investment#inquiry">Investor conversation <span aria-hidden="true">→</span></Link>
+          <Link className="company-button" href="/contact?type=other&inquiry=investment#inquiry">Investor conversation <span aria-hidden="true">→</span></Link>
         </div>
       </section>
 
@@ -208,7 +202,7 @@ export default function Partnerships() {
         <h2 id="partnerships-next-title">A better welcome starts<br /><em>with room to choose.</em></h2>
         <div className="partnerships-hero-actions">
           <Link className="company-button" href="/?explore=1">Explore for free <span aria-hidden="true">→</span></Link>
-          <Link className="company-button secondary" href="/companies?inquiry=partnership#inquiry">Discuss a partnership</Link>
+          <Link className="company-button secondary" href="/contact?inquiry=partnership#inquiry">Discuss a partnership</Link>
         </div>
       </section>
     </main>
@@ -217,7 +211,7 @@ export default function Partnerships() {
       <div className="company-shell company-footer-inner">
         <p>Open Door · Cultural discovery, led by individual taste.</p>
         <nav aria-label="Footer links">
-          <Link href="/companies">For companies</Link>
+          <Link href="/contact">Talk to us</Link>
           <Link href="/judges">Judge’s Guide</Link>
         </nav>
       </div>

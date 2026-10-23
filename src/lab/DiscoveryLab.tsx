@@ -13,6 +13,9 @@ import "./lab.css";
 import { ScenarioFields } from "./ScenarioFields.tsx";
 import type { CompanyProfile } from "../company/profiles";
 import type { CompanyDraftChange } from "../company/experienceContext";
+import { FriendlyBrief } from "../FriendlyBrief";
+import CompanyJourneyTools from "../company/CompanyJourneyTools";
+import "../friendly-discovery.css";
 
 type QlooConnectionSource = "shared" | "personal";
 type Connection = {
@@ -170,17 +173,22 @@ export default function DiscoveryLab({ lab, connection, companyProfile, onCompan
     }
     setAnchorDraft("");
   }
-  function makeSeed(mode: "demo" | "live"): LabSeed {
-    const categories = Object.fromEntries(anchors.map(anchor => [anchor, anchorCategories[anchor] || "Other"]));
-    return { anchors, categories, location: location.trim(), context: {
-      ...(companyProfile ? { ...companyProfile.context, groupInterests: anchors.join(", ") } : {}),
+  function makeSeed(mode: "demo" | "live", selectedAnchors = anchors, selectedCategories = anchorCategories): LabSeed {
+    const categories = Object.fromEntries(selectedAnchors.map(anchor => [anchor, selectedCategories[anchor] || "Other"]));
+    return { anchors: selectedAnchors, categories, location: location.trim(), context: {
+      ...(companyProfile ? { ...companyProfile.context, groupInterests: selectedAnchors.join(", ") } : {}),
       ...(scenario.scenario ? { scenario: scenario.scenario } : {}),
       ...(scenario.scenarioCategory ? { scenarioCategory: scenario.scenarioCategory } : {}),
     }, mode, discoveries: [], feedback: {} };
   }
   function startExploring(mode: "demo" | "live" = connection.mode) {
-    if (!anchors.length) return;
-    void afterOperation(() => lab.startAndExplore(makeSeed(mode), selectedStrategy));
+    const pending = anchorDraft.trim();
+    const isNew = Boolean(pending) && !anchors.some(anchor => anchor.toLocaleLowerCase() === pending.toLocaleLowerCase());
+    const nextAnchors = isNew ? [...anchors, pending] : anchors;
+    if (!nextAnchors.length) return;
+    const nextCategories = isNew ? { ...anchorCategories, [pending]: "Other" as const } : anchorCategories;
+    if (pending) { setAnchors(nextAnchors); setAnchorCategories(nextCategories); setAnchorDraft(""); }
+    void afterOperation(() => lab.startAndExplore(makeSeed(mode, nextAnchors, nextCategories), selectedStrategy));
   }
   function startFromOriginalInterests() {
     if (!current?.originalAnchors.length) return;
@@ -249,17 +257,36 @@ export default function DiscoveryLab({ lab, connection, companyProfile, onCompan
     <header className="lab-heading">
       <div>
         <span className="eyebrow">Open Door · Discovery Lab{companyProfile ? " · your occasion" : ""}</span>
-        <h1 id="lab-title">{companyProfile ? companyProfile.labTitle : <>A few ways <em>forward.</em></>}</h1>
-        <p>{companyProfile?.labCopy || "Keep one discovery close. Follow the Qloo-grounded cultural thread, save a place to return to, then open different directions from the same point."}</p>
+        <h1 id="lab-title">{companyProfile ? companyProfile.labTitle : <>Keep a thread.<br /><em>See where it leads.</em></>}</h1>
+        <p>{companyProfile?.labCopy || "Start with what you love, then follow a few different paths. Your checkpoints keep each starting point safe."}</p>
+        {current && <nav className="lab-jump-links" aria-label="Jump to Lab workspace">
+          <a href="#lab-results">Current discoveries</a><a href="#lab-map">Checkpoints &amp; paths</a><a href="#lab-comparison">Compare branches</a>
+        </nav>}
       </div>
       <div className="lab-heading-mark" aria-hidden="true"><span className="lab-door"><i /></span><span>FIELD<br />NOTES</span></div>
     </header>
 
-    <QlooConnectionPanel status={connection.status} mode={connection.mode} source={connection.source} disabled={connection.disabled || busy} onSelect={connection.onSelect} />
+    <CompanyJourneyTools view="lab" profile={companyProfile} />
+    <details className="friendly-connection lab-friendly-connection">
+      <summary>
+        <span className="friendly-connection-status" role="status">
+          {connection.mode === "demo" ? "Prepared examples · authored, not live Qloo" : !connection.status ? "Checking Qloo connection…" : connection.source === "personal"
+            ? connection.status?.personalQlooConnected ? "Qloo ready · personal connection" : "Your Qloo connection is needed"
+            : connection.status?.sharedQlooConfigured || connection.status?.qlooConfigured
+              ? "Qloo ready · shared Demo connection" : "A Qloo connection is needed"}
+        </span>
+        <span className="friendly-change-connection">Change connection <span aria-hidden="true">⌄</span></span>
+      </summary>
+      <QlooConnectionPanel status={connection.status} mode={connection.mode} source={connection.source} disabled={connection.disabled || busy} onSelect={connection.onSelect} />
+    </details>
+    <details className="friendly-grounding lab-global-grounding">
+      <summary>How Qloo powers your recommendations <span aria-hidden="true">⌄</span></summary>
+      <QlooGrounding mode={current?.mode || connection.mode} configured={connection.status?.qlooConfigured} compact />
+    </details>
     {current && <div className={`lab-mode-note ${current.mode === "live" ? "lab-mode-historical" : ""}`} role="status">
       <span className="lab-mode-dot" aria-hidden="true" />
-      <strong>{current.mode === "demo" ? "Prepared examples · authored demo content." : "Qloo discoveries · saved in this browser."}</strong>
-      <span>{current.mode === "demo" ? "It stays separate from Qloo evidence." : "Saved provenance is shown as recorded, not as a claim about your current connection."}</span>
+        <strong>{current.mode === "demo" ? "Prepared examples · authored demo content." : "Qloo discoveries · saved in this browser."}</strong>
+        <span>{current.mode === "demo" ? "These are not live Qloo evidence." : "Saved provenance is shown as recorded, not as a claim about your current connection."}</span>
     </div>}
     {current && current.mode !== connection.mode && <section className="lab-source-switch-note" role="status">
       <div><span className="eyebrow">Keep this path intact</span><strong>This saved path uses {current.mode === "demo" ? "prepared examples" : "live Qloo results"}; your selected source is {connection.mode === "demo" ? "prepared examples" : "live Qloo"}.</strong><p>Starting anew uses the original interests and selected source. Existing checkpoints and branches remain unchanged.</p></div>
@@ -278,11 +305,14 @@ export default function DiscoveryLab({ lab, connection, companyProfile, onCompan
     {!current && <section className="lab-start form-panel" aria-labelledby="start-title">
       <div className="lab-welcome-guide"><div>
         <div className="form-heading"><div><span className="eyebrow">Begin with what you love</span><h2 id="start-title">Set down a few anchors.</h2></div><span className="step-label">{connection.mode === "demo" ? "Prepared examples" : "Live Qloo"}</span></div>
-        <p className="lab-start-copy">A person, place, sound, story, or practice is enough. In live mode, Qloo Search resolves named interests and Insights retrieves cultural connections; Open Door organizes the next directions. Your saved checkpoints and branches stay available below.</p>
-        <QlooGrounding mode={connection.mode} configured={connection.status?.qlooConfigured} compact />
+        <p className="lab-start-copy">A named interest gives Qloo something to match. Your description is for local planning only and is never sent to Qloo.</p>
       </div>{companyProfile
         ? <CompanyMascot companyType={companyProfile.id} />
         : <MascotArt scene="coffee" />}</div>
+      <div className="field full friendly-brief-wrap">
+        <FriendlyBrief value={scenario.scenario || ""} onChange={text => setScenario({ ...scenario, scenario: text })} disabled={!!loadError} label="What would make this a good day? (optional)" maxLength={1000} />
+        <p className="friendly-privacy-note">This practical description stays in your browser’s Lab data; it is not sent to Qloo. Named interests provide Qloo cultural matches. Avoid sensitive personal details.</p>
+      </div>
       <div className="field full"><label htmlFor="lab-anchor">Cultural interest</label><div className="anchor-input-row"><input id="lab-anchor" value={anchorDraft} onChange={event => setAnchorDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); addAnchor(); } }} placeholder="For example, experimental jazz" /><button className="text-button" type="button" onClick={addAnchor}>Add anchor</button></div>
         <p className="lab-category-help">Choose a category for each interest. New interests start as Other; no category is inferred from your words.</p>
         {!!anchors.length && <div className="lab-anchor-list">{anchors.map((anchor, index) => <div className="lab-anchor-edit" key={anchor}>
@@ -292,9 +322,14 @@ export default function DiscoveryLab({ lab, connection, companyProfile, onCompan
         </div>)}</div>}
       </div>
       <div className="field lab-start-location"><label htmlFor="lab-location">Place (optional)</label><input id="lab-location" value={location} onChange={event => setLocation(event.target.value)} placeholder="City, neighborhood, or leave blank" /></div>
-      <ScenarioFields value={scenario} onChange={setScenario} disabled={!!loadError} />
-      <label className="field lab-start-strategy"><span>First direction</span><select value={selectedStrategy} onChange={event => setSelectedStrategy(event.target.value as Strategy)}>{STRATEGIES.map(item => <option value={item.id} key={item.id}>{item.name} — {item.purpose}</option>)}</select></label>
-      <div className="lab-start-footer"><span className="helper">{connection.mode === "demo" ? "Prepared examples are authored, not live Qloo evidence." : "Your first path will use the selected Qloo connection."} A checkpoint is saved as this first path opens.</span><button type="button" className="primary-btn" data-sound="start" onClick={() => startExploring()} disabled={!anchors.length || !!loadError || busy || connection.disabled}>Start exploring <span aria-hidden="true">→</span></button></div>
+      <details className="friendly-advanced lab-start-advanced field full">
+        <summary>More ways to shape this exploration <span>Style, age, wellbeing &amp; other needs · first direction</span><span aria-hidden="true">⌄</span></summary>
+        <div className="friendly-advanced-content">
+          <ScenarioFields value={scenario} onChange={setScenario} disabled={!!loadError} label="Style, age, wellbeing & other needs" hideText />
+          <label className="field lab-start-strategy"><span>First direction</span><select value={selectedStrategy} onChange={event => setSelectedStrategy(event.target.value as Strategy)}>{STRATEGIES.map(item => <option value={item.id} key={item.id}>{item.name} — {item.purpose}</option>)}</select></label>
+        </div>
+      </details>
+      <div className="lab-start-footer"><span className="helper">{connection.mode === "demo" ? "Prepared examples are authored, not live Qloo evidence." : "Your first path will use the selected Qloo connection."} A checkpoint is saved as this first path opens.</span><button type="button" className="primary-btn" data-sound="start" onClick={() => startExploring()} disabled={(!anchors.length && !anchorDraft.trim()) || !!loadError || busy || connection.disabled}>Start exploring <span aria-hidden="true">→</span></button></div>
     </section>}
 
     {current && <div className="lab-workspace">
@@ -312,9 +347,12 @@ export default function DiscoveryLab({ lab, connection, companyProfile, onCompan
         {activeBranch && <p className="lab-inline-hint">Branch started from <strong>{activeCheckpoint?.name || "a saved checkpoint"}</strong>. Branching from a saved checkpoint restores that checkpoint’s settings.</p>}
       </section>
 
-      <section className="lab-settings" aria-labelledby="settings-title">
+      <details className="lab-settings friendly-advanced lab-edit-plan">
+        <summary>Edit your plan <span>Conditions and preferences for the next step</span><span aria-hidden="true">⌄</span></summary>
+        <div className="friendly-advanced-content">
         <div className="module-heading"><div><span className="eyebrow">Your field conditions</span><h3 id="settings-title">Set the conditions</h3></div><p>These choices shape the next Explore action only. Changing them never regenerates results by itself.</p></div>
-        <ScenarioFields value={current.settings} onChange={lab.settings} disabled={busy} />
+        <FriendlyBrief value={current.settings.scenario || ""} onChange={text => lab.settings({ scenario: text })} disabled={busy} label="What would make this a good day?" />
+        <ScenarioFields value={current.settings} onChange={lab.settings} disabled={busy} label="Style, age, wellbeing & other needs" hideText />
         <div className="lab-settings-grid">
           <label className="field"><span>Adventure</span><select value={current.settings.adventure} onChange={event => updateSetting("adventure", event.target.value as Settings["adventure"])}>{optionSets.adventure.map(value => <option key={value} value={value}>{value[0].toUpperCase() + value.slice(1)}</option>)}</select></label>
           <label className="field"><span>Time available</span><select value={current.settings.time} onChange={event => updateSetting("time", event.target.value as Settings["time"])}>{optionSets.time.map(value => <option key={value}>{value}</option>)}</select></label>
@@ -328,7 +366,8 @@ export default function DiscoveryLab({ lab, connection, companyProfile, onCompan
           <label className="field"><span>Group interests</span><input value={current.settings.groupInterests} onChange={event => updateSetting("groupInterests", event.target.value)} placeholder="Optional" /></label>
         </div>
         {activeBranch && <div className="lab-explore-row"><span>Current path: <strong>{activeBranch.name}</strong></span><button type="button" className="primary-btn" onClick={() => void afterOperation(() => lab.explore())} disabled={busy}>Explore this path <span aria-hidden="true">→</span></button></div>}
-      </section>
+        </div>
+      </details>
 
       <section className="lab-doors" aria-labelledby="directions-title">
         <div className="module-heading"><div><span className="eyebrow">Six ways through</span><h3 id="directions-title">Choose a direction</h3></div><p>Each door changes the purpose of the next exploration, not just its label.</p></div>
@@ -356,7 +395,7 @@ export default function DiscoveryLab({ lab, connection, companyProfile, onCompan
         </div>
       </section>
 
-      <section className="lab-results" aria-labelledby="results-title">
+      <section className="lab-results" id="lab-results" aria-labelledby="results-title">
         <div className="module-heading"><div><span className="eyebrow">The discoveries</span><h3 id="results-title" ref={resultsHeadingRef} tabIndex={-1}>What this path found</h3></div>{activeBranch && <span className="lab-result-count">{current.candidates.length} in this batch</span>}</div>
         {busy && <div className="lab-results-request lab-results-progress" role="status" aria-live="polite"><span className="lab-busy-mark" aria-hidden="true" /><div><strong>Opening this path</strong><span>Your saved history stays available while this exploration runs.</span></div><button className="secondary-btn" type="button" onClick={lab.cancel}>Cancel exploration</button></div>}
         {error && !busy && <div className="lab-results-request lab-results-error" role="alert"><div><strong>That step did not complete.</strong><p>{error}</p><small>Your checkpoint and other branches remain available.</small></div><button className="secondary-btn" type="button" onClick={() => void retryCurrentPath()}>Try again</button></div>}
@@ -399,7 +438,7 @@ export default function DiscoveryLab({ lab, connection, companyProfile, onCompan
 
     </div>}
 
-      <section className="lab-map" aria-labelledby="map-title">
+      <section className="lab-map" id="lab-map" aria-labelledby="map-title">
         <div className="module-heading"><div><span className="eyebrow">Your field map</span><h3 id="map-title">Checkpoints & paths</h3></div><p>Each branch keeps its own history. Restore a checkpoint to return to the shared starting place.</p></div>
         {checkpoints.length === 0 && <div className="lab-empty-inline"><strong>No saved checkpoints</strong><span>Save a snapshot anywhere there is a current journey. Your map will grow from there.</span></div>}
         <div className="lab-checkpoint-list">{checkpoints.map(checkpoint => {
@@ -421,7 +460,7 @@ export default function DiscoveryLab({ lab, connection, companyProfile, onCompan
           </article>;
         })}</div>
       </section>
-    <section className="lab-compare" aria-labelledby="compare-title">
+    <section className="lab-compare" id="lab-comparison" aria-labelledby="compare-title">
       <div className="module-heading"><div><span className="eyebrow">Look across the paths</span><h3 id="compare-title">Compare branches</h3></div><p>Sibling paths from one checkpoint, side by side. Compare discoveries, recorded conditions, evidence, and your feedback.</p></div>
       {checkpoints.length > 0 && <label className="field lab-compare-select"><span>Shared checkpoint</span><select value={effectiveCompareCheckpoint} onChange={event => setComparisonCheckpoint(event.target.value)}><option value="">Choose a checkpoint</option>{checkpoints.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}
       {!checkpoints.length && <div className="lab-empty-inline"><strong>No checkpoint to compare</strong><span>Save a checkpoint and create sibling branches to begin.</span></div>}

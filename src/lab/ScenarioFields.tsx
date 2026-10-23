@@ -1,9 +1,9 @@
 import { SCENARIOS, type ScenarioCategory } from "./scenarios.ts";
 
 type Value = { scenarioCategory?: ScenarioCategory; scenario?: string };
-export function ScenarioFields({ value, onChange, disabled = false, label = "Lab scenario", helpId = "lab-scenario-help", helperText }: {
+export function ScenarioFields({ value, onChange, disabled = false, label = "Lab scenario", helpId = "lab-scenario-help", helperText, hideText = false }: {
   value: Value; onChange: (patch: Value) => void; disabled?: boolean;
-  label?: string; helpId?: string; helperText?: string;
+  label?: string; helpId?: string; helperText?: string; hideText?: boolean;
 }) {
   return <div className="lab-scenario-fields">
     <label className="field"><span>{label}</span>
@@ -15,12 +15,12 @@ export function ScenarioFields({ value, onChange, disabled = false, label = "Lab
         {SCENARIOS.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
       </select>
     </label>
-    <label className="field"><span>Your scenario</span>
+    {!hideText && <label className="field"><span>Your scenario</span>
       <textarea value={value.scenario || ""} maxLength={1000} rows={4} disabled={disabled}
         onChange={event => onChange({ ...value, scenario: event.target.value })}
         placeholder="Describe your goal, preferences, comfort needs and constraints—or edit an example above."
         aria-describedby={helpId} />
-    </label>
+    </label>}
     <p className="helper" id={helpId}>{helperText || "Examples are editable starting points, not assumptions. Scenario text stays in this browser’s Lab data and exports; it is not sent to Qloo or synced to your account. Local planning suggestions use explicit preferences, not medical advice or verified suitability. Avoid identifying or sensitive details."}</p>
   </div>;
 }

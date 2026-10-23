@@ -1,0 +1,65 @@
+.commercial-nav {
+  width: min(100% - 2.5rem, 1180px);
+  margin: 1.25rem auto 0;
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  padding: .45rem;
+  border: 1px solid hsl(31 22% 82%);
+  border-radius: 999px;
+  background: hsl(38 42% 95%);
+}
+
+.commercial-nav a {
+  flex: 1;
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  color: hsl(190 25% 28%);
+  text-align: center;
+  text-decoration: none;
+  font-size: .88rem;
+  font-weight: 650;
+  transition: color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.commercial-nav a:hover { transform: translateY(-1px); background: hsl(35 50% 90%); }
+.commercial-nav a[aria-current="page"] { background: hsl(177 30% 28%); color: hsl(42 45% 96%); }
+.commercial-nav a:focus-visible { outline: 3px solid hsl(22 72% 53%); outline-offset: 3px; }
+
+.company-contact-intro,
+.partnership-mockups-intro {
+  max-width: 760px;
+  margin: clamp(2rem, 5vw, 4.5rem) 0 2rem;
+}
+.company-contact-intro h1,
+.partnership-mockups-intro h1 {
+  margin: .35rem 0 .65rem;
+  color: hsl(190 28% 20%);
+  font-family: var(--font-display, Georgia, serif);
+  font-size: clamp(2.5rem, 6vw, 4.6rem);
+  font-weight: 600;
+  letter-spacing: -.045em;
+  line-height: .98;
+}
+.company-contact-intro p,
+.partnership-mockups-intro p {
+  max-width: 660px;
+  margin: 0;
+  color: hsl(190 14% 40%);
+  font-size: clamp(.98rem, 1.5vw, 1.12rem);
+  line-height: 1.65;
+}
+.company-contact-intro + .company-inquiry-section { margin-top: 1.5rem; }
+.partnership-mockups-main > .partner-mockups { margin-top: 2rem; }
+
+@media (max-width: 560px) {
+  .commercial-nav { width: min(100% - 1.25rem, 1180px); align-items: stretch; border-radius: 1rem; gap: .25rem; }
+  .commercial-nav a { min-height: 3.1rem; padding: .45rem .25rem; border-radius: .75rem; font-size: .72rem; line-height: 1.15; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .commercial-nav a { transition: none; }
+}

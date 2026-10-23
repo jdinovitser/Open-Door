@@ -12,6 +12,8 @@ import CompanyPortal from "./company/CompanyPortal";
 import CompanyExperience from "./company/CompanyExperience";
 import CompanyAdmin from "./company/CompanyAdmin";
 import Partnerships from "./company/Partnerships";
+import MockupsPage from "./company/MockupsPage";
+import LegacyCompanyRoute from "./company/LegacyCompanyRoute";
 import "./auth.css";
 import { safeAppReturnTo } from "./authReturn";
 
@@ -122,7 +124,9 @@ function ClerkRoutes() {
   >
     <Switch>
       <Route path="/partners" component={Partnerships} />
-      <Route path="/companies" component={CompanyPortal} />
+      <Route path="/contact" component={CompanyPortal} />
+      <Route path="/mockups" component={MockupsPage} />
+      <Route path="/companies" component={LegacyCompanyRoute} />
       <Route path="/companies/admin" component={CompanyAdmin} />
       <Route path="/companies/discover" component={CompanyExperience} />
       <Route path="/companies/lab" component={CompanyExperience} />

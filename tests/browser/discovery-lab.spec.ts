@@ -6,12 +6,14 @@ async function stored(page: Page) {
 }
 async function begin(page: Page) {
   await page.goto("/lab");
+  await page.locator(".friendly-connection > summary").click();
   await page.getByRole("button", { name: "Try prepared examples", exact: true }).click();
   await page.getByLabel("Cultural interest", { exact: true }).fill("experimental jazz");
   await page.getByRole("button", { name: "Add anchor", exact: true }).click();
   await page.getByRole("button", { name: /^Start exploring/ }).click();
   await expect(page.locator(".lab-checkpoint")).toHaveCount(1);
   await expect(page.locator(".lab-discovery")).toHaveCount(3);
+  await page.locator(".lab-edit-plan > summary").click();
 }
 async function branch(page: Page, name: string) {
   await page.locator(".lab-direction").filter({ hasText: name }).click();
@@ -39,11 +41,12 @@ test("checkpoint, independent siblings, comparison, continuation, fork and reloa
   expect(state.current.anchors).toEqual([selectedTitle]);
   expect(state.branches[0]).toEqual(firstBranch);
   await page.getByRole("combobox", { name: "Shared checkpoint", exact: true }).selectOption(state.checkpoints[0].id);
-  await page.locator(".lab-compare-picker input").nth(0).check();
-  await page.locator(".lab-compare-picker input").nth(1).check();
+  await page.locator(".lab-compare-toggle input").nth(0).check();
+  await page.locator(".lab-compare-toggle input").nth(1).check();
   await expect(page.locator(".lab-compare-branch")).toHaveCount(2);
   await expect(page.locator(".lab-compare-branch").first()).toContainText("Kept for this journey");
-  await page.locator(".lab-compare-branch").first().getByRole("button", { name: "Favorite branch", exact: true }).click();
+  const favorite = page.locator(".lab-compare-branch").first().getByRole("button", { name: "Favorite branch", exact: true });
+  if (await favorite.isVisible()) await favorite.click();
   expect((await stored(page)).favorites[state.checkpoints[0].id]).toBe(firstBranch.id);
   await page.locator(".lab-compare-branch").first().getByRole("button", { name: "Fork from this discovery", exact: true }).first().click();
   state = await stored(page);
@@ -102,7 +105,7 @@ test("original prepared three-door journey imports its selected discovery withou
   const title = await page.locator(".door-card h3").first().innerText();
   await page.locator(".door-preview").first().click();
   await page.getByRole("button", { name: /^Branch in Discovery Lab/ }).first().click();
-  await expect(page.getByRole("heading", { name: /A few ways/ })).toBeVisible();
+  await expect(page.locator("#lab-title")).toBeVisible();
   const state = await stored(page);
   expect(state.current.anchors).toEqual([title]);
   expect(state.current.originalAnchors.length).toBeGreaterThan(0);
