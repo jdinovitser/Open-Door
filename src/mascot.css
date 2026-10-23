@@ -1,7 +1,5 @@
 .mascot-visual { min-width:0; }
 .mascot-visual picture { overflow:hidden; border-radius:10px; }
-.mascot-motion-toggle:focus-visible { outline:3px solid var(--forest); outline-offset:3px; border-radius:4px; }
-.entry-companion .mascot-motion-toggle { margin:5px auto 0; padding:4px 6px; font-size:9px; }
 .mascot-empty { padding-top:24px; }
 .mascot-empty .mascot-visual { max-width:260px; margin:0 auto 22px; }
 .mascot-showcase { margin:34px 0; padding:26px 0; border-bottom:1px solid var(--line); }
@@ -10,7 +8,6 @@
 .mascot-showcase-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
 .mascot-showcase figure { margin:0; padding:8px 8px 16px; min-width:0; border:1px solid var(--line); border-radius:16px; background:#fffefa; box-shadow:var(--shadow-soft); }
 .mascot-showcase figcaption { margin-top:10px; text-align:center; color:var(--forest-dark); font-size:12px; font-weight:600; }
-.mascot-showcase .mascot-motion-toggle { font-size:9px; }
 .lab-welcome-guide { display:grid; grid-template-columns:minmax(0,1fr) 210px; gap:28px; align-items:center; margin-bottom:22px; }
 .lab-welcome-guide .form-heading { margin-bottom:25px; flex-wrap:wrap; gap:12px; }
 .lab-welcome-guide .lab-start-copy { margin-bottom:0; }

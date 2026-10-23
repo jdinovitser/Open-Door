@@ -1441,7 +1441,7 @@ function DiscoverView(p: DiscoverProps) {
       <div className="hero-art mascot-welcome">
         {p.companyProfile
           ? <CompanyMascot companyType={p.companyProfile.id} priority />
-          : <DoorArtwork open hero showControls className="hero-welcome-art" />}
+          : <DoorArtwork open hero className="hero-welcome-art" />}
       </div>
     </section>
     {p.journeyMode === "demo" && <div className="demo-note"><Info size={16} /><div><strong>Prepared examples.</strong> Authored activities, not live Qloo results or verified local listings. Choose a Qloo connection above for live recommendations. <button className="text-button" onClick={() => p.setView("how")}>Evidence &amp; method</button></div></div>}

@@ -166,20 +166,20 @@
 }
 
 .hero-art.mascot-welcome {
-  min-height: 150px;
-  max-height: 195px;
-  overflow: hidden;
+  min-height: 0;
+  max-height: none;
+  overflow: visible;
 }
 
 .hero-art.mascot-welcome .hero-welcome-art,
 .hero-art.mascot-welcome .company-mascot {
-  width: min(100%, 245px);
-  max-height: 190px;
+  width: min(100%, 440px);
+  max-height: none;
   margin: 0 auto;
 }
 
 .hero-art.mascot-welcome .mascot-visual img {
-  max-height: 175px;
+  max-height: none;
   object-fit: contain;
 }
 
@@ -297,12 +297,12 @@
 }
 
 .app-shell .page { padding-top:20px; }
-.app-shell .hero { grid-template-columns:minmax(0,1fr) 145px; gap:20px; margin:20px 0; padding:0; }
+.app-shell .hero { grid-template-columns:minmax(0,1fr) minmax(280px,440px); gap:20px; margin:20px 0; padding:0; }
 .app-shell .hero .hero-copy { max-width:800px; }
 .app-shell .hero .hero-copy p { font-size:14px; line-height:1.65; margin:0; max-width:760px; }
-.app-shell .hero .hero-art { width:145px; max-width:145px; min-height:0; }
-.app-shell .hero .hero-art img { max-height:115px; max-width:100%; width:auto; }
-.app-shell .hero .hero-art .hero-welcome-art { max-width:145px; }
+.app-shell .hero .hero-art { width:100%; max-width:440px; min-height:0; height:auto; justify-self:center; }
+.app-shell .hero .hero-art img { max-height:none; max-width:100%; width:100%; height:auto; }
+.app-shell .hero .hero-art .hero-welcome-art { width:100%; max-width:440px; }
 .app-shell .form-panel { margin-top:18px; padding:24px; }
 .app-shell .form-panel .form-heading { margin-bottom:16px; }
 .app-shell .form-panel .form-heading h2 { font-size:26px; }
@@ -314,8 +314,8 @@
 .app-shell .friendly-interests .anchor-input-row { flex-wrap:wrap; }
 .app-shell .friendly-interests .anchor-input-row input { min-width:150px; flex:1; }
 @media(max-width:600px) {
-  .app-shell .hero { grid-template-columns:minmax(0,1fr) 90px; gap:10px; margin:15px 0; }
-  .app-shell .hero .hero-art, .app-shell .hero .hero-art .hero-welcome-art { width:90px; max-width:90px; }
+  .app-shell .hero { grid-template-columns:minmax(0,1fr); gap:16px; margin:15px 0; }
+  .app-shell .hero .hero-art, .app-shell .hero .hero-art .hero-welcome-art { width:100%; max-width:390px; }
   .app-shell .hero .hero-copy p { font-size:12px; line-height:1.6; }
   .app-shell .form-panel { padding:18px; }
   .app-shell .form-grid > .friendly-interests { grid-column:1 / -1; }
@@ -348,17 +348,6 @@
     grid-template-columns: 1fr 120px;
   }
 
-  .hero-art.mascot-welcome {
-    min-height: 110px;
-    max-height: 130px;
-  }
-
-  .hero-art.mascot-welcome .hero-welcome-art,
-  .hero-art.mascot-welcome .company-mascot {
-    width: 130px;
-    max-height: 125px;
-  }
-
   .hero h1 {
     font-size: clamp(37px, 9vw, 52px);
   }
@@ -371,10 +360,6 @@
 @media (max-width: 480px) {
   .hero {
     grid-template-columns: 1fr;
-  }
-
-  .hero-art.mascot-welcome {
-    display: none;
   }
 
   .friendly-brief-wrap {

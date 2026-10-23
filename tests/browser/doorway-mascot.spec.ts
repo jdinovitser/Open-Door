@@ -19,11 +19,10 @@ test("entry plays the supplied opening then mascot artwork on desktop and mobile
     await expect(entry.getByTestId("doorway-animation")).toHaveAttribute("data-art-phase", "mascot");
     const hero = page.locator(".hero-welcome-art");
     await expect(hero).toBeVisible({ timeout: 5000 });
+    expect((await hero.boundingBox())!.width).toBeGreaterThan(viewport.width === 1280 ? 390 : 250);
     await expect(hero.locator("img")).toHaveAttribute("src", /door-mascot-appear\.webp\?play=/);
-    await page.getByRole("button", { name: "Pause illustration", exact: true }).click();
-    await expect(hero.locator("img")).toHaveAttribute("src", "/mascot/door-mascot-appear-still.webp");
-    await page.getByRole("button", { name: "Play illustration", exact: true }).click();
-    await expect(hero.locator("img")).toHaveAttribute("src", /door-mascot-appear\.webp\?play=/);
+    await expect(page.locator(".mascot-motion-toggle")).toHaveCount(0);
+    await expect.poll(() => hero.locator("img").evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
     await expect(hero).toHaveAttribute("data-art-phase", "complete", { timeout: 5000 });
     await expect(hero.locator("img")).toHaveAttribute("src", "/mascot/door-mascot-appear-still.webp");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -73,8 +72,7 @@ test("reduced motion uses supplied stills, bypasses waits and has no animated do
   const hero = page.locator(".hero-welcome-art");
   await expect(hero).toBeVisible({ timeout: 1500 });
   await expect(hero.locator("img")).toHaveAttribute("src", "/mascot/door-mascot-appear-still.webp");
-  await page.getByRole("button", { name: "Try prepared examples", exact: true }).click();
-  await page.getByRole("button", { name: "Open the sample journey" }).click();
+  await page.goto("/demo");
   await page.locator(".door-preview").first().click();
   await expect(page.locator(".door-card.is-expanded .door-result-expanded")).toBeVisible();
   await expect(page.locator(".door-card.is-expanded .door-preview img")).toHaveAttribute("src", "/mascot/door-mascot-appear-still.webp");

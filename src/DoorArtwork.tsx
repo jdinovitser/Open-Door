@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import "./door-artwork.css";
 
 type DoorArtworkProps = {
   open?: boolean;
   hero?: boolean;
   className?: string;
-  showControls?: boolean;
   onComplete?: () => void;
 };
 
@@ -28,15 +27,12 @@ export default function DoorArtwork({
   open = false,
   hero = false,
   className = "",
-  showControls = false,
   onComplete,
 }: DoorArtworkProps) {
   const [reducedMotion, setReducedMotion] = useState(readReducedMotion);
   const [phase, setPhase] = useState<ArtPhase>(() =>
     !open ? "closed" : readReducedMotion() ? "complete" : hero ? "mascot" : "opening",
   );
-  const [paused, setPaused] = useState(false);
-  const [replay, setReplay] = useState(0);
   const [loadedImage, setLoadedImage] = useState("");
   const [sequence, setSequence] = useState(0);
   const instance = useId();
@@ -52,7 +48,6 @@ export default function DoorArtwork({
   }, []);
 
   useEffect(() => {
-    setPaused(false);
     setLoadedImage("");
     completedRef.current = false;
 
@@ -70,7 +65,7 @@ export default function DoorArtwork({
 
     setSequence(value => value + 1);
     setPhase(hero ? "mascot" : "opening");
-  }, [open, hero, reducedMotion, replay]);
+  }, [open, hero, reducedMotion]);
 
   const imageSrc = reducedMotion
     ? (open ? art.mascotStill : art.closedStill)
@@ -78,11 +73,11 @@ export default function DoorArtwork({
       ? art.closed
       : phase === "opening"
         ? `${art.opening}?play=${encodeURIComponent(instance)}-${sequence}`
-        : phase === "complete" || paused
+        : phase === "complete"
           ? art.mascotStill
            : `${art.mascot}?play=${encodeURIComponent(instance)}-${sequence}`;
 
-  const imageKey = `${imageSrc}:${replay}`;
+  const imageKey = imageSrc;
 
   useEffect(() => {
     if (phase === "opening") {
@@ -97,7 +92,7 @@ export default function DoorArtwork({
   }, [phase, instance, sequence]);
 
   useEffect(() => {
-    if ((phase !== "opening" && phase !== "mascot") || paused || reducedMotion) return;
+    if ((phase !== "opening" && phase !== "mascot") || reducedMotion) return;
     if (loadedImage !== imageKey) return;
 
     const timer = window.setTimeout(() => {
@@ -113,27 +108,7 @@ export default function DoorArtwork({
     }, 3000);
 
     return () => window.clearTimeout(timer);
-  }, [phase, paused, reducedMotion, loadedImage, imageKey]);
-
-  const handleReplay = useCallback(() => {
-    if (phase === "mascot" && !paused) {
-      setPaused(true);
-      return;
-    }
-    setPaused(false);
-    completedRef.current = false;
-    setPhase("mascot");
-    setReplay((value) => value + 1);
-  }, [phase, paused]);
-
-  const controlsVisible = hero && showControls && !reducedMotion;
-  const controlLabel = phase === "mascot" && !paused
-    ? "Pause illustration"
-    : phase === "complete"
-      ? "Replay illustration"
-      : paused
-        ? "Play illustration"
-        : "Play illustration";
+  }, [phase, reducedMotion, loadedImage, imageKey]);
 
   return (
     <div
@@ -157,17 +132,6 @@ export default function DoorArtwork({
         decoding="async"
         onLoad={() => setLoadedImage(imageKey)}
       />
-      {controlsVisible && (
-        <button
-          className="mascot-motion-toggle"
-          type="button"
-          aria-pressed={phase === "mascot" && !paused}
-          aria-label={controlLabel}
-          onClick={handleReplay}
-        >
-          {controlLabel}
-        </button>
-      )}
     </div>
   );
 }
