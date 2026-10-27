@@ -102,6 +102,8 @@ export function createRateLimiter({
 }
 
 export function securityHeaders(request, response, next) {
+  // Also covers non-HTML documents, including the public Judge's Guide PDF.
+  response.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet, noimageindex");
   response.setHeader("X-Content-Type-Options", "nosniff");
   response.setHeader("Referrer-Policy", "no-referrer");
   response.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
