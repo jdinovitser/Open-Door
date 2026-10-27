@@ -4,7 +4,7 @@
 
 **Submission review:** [official criteria and evidence](docs/JUDGING_CRITERIA.md) · [remaining submission gates](docs/SUBMISSION_READINESS.md) · [Devpost draft](docs/DEVPOST_DRAFT.md) · [why this product](docs/WHY_OPEN_DOOR.md).
 
-Before submission, verify live Qloo discovery on the published site and the completed Devpost entry. A prepared Demo is not evidence of a live Qloo integration.
+Live Qloo discovery has been verified in this workspace. Before submission, check the latest published build and completed Devpost entry separately. The shared **Demo** connection uses real Qloo requests; **Try prepared examples** is a separate authored sample path.
 
 **Find your way into a new place.**
 
@@ -12,7 +12,7 @@ Open Door is a cultural discovery web app that turns personal interests into a s
 
 ## Project status
 
-This workspace has a responsive Demo Mode and a server-side Qloo integration. **Live Qloo Search and Insights have been verified in development; the published site must be republished and checked separately.** The authored sample journeys are not Qloo results, real venue or event listings, or statements about local availability.
+**Live Qloo integration has been verified in this workspace**, including successful Qloo Search anchor resolution, multiple Insights requests, entity-led continuation, and independent live Discovery Lab branches. Recorded requests completed with HTTP 200 and live-result provenance. This is a working server-side integration, not an unverified connection or a sample-only demonstration. Verification of the latest published build is a separate check. The optional authored sample journeys are not Qloo results, real venue or event listings, or statements about local availability.
 
 ## Problem
 
@@ -32,7 +32,7 @@ Demo Mode also includes exploration-depth choices, editable anchor categories, c
 
 Qloo provides the entity search and Insights results that can connect a user's chosen interests to other cultural domains. The server requests Qloo explainability and retains the returned entity IDs and source metadata for the journey inspector.
 
-Live Qloo use is not active until a key is provisioned and an actual request succeeds. Demo explanations and connections are deterministic sample content and must not be represented as Qloo-derived evidence.
+The shared **Demo** connection has been used successfully for live Qloo discovery. Each new live journey still requires a successful API response; a configured key alone is not proof that a particular request completed. Only **Try prepared examples** and the prepared `/demo` walkthrough use deterministic authored sample content, which is labeled separately from Qloo-derived results.
 
 ## What makes it agentic
 
