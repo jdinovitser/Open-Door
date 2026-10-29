@@ -22,5 +22,13 @@
     "try": "Select a current or saved recommendation, or generate one. Ask what evidence supports it and send the challenge. Next choose Retrieve something more unexpected and send it. Select a returned candidate to debate, save, or explore.",
     "lookFor": "The interpretation preview explains the action before submission. Transcript turns identify the recommendation being discussed. Evidence-only replies and new retrievals are visibly different, so judges can follow what actually happened.",
     "technical": "Evidence replies read recorded result metadata locally. Alternative requests use Qloo with the selected entity, supported feedback, and seen-entity exclusions. Unsupported wording asks for an explicit action; this is a rule-based evidence conversation, not unrestricted AI chat."
+  },
+  {
+    "name": "Discovery Lab",
+    "url": "/lab",
+    "benefit": "Explore different directions without losing the path you started on. Checkpoints preserve a starting moment, independent branches let you try different approaches, and side-by-side comparison helps you choose which discovery to continue.",
+    "try": "Choose Explore in Discovery Lab from a journey, or start in the Lab with named interests and your selected Qloo connection. Open Follow the Thread to create the starting checkpoint, open a door, and mark a result Keep. Restore that checkpoint and try Take the Wild Door. Under Compare branches, select the shared checkpoint and both sibling branches.",
+    "lookFor": "Compare each branch’s discoveries, explanations, source information, conditions, and feedback from the same starting point. Favorite and resume the path you prefer. Restore a checkpoint without erasing the sibling branch; reload to see completed exploration restored.",
+    "technical": "Live branches use the selected shared Demo or personal Qloo connection through the shared discovery provider. Branch strategies influence retrieval direction, not a measured novelty score or guaranteed different results. Lab histories and checkpoints remain browser-local, including for signed-in users. Restored results are saved history, not new requests; prepared examples are a separate authored mode."
   }
 ]

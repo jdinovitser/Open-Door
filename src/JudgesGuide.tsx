@@ -123,7 +123,7 @@ export default function JudgesGuide({ status, statusError }: { status: AgentStat
       <p className="judge-copy-status" role="status">{copyStatus}</p>
     </header>
     <section aria-labelledby="judge-new-features">
-      <h2 id="judge-new-features">Three new ways to make discovery personal</h2>
+      <h2 id="judge-new-features">Feature deep dives: connect, reimagine, challenge, and compare</h2>
       <p>These are working discovery features, not just navigation tabs. Each uses the selected shared Demo or personal Qloo connection and connects back to saving and continuing a discovery.</p>
       {FEATURES.map(feature => <section className="judge-step" key={feature.name}>
         <h3>{feature.name}</h3>
