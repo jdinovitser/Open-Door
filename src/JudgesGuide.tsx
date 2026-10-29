@@ -25,17 +25,46 @@ const STEPS = [
     notice: "Qloo Search resolves the named interests; Insights retrieves cultural connections. Open Door organizes returned results into directions. The route labels are not Qloo confidence scores, and cultural entities are not verified venue listings or bookings.",
   },
   {
-    title: "Turn a result into another exploration",
+    title: "Make discovery useful",
     time: "1:30–2:15",
     actions: [
-      "Open a returned door to read its recommendation in place, then optionally choose “Explore this thread.”",
-      "The selected Qloo entity becomes the next anchor for another live exploration. Inspect the new journey’s evidence.",
+      "Open a door in place: see Your starting interest, Your discovery, and Why it connects. Try Uncover a hidden gem, save a door, or Add to Build My Day; print or download a Word document.",
+      "Use “Explore more ideas” to continue from the selected Qloo entity. Maps opens returned coordinates when available; planner category searches are labeled separately. Supplied websites appear only when available.",
     ],
     notice: "This is a stateful discovery workflow, not a one-shot recommendation page. A returned entity ID becomes an input to the next retrieval step instead of being discarded and re-searched as plain text.",
   },
   {
-    title: "Explore two possible futures",
-    time: "2:15–3:45",
+    title: "Find a Taste Bridge",
+    time: "2:15–3:15",
+    actions: [
+      "Choose Taste Bridge in the discovery experience tabs. Enter Nina Simone / Music for one person and Spirited Away / Film for another. You can edit, add, or remove people within the two-to-five-person limit.",
+      "Choose Find our bridge. Review Shared Ground, The Bridge, and The Wild Card where supported results are available. Inspect which resolved interests contributed, then save or explore a result.",
+    ],
+    notice: "These are real Qloo requests using the selected shared or personal connection. Combined interests condition retrieval; they do not prove pairwise affinity or that everyone will like the result. Participant names stay in this browser session.",
+  },
+  {
+    title: "Ask What If?",
+    time: "3:15–4:15",
+    actions: [
+      "Open What If? Explorer. Start with the current discovery, a saved item, or new interests.",
+      "Describe a change, review the recognized conditions, and apply or edit them. Try a different exploration depth or city, then generate alternatives.",
+      "Compare original and alternative discoveries. Change the scenario again, save an alternative, or return to the original without overwriting your preferences.",
+    ],
+    notice: "Scenario interpretation uses disclosed rules, not an external language model. Budget, time, and movement guide local planning; they do not verify prices, availability, accessibility, or suitability. Identical results remain explicitly identical.",
+  },
+  {
+    title: "Challenge a recommendation",
+    time: "4:15–5:15",
+    actions: [
+      "Open Discovery Debate and select a current or saved recommendation, or generate one from named interests.",
+      "Ask what evidence supports it, challenge the connection, then request something more unexpected. Follow up on the newly selected result.",
+      "Inspect the conversation’s source references. Save a revised discovery or continue into the existing discovery experience.",
+    ],
+    notice: "Evidence replies use the actual result and available metadata. This is a rule-based discovery conversation, not unrestricted AI chat. Alternative requests retrieve from Qloo, retain supported feedback, and exclude previously returned entities.",
+  },
+  {
+    title: "Explore two possible futures in Discovery Lab",
+    time: "5:15–6:30",
     actions: [
       "Choose “Explore in Discovery Lab” from the live journey to continue that journey.",
       "For a fresh Lab start, the form defaults to the selected shared or personal Qloo connection. Prepared examples are a separate authored sample path.",
@@ -46,7 +75,7 @@ const STEPS = [
   },
   {
     title: "Compare, choose, and return",
-    time: "3:45–4:45",
+    time: "6:30–7:15",
     actions: [
       "Find “Compare branches.” Select the automatically created starting checkpoint under “Shared checkpoint,” then select both sibling branches.",
       "Compare discoveries, explanations, source information, conditions, and feedback. Favorite a branch and resume the path you prefer.",
@@ -56,10 +85,10 @@ const STEPS = [
   },
   {
     title: "See the product behind the workflow",
-    time: "4:45–5:00",
+    time: "7:15–7:30",
     actions: [
       "Visit How it works for the architecture and evidence boundaries, or Trust for privacy and browser-data controls.",
-      "Try the optional header sound control, animation pause buttons, or a narrow screen. Reduced-motion preferences use still artwork.",
+      "Try the optional header sound control or a narrow screen. The existing animated mascots accompany the new experiences; reduced-motion preferences use still artwork.",
     ],
     notice: "The responsive interface, supplied mascot artwork, optional audio, and accessible controls support a complete product experience—not just an API demonstration. Sound is muted by default.",
   },
@@ -82,20 +111,23 @@ export default function JudgesGuide({ status, statusError }: { status: AgentStat
   }
   return <article className="judges-guide" aria-labelledby="judges-title">
     <header className="judge-hero">
-      <span className="eyebrow">Open Door · five-minute walkthrough</span>
+      <span className="eyebrow">Open Door · about eight minutes · live responses may take longer</span>
       <h1 id="judges-title">Judge’s Guide</h1>
-      <p>Start with the culture a person names. Follow the Qloo-backed connections, inspect their evidence, continue a discovery, and compare independent paths in the Discovery Lab.</p>
+      <p>One Qloo-powered product, four ways to discover: explore for yourself, connect people through Taste Bridge, change circumstances with What If? Explorer, and challenge recommendations in Discovery Debate. Then compare independent paths in Discovery Lab.</p>
       <div className="judge-actions">
         <a className="primary-btn" href="/" target="_blank" rel="noopener noreferrer">Open app in a new tab <ArrowUpRight size={16} /></a>
+        <a className="secondary-btn" href="/Open-Door-Judges-Guide.pdf" target="_blank" rel="noopener noreferrer">Download Judge’s Guide PDF</a>
         <button className="secondary-btn" type="button" onClick={() => void copyLink()}><Copy size={15} /> Copy this guide’s link</button>
       </div>
       <p className="judge-copy-status" role="status">{copyStatus}</p>
     </header>
     <section className="judge-company" id="company-walkthrough" aria-labelledby="judge-company-title">
+      <details>
+      <summary>Optional: helping others explore and the partnership vision</summary>
       <div className="judge-company-heading">
-        <span className="eyebrow">Optional · about 90 seconds</span>
+        <span className="eyebrow">Optional extension · help others explore</span>
         <h2 id="judge-company-title">A company occasion, an individual’s taste.</h2>
-        <p>See how a hotel guest’s free afternoon before an evening show becomes a cultural starting point the guest can shape. The existing five-minute Qloo walkthrough remains below.</p>
+        <p>For a quick review, follow the numbered product walkthrough below. With extra time, try helping a hotel guest or wedding visitor explore, using the same discovery tools.</p>
       </div>
       <div className="judge-company-links">
         <a href="/companies#company-walkthrough">Open the company showcase <ArrowUpRight size={14} /></a>
@@ -110,13 +142,14 @@ export default function JudgesGuide({ status, statusError }: { status: AgentStat
       </ol>
       <p className="judge-company-note"><strong>Available today:</strong> editable company examples using the existing Qloo connection and discovery tools. These are not shared company workspaces. External company API, widget and MCP access are <strong>planned—not available yet</strong>; company-branded guest experiences are a potential business model, not existing customer contracts.</p>
       <p className="judge-company-note"><strong>Business model:</strong> free discovery for individuals, with planned company-funded branded experiences, clearly labeled sponsorships and referral partnerships. Advertising, attribution and paid integrations are not live. <a href="/partners">Read the partnership and investor story.</a></p>
+      </details>
     </section>
     <section className={`judge-status ${status?.qlooConfigured ? "configured" : ""}`} aria-label="Qloo configuration status" aria-live="polite">
       <strong><Info size={16} />{status?.qlooConfigured ? "Qloo is configured on this server" : status ? "Live Qloo is not configured on this server" : statusError ? "Qloo configuration status is unavailable" : "Checking Qloo configuration…"}</strong>
       <p>{status?.qlooConfigured
         ? "Configuration is not a completed retrieval. Confirm “Live Qloo · response received” after an actual request. This guide is instructions, not evidence that live requests have passed."
         : status
-          ? "The live steps below require Qloo configuration. You can explore the clearly labeled Demo experience, but authored samples are not proof of a live Qloo integration."
+          ? "The live steps below require Qloo configuration. “Try prepared examples” offers a separate authored experience, not proof of live Qloo retrieval."
            : "The live steps below require a configured server and successful Qloo requests. Do not assume Live is available until its status is confirmed."} No account is required to explore. Guest saves and Lab histories stay in this browser; signed-in saved doors can sync across devices.</p>
     </section>
     <ol className="judge-steps">
@@ -129,6 +162,11 @@ export default function JudgesGuide({ status, statusError }: { status: AgentStat
         <p className="judge-notice"><strong>What to notice: </strong>{step.notice}</p>
       </li>)}
     </ol>
+    <nav className="judge-actions" aria-label="Try the new discovery experiences">
+      <a className="secondary-btn" href="/?view=taste-bridge">Try Taste Bridge</a>
+      <a className="secondary-btn" href="/?view=what-if">Try What If? Explorer</a>
+      <a className="secondary-btn" href="/?view=debate">Try Discovery Debate</a>
+    </nav>
     <section className="judge-takeaway">
       <h2>The key takeaway</h2>
       <p>Qloo supplies retrieved cultural connections—not just plausible prose. Open Door makes those connections inspectable, organizes them into directions, and lets people choose what to continue.</p>

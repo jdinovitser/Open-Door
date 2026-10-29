@@ -26,7 +26,19 @@ Open Door lets people provide a place, explicit cultural anchors, intent, discov
 - **Adjacent** — a neighboring practice
 - **Unexpected** — a cross-category direction with its connection explained
 
-Demo Mode also includes exploration-depth choices, editable anchor categories, context controls, a three-person group example, saved doors, explicit feedback, a shareable story with selected details, and activity counts based on user actions.
+The discovery tools include exploration-depth choices, editable anchor categories, preference memory, practical context controls, saved doors, explicit feedback, shareable stories, and activity counts based on user actions. Prepared examples remain separate from live retrieval.
+
+## New discovery experiences
+
+Three separate tabs extend the existing discovery workflow and reuse the selected shared or personal Qloo connection:
+
+- **[Taste Bridge](https://open-door.replit.app/?view=taste-bridge):** two to five people enter editable, categorized interests. Qloo-backed results are organized into Shared Ground, The Bridge, and The Wild Card when supported. Attribution identifies resolved contributing interests, not individual affinity scores or proof everyone will like a result. The existing per-request anchor limit applies across the group.
+- **[What If? Explorer](https://open-door.replit.app/?view=what-if):** start from a current discovery, saved item, or new interests; review recognized scenario changes and edit the conditions; compare original and alternative results, repeat, and restore the original. Original preferences are preserved.
+- **[Discovery Debate](https://open-door.replit.app/?view=debate):** question evidence, challenge a connection, and request alternatives. Follow-ups reference the selected result and available source metadata. Live revisions reuse entity IDs, supported feedback, and exclusions rather than inventing recommendations.
+
+All three use the existing saved-door and continuation flows, actual mascot animations, responsive layouts, and explicit loading/error/partial-result states. Group names, scenario drafts, and debate transcripts remain in browser-session memory rather than account profiles. Scenario interpretation and debate responses use disclosed deterministic rules; no external LLM is used. Budget, movement, and time are local planning context—not verified suitability filters.
+
+Expanded discovery cards distinguish the starting interest, returned result, and supported connection. Available coordinates open a real map position; supplied HTTPS websites are linked when present. Add discoveries directly to **Build My Day**, print, or download Word documents. Hidden gems are authored activities, not additional retrieved facts. Optional preference memory stores only intention, depth, budget, and movement—with explicit save, restore, and forget controls.
 
 ## Why Qloo
 
@@ -146,7 +158,7 @@ Open Door remains usable without an account. Account-saved doors and reward even
 
 ## Future opportunities
 
-Potential extensions include verified local venue data and more live group journeys. These require separate data sources and are not implied by Qloo results. Company-branded embeds, a public partner API, and an MCP server that external company assistants could call are roadmap ideas—not currently available integrations.
+Potential extensions include verified local venue data and richer group discovery. Verified local availability would require separate data sources and is not implied by Qloo results. Company-branded embeds, a public partner API, and an MCP server that external company assistants could call are roadmap ideas—not currently available integrations.
 
 ## Company walkthrough
 
@@ -168,11 +180,15 @@ Open Door has two entry avenues—**Explore for yourself** and **Help others exp
 
 ## Judge’s Guide
 
-The shareable five-minute walkthrough is available at **`/judges`** and linked from the footer navigation only. It explains live Qloo retrieval, entity-based continuation, branching and comparison, and evidence boundaries. It reports the server’s current Qloo configuration rather than claiming a successful live connection. Publish the latest build before sending judges the URL.
+The shareable walkthrough is available at **`/judges`**, with a downloadable **`/Open-Door-Judges-Guide.pdf`**. Both remain linked from the footer, not the top navigation. Allow about eight minutes plus live-request time to explore solo discovery, Taste Bridge, What If? Explorer, Discovery Debate, and Discovery Lab. The guide distinguishes server configuration from completed retrieval and keeps commercial mockups optional.
+
+The updated three-minute demo narration and shot list are in [docs/DEMO_SCRIPT_UPDATED.md](docs/DEMO_SCRIPT_UPDATED.md). This is a recording script, not a claim that a new video has been recorded. Publish the latest build before sharing updated web/PDF links.
+
+Focused experience checks: `node --test src/experiences/*.test.mjs` and, with the app running, `npx playwright test -c src/experiences/all.playwright.config.ts`. Automated browser tests use controlled API fixtures; successful development live calls and production verification are separate evidence.
 
 ## Mascot animations
 
-The supplied mascot poses appear across the welcome screen, Discovery Lab, saved-door empty state, and How it works—including the cultural-interest gallery and Qloo architecture illustration. Animated WebP versions keep the original GIFs lightweight. Each animation can be paused, switches to a still when offscreen, and respects the browser’s reduced-motion preference.
+The supplied mascot poses appear across the welcome screen, Discovery Lab, saved-door empty state, How it works, and all three new discovery experiences. Animated WebP versions preserve the original GIF artwork and motion, switch to stills when offscreen, and respect reduced-motion preferences.
 
 ## Sound effects
 
