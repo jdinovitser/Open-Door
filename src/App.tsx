@@ -37,8 +37,13 @@ import { signInFor } from "./authReturn";
 import { FriendlyBrief } from "./FriendlyBrief";
 import "./friendly-discovery.css";
 import CompanyJourneyTools from "./company/CompanyJourneyTools";
+import TasteBridge from "./experiences/TasteBridge";
+import WhatIfExplorer from "./experiences/WhatIfExplorer";
+import type { WhatIfStart } from "./experiences/whatIf";
+import DiscoveryDebate from "./experiences/DiscoveryDebate";
+import type { DebateCandidate } from "./experiences/debate";
 
-type View = "discover" | "saved" | "how" | "trust" | "lab" | "judges" | "progress";
+type View = "discover" | "saved" | "how" | "trust" | "lab" | "judges" | "progress" | "taste-bridge" | "what-if" | "debate";
 type Intent = "Find my people" | "Go deeper" | "Try something new";
 type Depth = "Close to home" | "A little further" | "Surprise me" | "Take me somewhere unexpected";
 type Category = "Film" | "Music" | "Food" | "Art" | "Books" | "Design" | "Outdoors" | "Experiences" | "Other";
@@ -271,7 +276,7 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
     /^\/judges\/?$/.test(window.location.pathname) ? "judges"
       : /^\/progress\/?$/.test(window.location.pathname) ? "progress"
       : window.location.pathname === "/trust" ? "trust" : window.location.pathname.endsWith("/lab") ? "lab"
-        : ["saved", "how", "trust", "progress"].includes(new URLSearchParams(window.location.search).get("view") || "")
+        : ["saved", "how", "trust", "progress", "taste-bridge", "what-if", "debate"].includes(new URLSearchParams(window.location.search).get("view") || "")
           ? new URLSearchParams(window.location.search).get("view") as View : "discover",
   );
   useEffect(() => {
@@ -281,7 +286,7 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
       if (`${window.location.pathname}${window.location.search}` !== route) window.history.replaceState(null, "", route);
       return;
     }
-    const route = view === "judges" ? "/judges" : view === "progress" ? "/progress" : view === "lab" ? "/lab" : view === "trust" ? "/trust" : view === "saved" || view === "how" ? `/?view=${view}` : null;
+    const route = view === "judges" ? "/judges" : view === "progress" ? "/progress" : view === "lab" ? "/lab" : view === "trust" ? "/trust" : view === "saved" || view === "how" || view === "taste-bridge" || view === "what-if" || view === "debate" ? `/?view=${view}` : null;
     if (route && `${window.location.pathname}${window.location.search}` !== route) window.history.replaceState(null, "", route);
     else if (!route && (["/judges", "/progress", "/lab", "/trust"].includes(window.location.pathname) || new URLSearchParams(window.location.search).has("view"))) window.history.replaceState(null, "", "/");
   }, [view, companyProfile, invitation]);
@@ -331,6 +336,12 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
   const [anchorDraft, setAnchorDraft] = useState("");
   const [journey, setJourney] = useState<Journey | null>(() => restoreJourney(journeyKey));
   const [threadExploration, setThreadExploration] = useState<ThreadExploration | null>(null);
+  const [bridgeExpandedId, setBridgeExpandedId] = useState("");
+  const [bridgeVisited, setBridgeVisited] = useState(view === "taste-bridge");
+  const [whatIfVisited, setWhatIfVisited] = useState(view === "what-if");
+  const [whatIfExpandedId, setWhatIfExpandedId] = useState("");
+  const [debateVisited, setDebateVisited] = useState(view === "debate");
+  const [debateExpandedId, setDebateExpandedId] = useState("");
   const [entryPhase, setEntryPhase] = useState<"closed" | "opening" | "welcoming" | "entered">(companyProfile || new URLSearchParams(window.location.search).get("explore") === "1" ? "entered" : "closed");
   const entryRunDemoRef = useRef(false);
   const [judgeDemo, setJudgeDemo] = useState(() => new URLSearchParams(window.location.search).get("demo") === "1");
@@ -909,7 +920,7 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
     setCompassStatus({ state: "success", intent: nextIntent });
     setToast(`New example ideas ready: ${nextIntent.toLowerCase()}`);
   }
-  function toggleSave(door: Door, location: string, chosenAnchors: string[]) {
+  function toggleSave(door: Door, location: string, chosenAnchors: string[], mode = journey?.mode || "demo") {
     if (cloudBusyRef.current) return;
     if (isSignedIn && accountSaveStatus !== "ready") {
       setToast("Wait for your account saves to sync before changing My Doors.");
@@ -922,7 +933,7 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
         setToast("Your account has room for 100 saved doors. Remove one to save another.");
         return;
       }
-      setSaved(current => [{ ...door, city: location, savedAt: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" }), anchors: chosenAnchors, mode: journey?.mode || "demo" }, ...current]);
+      setSaved(current => [{ ...door, city: location, savedAt: new Date().toLocaleDateString(undefined, { month: "short", day: "numeric" }), anchors: chosenAnchors, mode }, ...current]);
       setToast("Saved to My Doors");
     }
   }
@@ -1171,6 +1182,88 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
     requestAnimationFrame(() => document.getElementById("day-plan")?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
+  const whatIfSources = useMemo<WhatIfStart[]>(() => {
+    const starts: WhatIfStart[] = [];
+    const baseRequest = (location: string): DiscoveryRequest => ({
+      location, occasion, intent, depth, context: publicContext({ ...context, time: occasion }), anchors: [], feedback: [], iteration: 0,
+    });
+    const singleRequest = (door: Door, location: string, mode: "demo" | "live"): DiscoveryRequest => ({
+      ...baseRequest(location), anchors: [{ label: door.title, category: door.category }],
+      ...(mode === "live" && door.entityId && door.entityType ? {
+        resolvedEntities: [{ label: door.title, category: door.category, entityId: door.entityId, entityType: door.entityType }],
+      } : {}),
+    });
+    if (journey) {
+      // A source captures its own original, not later App preferences or alternatives.
+      const original: Journey = JSON.parse(JSON.stringify(journey)) as Journey;
+      const originalFeedback = { ...feedback };
+      const restore = () => {
+        const restored: Journey = JSON.parse(JSON.stringify(original)) as Journey;
+        setJourney(restored); setCity(restored.city); setOccasion(restored.occasion); setIntent(restored.intent);
+        setDepth(restored.depth); setContext(restored.context); setAnchors(restored.anchors); setCategories(restored.categories);
+        setJourneyMode(restored.mode || "demo"); setThreadExploration(null); setFeedback({ ...originalFeedback }); setSelectedNode("");
+        setLiveError(""); setEntryPhase("entered"); setView("discover");
+      };
+      starts.push({
+        id: "current-journey", origin: "journey", label: "Current discovery journey", mode: original.mode || "demo",
+        request: {
+          location: original.city, occasion: original.occasion, intent: original.intent, depth: original.depth,
+          context: publicContext(original.context), anchors: original.anchors.map(label => ({ label, category: original.categories[label] || "Other" })),
+          ...(original.mode === "live" ? { resolvedEntities: original.resolvedAnchors?.map(anchor => ({
+            label: anchor.label, category: anchor.category, entityId: anchor.entityId, entityType: anchor.entityType,
+          })) } : {}),
+          feedback: [], iteration: original.iteration,
+        },
+        doors: original.doors.map(door => ({ id: door.id, title: door.title, category: door.category, entityId: door.entityId, tier: door.tier })), restore,
+      });
+      for (const door of original.doors) starts.push({
+        id: `result:${door.id}`, origin: "result", label: `Discovery: ${door.title}`, mode: original.mode || "demo",
+        request: { ...singleRequest(door, original.city, original.mode || "demo"), occasion: original.occasion,
+          intent: original.intent, depth: original.depth, context: publicContext(original.context) },
+        doors: [{ id: door.id, title: door.title, category: door.category, entityId: door.entityId, tier: door.tier }], restore,
+      });
+    }
+    for (const door of saved) starts.push({
+      id: `saved:${door.id}`, origin: "saved", label: `Saved: ${door.title}`, mode: door.mode || "demo",
+      request: singleRequest(door, door.city, door.mode || "demo"),
+      doors: [{ id: door.id, title: door.title, category: door.category, entityId: door.entityId, tier: door.tier }],
+      restore: () => setView("saved"),
+    });
+    return starts;
+  }, [journey, saved, occasion, intent, depth, context, feedback]);
+
+  const debateCandidates = useMemo<DebateCandidate[]>(() => {
+    const currentRequest = whatIfSources.find(start => start.id === "current-journey")?.request;
+    const candidates: DebateCandidate[] = currentRequest && journey ? journey.doors.map(door => ({
+      id: `current:${door.id}`, label: `Current: ${door.title}`, mode: journey.mode || "demo", door,
+      request: currentRequest, resolvedAnchors: journey.resolvedAnchors || [], requestIsHistorical: true,
+    })) : [];
+    for (const door of saved) {
+      const request = whatIfSources.find(start => start.id === `saved:${door.id}`)?.request;
+      if (request) candidates.push({
+        id: `saved:${door.id}`, label: `Saved: ${door.title}`, mode: door.mode || "demo", door,
+        request, resolvedAnchors: [], requestIsHistorical: false, savedAnchors: [...door.anchors],
+      });
+    }
+    return candidates;
+  }, [journey, saved, whatIfSources]);
+
+  function doorFromDebate(candidate: DebateCandidate): Door {
+    return { ...candidate.door, category: CATEGORIES.includes(candidate.door.category as Category) ? candidate.door.category as Category : "Other" };
+  }
+  function renderExperienceDoor(item: LiveDoor, sourceJourney: LiveJourney, expandedId: string, setExpanded: (id: string) => void, instanceId: string) {
+    const door = toDoor(item);
+    const continueDiscovery = (selected: Door) => {
+      if (isRunning) return;
+      setJourneyMode("live");
+      exploreSaved({ ...selected, city: sourceJourney.city, anchors: sourceJourney.anchors, savedAt: "", mode: "live" });
+    };
+    return <DoorCard door={door} city={sourceJourney.city} anchors={sourceJourney.anchors} mode="live" instanceId={instanceId}
+      saved={savedIds.has(door.id)} toggleSave={(selected, location, chosenAnchors) => toggleSave(selected, location, chosenAnchors, "live")}
+      expanded={expandedId === door.id} onOpenDoor={selected => setExpanded(selected.id)} onCloseDoor={() => setExpanded("")}
+      onExploreDeeper={continueDiscovery} exploring={isRunning} />;
+  }
+
   if (import.meta.env.DEV && window.location.pathname === "/security-test") {
     return <DevSecurityTestView onBack={() => {
       window.history.replaceState({}, "", "/");
@@ -1180,7 +1273,7 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
 
   return <div className="app-shell" onClickCapture={sound.onClickCapture}>
     <a className="skip-link" href="#main-content">Skip to main content</a>
-    <ProductHeader view={view === "judges" ? undefined : view}
+    <ProductHeader view={view === "judges" ? undefined : view === "taste-bridge" || view === "what-if" || view === "debate" ? "discover" : view}
       onNavigate={(next: ProductView) => { if (next !== "companies") setView(next); }}
       savedCount={saved.length} signedIn={!!isSignedIn}
       controls={<>{isSignedIn
@@ -1194,7 +1287,7 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
         </div>
          : <a className="account-sign-in" href={signInFor(companyProfile
            ? `${companyExperienceUrl(view === "lab" ? "lab" : "discover", companyProfile.id, invitation)}${["discover", "lab"].includes(view) ? "" : `&view=${view}`}`
-           : view === "lab" ? "/lab" : view === "trust" ? "/trust" : view === "saved" || view === "how" ? `/?view=${view}` : "/?explore=1")}>Sign in</a>}
+           : view === "lab" ? "/lab" : view === "trust" ? "/trust" : view === "saved" || view === "how" || view === "taste-bridge" || view === "what-if" || view === "debate" ? `/?view=${view}` : "/?explore=1")}>Sign in</a>}
       <button className="sound-toggle" type="button" data-sound="none" onClick={sound.toggle}
         aria-pressed={sound.enabled} aria-label={`Sound effects: ${sound.enabled ? "on" : "off"}`}
         title={sound.notice || (sound.enabled ? "Mute sound effects" : "Enable gentle sound effects")}>
@@ -1218,6 +1311,47 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
       {accountSaveNotice && isSignedIn && <p className={`account-sync-notice${accountSaveStatus === "error" ? " is-error" : ""}`} role={accountSaveStatus === "error" ? "alert" : "status"}>
         {accountSaveNotice}{accountSaveStatus === "error" && <button type="button" onClick={() => setAccountSyncAttempt(attempt => attempt + 1)}>Retry account sync</button>}
       </p>}
+      <nav className="experience-tabs" aria-label="Discovery experiences">
+        <button type="button" aria-current={view === "discover" ? "page" : undefined} onClick={() => setView("discover")}>Solo discovery</button>
+        <button type="button" aria-current={view === "taste-bridge" ? "page" : undefined} onClick={() => { setBridgeVisited(true); setView("taste-bridge"); }}>Taste Bridge</button>
+        <button type="button" aria-current={view === "what-if" ? "page" : undefined} onClick={() => { setWhatIfVisited(true); setView("what-if"); }}>What If? Explorer</button>
+        <button type="button" aria-current={view === "debate" ? "page" : undefined} onClick={() => { setDebateVisited(true); setView("debate"); }}>Discovery Debate</button>
+      </nav>
+      {bridgeVisited && <div hidden={view !== "taste-bridge"}>
+        <TasteBridge active={view === "taste-bridge"} status={agentStatus} statusError={statusError} source={qlooSource} initialLocation={city} disabled={isRunning}
+          onSelectConnection={(mode, source) => {
+            selectQlooConnection(mode, source);
+            if (mode === "demo") { setEntryPhase("entered"); setView("discover"); }
+          }}
+          renderDoor={(item, bridgeJourney) => renderExperienceDoor(item, bridgeJourney, bridgeExpandedId, setBridgeExpandedId, "bridge")} />
+      </div>}
+      {whatIfVisited && <div hidden={view !== "what-if"}>
+        <WhatIfExplorer active={view === "what-if"} sources={whatIfSources} status={agentStatus} statusError={statusError}
+          source={qlooSource} initialLocation={city} disabled={isRunning}
+          onSelectConnection={(mode, source) => {
+            selectQlooConnection(mode, source);
+            if (mode === "demo") { setEntryPhase("entered"); setView("discover"); }
+          }}
+          renderDoor={(item, nextJourney) => renderExperienceDoor(item, nextJourney, whatIfExpandedId, setWhatIfExpandedId, "what-if")} />
+      </div>}
+      {debateVisited && <div hidden={view !== "debate"}>
+        <DiscoveryDebate active={view === "debate"} candidates={debateCandidates} status={agentStatus} statusError={statusError}
+          source={qlooSource} initialLocation={city} disabled={isRunning} savedIds={savedIds}
+          onSelectConnection={(mode, source) => {
+            selectQlooConnection(mode, source);
+            if (mode === "demo") { setEntryPhase("entered"); setView("discover"); }
+          }}
+          onSave={candidate => toggleSave(doorFromDebate(candidate), candidate.request.location, candidate.savedAnchors || candidate.request.anchors.map(anchor => anchor.label), candidate.mode)}
+          onExplore={candidate => {
+            const door = doorFromDebate(candidate);
+            if (candidate.mode === "live" && (!door.entityId || !door.entityType)) {
+              setToast("This result has no reusable Qloo entity. Generate a named-interest recommendation or choose another result."); return;
+            }
+            setJourneyMode(candidate.mode);
+            exploreSaved({ ...door, city: candidate.request.location, anchors: candidate.request.anchors.map(anchor => anchor.label), mode: candidate.mode, savedAt: "" });
+          }}
+          renderDoor={(item, nextJourney) => renderExperienceDoor(item, nextJourney, debateExpandedId, setDebateExpandedId, "debate")} />
+      </div>}
       {view === "discover" && <DiscoverView companyProfile={companyProfile}
         city={city} setCity={setCity} occasion={occasion} setOccasion={setOccasion} intent={intent} setIntent={setIntent}
         depth={depth} setDepth={setDepth} context={context} setContext={setContext} anchors={anchors} categories={categories}
@@ -1689,18 +1823,19 @@ function DiscoverView(p: DiscoverProps) {
   </>;
 }
 
-function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, onCloseDoor, expanded, resultHeadingRef,
+function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, onCloseDoor, expanded, resultHeadingRef, instanceId = "",
   scenarioCategory, scenario, onExploreDeeper, onLab, onAddToPlan, feedback, setFeedback, exploring }: {
   door: Door; city: string; anchors: string[]; saved: boolean; toggleSave: (door: Door, city: string, anchors: string[]) => void;
   onOpenDoor: (door: Door) => void; onCloseDoor: () => void; expanded: boolean;
   resultHeadingRef?: RefObject<HTMLHeadingElement | null>; exploring?: boolean;
+  instanceId?: string;
   scenarioCategory?: ScenarioCategory; scenario?: string; onExploreDeeper: (door: Door) => void;
-  onLab: (door: Door) => void; feedback?: string; setFeedback: (id: string, reason: string) => void; mode: "demo" | "live";
-  onAddToPlan: (door: Door) => void;
+  onLab?: (door: Door) => void; feedback?: string; setFeedback?: (id: string, reason: string) => void; mode: "demo" | "live";
+  onAddToPlan?: (door: Door) => void;
 }) {
   const destination = destinationActions(door, mode);
   const wildcard = door.tier === "Unexpected" && (mode !== "live" || door.unexpectedCrossCategory === true);
-  const expansionId = `door-result-${door.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+  const expansionId = `door-result-${instanceId}${door.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
   const scenarioText = scenario?.trim() || "";
   const localGuidance = scenarioText ? scenarioGuidance({ scenario: scenarioText }) : [];
   return <article className={`door-card ${expanded ? "is-expanded" : ""} ${feedback ? "dismissed" : ""} tier-${door.tier.toLowerCase()} category-${door.category.toLowerCase()}`}>
@@ -1759,13 +1894,13 @@ function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, on
         {mode === "live" && door.explainability != null && <details className="qloo-explainability"><summary>Qloo explainability returned</summary><pre>{JSON.stringify(publicTrace(door.explainability), null, 2)}</pre></details>}
       </details>
       <div className="expanded-next-actions">
-        <button className="secondary-btn" type="button" onClick={() => onAddToPlan(door)}>Add to Build My Day</button>
+        {onAddToPlan && <button className="secondary-btn" type="button" onClick={() => onAddToPlan(door)}>Add to Build My Day</button>}
         <button className="primary-btn" type="button" disabled={exploring} onClick={() => onExploreDeeper(door)}>{exploring ? "Finding more ideas…" : "Explore more ideas"} <ArrowRight size={15} /></button>
-        <button className="secondary-btn" type="button" onClick={() => onLab(door)}>Branch in Discovery Lab <ArrowRight size={14} /></button>
-        <button className="icon-action" type="button" onClick={() => setFeedback(door.id, feedback ? "" : "choose")} aria-label={`Give feedback on ${door.title}`}><HeartCrack size={15} /> Not for me</button>
+        {onLab && <button className="secondary-btn" type="button" onClick={() => onLab(door)}>Branch in Discovery Lab <ArrowRight size={14} /></button>}
+        {setFeedback && <button className="icon-action" type="button" onClick={() => setFeedback(door.id, feedback ? "" : "choose")} aria-label={`Give feedback on ${door.title}`}><HeartCrack size={15} /> Not for me</button>}
       </div>
     </section>
-     {expanded && feedback && <div className="feedback-panel"><p>What didn’t fit? Your selected reason will be sent with the next live exploration.</p>{feedback === "choose" ? <div className="feedback-options">{REASONS.map(reason => <button key={reason} type="button" className="feedback-chip" onClick={() => setFeedback(door.id, reason)}>{reason}</button>)}</div> : <div><span className="feedback-confirm"><Check size={14} /> Noted: {feedback}</span><button className="text-button" type="button" onClick={() => setFeedback(door.id, "choose")}>Change</button><button className="text-button" type="button" onClick={() => setFeedback(door.id, "")}>Clear</button></div>}</div>}
+     {expanded && feedback && setFeedback && <div className="feedback-panel"><p>What didn’t fit? Your selected reason will be sent with the next live exploration.</p>{feedback === "choose" ? <div className="feedback-options">{REASONS.map(reason => <button key={reason} type="button" className="feedback-chip" onClick={() => setFeedback(door.id, reason)}>{reason}</button>)}</div> : <div><span className="feedback-confirm"><Check size={14} /> Noted: {feedback}</span><button className="text-button" type="button" onClick={() => setFeedback(door.id, "choose")}>Change</button><button className="text-button" type="button" onClick={() => setFeedback(door.id, "")}>Clear</button></div>}</div>}
   </article>;
 }
 

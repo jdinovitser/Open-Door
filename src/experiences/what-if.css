@@ -1,0 +1,22 @@
+.what-if-explorer { max-width:1060px; margin:auto; }
+.what-if-explorer .mascot-visual { width:clamp(160px,22vw,240px); max-width:100%; margin-inline:auto; }
+.what-if-explorer .bridge-intro p { max-width:650px; }
+.what-if-explorer label { display:grid; gap:7px; font-size:12px; font-weight:600; }
+.what-if-explorer input,.what-if-explorer select,.what-if-explorer textarea { width:100%; min-width:0; padding:11px; border:1px solid var(--line); border-radius:8px; color:var(--ink); background:var(--paper); font:inherit; }
+.what-if-explorer textarea { min-height:108px; resize:vertical; line-height:1.65; }
+.what-if-source { padding:22px; border:1px solid var(--line); border-radius:16px; background:var(--surface-soft); margin:24px 0; }
+.what-if-source-controls { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; align-items:end; }
+.what-if-controls { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; margin:22px 0; }
+.what-if-recognition { padding:16px; margin:16px 0; border-left:3px solid var(--gold); background:var(--paper); }
+.what-if-recognition li,.what-if-changes li { line-height:1.7; margin:8px 0; }
+.what-if-scope { display:block; color:var(--muted); font-size:12px; font-weight:400; line-height:1.6; }
+.what-if-comparison { display:grid; grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr); gap:28px; margin-top:30px; align-items:start; }
+.what-if-original { border:1px solid var(--line); border-radius:16px; padding:22px; background:var(--surface-soft); overflow-wrap:anywhere; }
+.what-if-original h2,.what-if-alternatives h2 { font:500 30px var(--serif); }
+.what-if-original li { margin:13px 0; line-height:1.6; }
+.what-if-alternatives .door-card { margin:18px 0; }
+.what-if-summary { padding:20px; border:1px solid var(--line); border-radius:14px; margin:24px 0; background:var(--surface-raised); }
+.what-if-summary p { line-height:1.7; }
+.what-if-private { overflow-wrap:anywhere; white-space:pre-wrap; }
+.what-if-explorer fieldset:disabled { opacity:.75; }
+@media(max-width:767px) { .what-if-source-controls,.what-if-controls,.what-if-comparison { grid-template-columns:minmax(0,1fr); } }
