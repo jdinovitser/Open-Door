@@ -78,6 +78,8 @@ export type LiveDoor = {
   explainability: unknown;
   tags: string[];
   coordinates: { latitude: number; longitude: number } | null;
+  websiteUrl?: string;
+  unexpectedCrossCategory?: boolean;
   discoveryDistance: {
     tier: string;
     ordinal: number;

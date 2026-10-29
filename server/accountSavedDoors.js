@@ -8,7 +8,7 @@ const MAX_DOOR_BYTES = 24_000;
 const ALLOWED_TIERS = new Set(["Familiar", "Adjacent", "Unexpected"]);
 const SAVED_DOOR_FIELDS = new Set([
   "id", "title", "tier", "kind", "category", "source", "why", "now", "evidence",
-  "thread", "whyYou", "entityId", "entityType", "sourceEntityIds", "coordinates",
+  "thread", "whyYou", "entityId", "entityType", "sourceEntityIds", "coordinates", "websiteUrl", "unexpectedCrossCategory",
   "popularity", "discoveryDistance", "explainability", "imageUrl", "city", "savedAt",
   "anchors", "mode",
 ]);

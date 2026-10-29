@@ -16,11 +16,8 @@ test("recommendations download as a genuine Word document with clickable map lin
   await openSample(page);
   const result = page.locator(".door-card").first();
   await result.locator(".door-preview").click();
-  const map = result.locator(".door-map-link");
-  await expect(map).toHaveAttribute("target", "_blank");
-  await expect(map).toHaveAttribute("rel", "noopener noreferrer");
-  await expect(map).toContainText("Opens Google Maps");
-  expect(await map.getAttribute("href")).toMatch(/^https:\/\/www\.google\.com\/maps\/search\/\?api=1&query=/);
+  await expect(result.locator(".door-map-link")).toHaveCount(0);
+  await expect(result).toContainText("No visitable location is confirmed");
   await page.getByRole("button", { name: "Print recommendations" }).click();
   await expect(page.locator("html")).toHaveAttribute("data-print-requested", "true");
   await page.emulateMedia({ media: "print" });
@@ -214,5 +211,5 @@ async function mountPreferenceMemory(page: Page) {
       onRevisionChanged: () => { document.body.dataset.stale = "true"; },
     }));
   });
-  await expect(page.getByRole("heading", { name: "Remember a few discovery settings?" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your discovery preferences" })).toBeVisible();
 }

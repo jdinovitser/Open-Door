@@ -99,6 +99,7 @@ function safeImageUrl(entity) {
 
 function safeCoordinates(entity) {
   const geocode = entity?.properties?.geocode;
+  if (!geocode || (geocode.latitude ?? geocode.lat) == null || (geocode.longitude ?? geocode.lon ?? geocode.lng) == null) return null;
   const latitude = Number(geocode?.latitude ?? geocode?.lat);
   const longitude = Number(geocode?.longitude ?? geocode?.lon ?? geocode?.lng);
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
@@ -118,6 +119,15 @@ function safeExplainability(value, depth = 0) {
     .slice(0, 20)
     .map(([key, item]) => [cleanText(key, 80), safeExplainability(item, depth + 1)]);
   return Object.fromEntries(entries);
+}
+
+function safeWebsite(entity) {
+  const value = entity?.properties?.website;
+  if (typeof value !== "string") return "";
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" && !url.username && !url.password ? url.href : "";
+  } catch { return ""; }
 }
 
 function selectedRouteTypes(sourceType, depth, feedback, intent) {
@@ -253,6 +263,7 @@ function normalizeQlooCandidate(entity, requestedType) {
     category,
     description,
     imageUrl: safeImageUrl(entity),
+    websiteUrl: safeWebsite(entity),
     coordinates: safeCoordinates(entity),
     popularity: Number.isFinite(popularity) ? popularity : null,
     explainability: safeExplainability(entity?.query?.explainability ?? entity?.explainability ?? null),
@@ -522,15 +533,25 @@ export async function runDiscovery(input, { qloo, emit = () => {}, signal, onToo
   );
 
   stage(emit, "candidate-evaluation", "running", "Evaluating returned candidates", "Keeping Qloo's response order, removing duplicate entities, and excluding already-opened entity IDs.");
-  const excluded = new Set(request.excludedEntityIds);
+  const excluded = new Set([...request.excludedEntityIds, ...entityIds]);
   const seen = new Set();
   const selected = [];
   for (let index = 0; index < rawResults.length; index += 1) {
     const result = rawResults[index];
-    const candidate = result.candidates.find(item => !seen.has(item.id) && !excluded.has(item.id));
+    const eligible = item => !seen.has(item.id) && !excluded.has(item.id);
+    const seedCategories = new Set(resolved.map(anchor => CATEGORY_FOR_TYPE[anchor.entityType]));
+    const isCrossCategory = item => !seedCategories.has(item.category);
+    // Keep Familiar/Adjacent selection intact. Prefer a genuinely different
+    // cultural category for Unexpected, using only already-retrieved results.
+    const candidate = result.tier === "Unexpected"
+      ? result.candidates.find(item => eligible(item) && isCrossCategory(item))
+        || rawResults.flatMap(row => row.candidates).find(item => eligible(item) && isCrossCategory(item))
+        || result.candidates.find(eligible)
+        || rawResults.flatMap(row => row.candidates).find(eligible)
+      : result.candidates.find(eligible);
     if (!candidate) continue;
     seen.add(candidate.id);
-    const anchorsText = resolved.map(anchor => anchor.label).join(", ");
+    const anchorsText = resolved.map(anchor => anchor.entityName || anchor.label).join(", ");
     const exactMatchNote = resolved.every(anchor => anchor.exactNameMatch)
       ? " Qloo Search names matched the entered text exactly."
       : " Review the resolved entity names in Under the Door before relying on an ambiguous match.";
@@ -569,10 +590,16 @@ export async function runDiscovery(input, { qloo, emit = () => {}, signal, onToo
       explainability: candidate.explainability,
       tags: candidate.tags,
       coordinates: candidate.coordinates,
+      websiteUrl: candidate.websiteUrl,
+      unexpectedCrossCategory: result.tier === "Unexpected" ? isCrossCategory(candidate) : undefined,
       discoveryDistance: {
         tier: result.tier,
         ordinal: TIERS.indexOf(result.tier) + 1,
-        rationale: distanceRationale,
+        rationale: result.tier === "Unexpected"
+          ? isCrossCategory(candidate)
+            ? `Qloo returned a ${candidate.category} result from your starting interests. Open Door prioritized a different category; this is not a surprise score.`
+            : "No distinct cross-category result was available. This is another valid Qloo result, not a claim of unexpectedness."
+          : distanceRationale,
         isQlooScore: false,
       },
       queryContext: {

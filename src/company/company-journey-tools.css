@@ -55,6 +55,15 @@
 .company-tools-summary p { margin: 0; color: hsl(190 16% 35%); font-size: .9rem; line-height: 1.55; }
 .company-tools-actions { display: flex; flex-wrap: wrap; gap: .65rem; margin-top: 1rem; }
 .company-tools-actions .company-button { min-height: 2.8rem; }
+.company-tools-actions .company-button:not(.secondary) {
+  color: #173e33;
+  background: #e0ede4;
+  border-color: #8cae9a;
+}
+.company-tools-actions .company-button:not(.secondary):hover {
+  color: #173e33;
+  background: #cbded0;
+}
 .company-tools-share { margin-top: .85rem; }
 .company-tools-share-message { margin: .5rem 0 0; color: hsl(177 30% 28%); font-size: .85rem; }
 .company-tools-share-fallback { display: grid; gap: .35rem; margin-top: .65rem; }

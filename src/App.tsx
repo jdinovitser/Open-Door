@@ -25,9 +25,10 @@ import { combinePendingSavedDoorChanges, diffAccountSavedDoors, isPendingDoorCha
 import { ScenarioFields } from "./lab/ScenarioFields";
 import { scenarioGuidance, type ScenarioCategory } from "./lab/scenarios";
 import { demoIdeas, type DemoOptions } from "./demoIdeas";
-import { DayPlanner, mapsSearch, RecommendationTools } from "./RecommendationTools";
+import { DayPlanner, RecommendationTools } from "./RecommendationTools";
 import PreferencesMemory, { type PreferenceValues } from "./PreferencesMemory";
 import HiddenGem from "./HiddenGem";
+import { connectionSummary, destinationActions } from "./discoveryEvidence";
 import CompanyBanner from "./company/CompanyBanner";
 import type { CompanyProfile } from "./company/profiles";
 import { ProductHeader, ProductAvenues, type ProductView } from "./ProductHeader";
@@ -47,6 +48,7 @@ type Door = {
   category: Category; source: string; why: string; now: string; evidence: string; thread: string;
   whyYou?: string; entityId?: string; entityType?: string; sourceEntityIds?: string[];
   coordinates?: { latitude: number; longitude: number } | null; popularity?: number | null;
+  websiteUrl?: string; unexpectedCrossCategory?: boolean;
   discoveryDistance?: LiveDoor["discoveryDistance"]; explainability?: unknown; imageUrl?: string;
 };
 type Journey = {
@@ -165,6 +167,7 @@ function restoreJourney(key = "opendoor.journey"): Journey | null {
       whyYou: door.whyYou, entityId: door.entityId, entityType: door.entityType, sourceEntityIds: door.sourceEntityIds,
       coordinates: door.coordinates, popularity: door.popularity, discoveryDistance: door.discoveryDistance,
       explainability: door.explainability, imageUrl: door.imageUrl,
+      websiteUrl: door.websiteUrl, unexpectedCrossCategory: door.unexpectedCrossCategory,
     }];
   });
   if (!doors.length) return null;
@@ -655,6 +658,7 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
       source: item.source, why: item.why, whyYou: item.whyYou, now: item.whyNow || item.now,
       evidence: item.evidence, thread: item.thread, entityId: item.entityId, entityType: item.entityType,
       sourceEntityIds: item.sourceEntityIds, coordinates: item.coordinates, popularity: item.popularity,
+      websiteUrl: item.websiteUrl, unexpectedCrossCategory: item.unexpectedCrossCategory,
       discoveryDistance: item.discoveryDistance, explainability: item.explainability, imageUrl: item.imageUrl,
     };
   }
@@ -831,7 +835,7 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
     if (!isSignedIn) setSaved([]);
     setFeedback({});
     setOpenedIds([]);
-    for (const key of [journeyKey, feedbackKey, openedKey]) {
+    for (const key of [journeyKey, feedbackKey, openedKey, "opendoor.preferences"]) {
       safeRemoveStore(key);
     }
     // Company contexts are still the visitor's browser data, never company records.
@@ -967,13 +971,16 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
         return;
       }
       const request: DiscoveryRequest = {
-        location: previous.city, occasion: previous.occasion, intent: previous.intent, depth: previous.depth,
-        context: publicContext(previous.context), anchors: [{ label: nextAnchor, category: door.category }],
+        location: previous.city, occasion: previous.occasion, intent, depth,
+        context: publicContext({ ...previous.context, budget: context.budget, movement: context.movement }), anchors: [{ label: nextAnchor, category: door.category }],
         resolvedEntities: [{ label: nextAnchor, category: door.category, entityId: door.entityId, entityType: door.entityType }],
-        excludedEntityIds: previous.doors.flatMap(item => item.entityId ? [item.entityId] : []),
+        excludedEntityIds: [...new Set([
+          ...previous.doors.flatMap(item => item.entityId ? [item.entityId] : []),
+          ...openedIds.filter(id => id.startsWith("qloo-")).map(id => id.slice(5)),
+        ])].slice(-40),
         feedback: selectedFeedback, iteration: nextIteration,
       };
-      const result = await runLive([nextAnchor], previous.intent, nextIteration, selectedFeedback, request, previous.context);
+      const result = await runLive([nextAnchor], intent, nextIteration, selectedFeedback, request, { ...previous.context, budget: context.budget, movement: context.movement });
       if (result) {
         setFeedback({});
         setThreadExploration({ ...pending, status: "ready", targetIds: result.doors.map(item => item.id) });
@@ -1076,12 +1083,12 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
         return;
       }
       const request: DiscoveryRequest = {
-        location: item.city, occasion, intent: "Try something new", depth, context: publicContext({ ...context, time: occasion }),
+        location: item.city, occasion, intent, depth, context: publicContext({ ...context, time: occasion }),
         anchors: [{ label: item.title, category: item.category }], feedback: [], iteration: 1,
         resolvedEntities: [{ label: item.title, category: item.category, entityId: item.entityId, entityType: item.entityType }],
         excludedEntityIds: [item.entityId],
       };
-      void runLive([item.title], "Try something new", 1, [], request);
+      void runLive([item.title], intent, 1, [], request);
       return;
     }
     const originalInterests = item.anchors.filter(anchor => !/· step \d+/.test(anchor));
@@ -1333,6 +1340,7 @@ function DiscoverView(p: DiscoverProps) {
   const openTriggerRef = useRef<HTMLButtonElement | null>(null);
   const openedVisitsRef = useRef(new Set(p.openedIds));
   const [preferenceFormEdited, setPreferenceFormEdited] = useState(false);
+  const [plannerRequest, setPlannerRequest] = useState<{ id: string; sequence: number } | null>(null);
   const previousPreferenceOwner = useRef(p.accountUserId);
   const thread = p.threadExploration && p.journey && (
     p.threadExploration.status === "ready"
@@ -1507,11 +1515,13 @@ function DiscoverView(p: DiscoverProps) {
       key={p.accountUserId || "guest"}
       userId={p.accountUserId}
       signedIn={p.signedIn}
+      interests={p.anchors.map(label => `${label} (${p.categories[label] || "Other"})`)}
       values={{ intent: p.intent, depth: p.depth, budget: p.context.budget as PreferenceValues["budget"], movement: p.context.movement as PreferenceValues["movement"] }}
       hasJourney={!!p.journey}
       demoActive={p.judgeDemo}
       hasFormEdits={preferenceFormEdited}
       onApply={values => {
+        setPreferenceFormEdited(true);
         p.setIntent(values.intent);
         p.setDepth(values.depth);
         p.setContext({ ...p.context, budget: values.budget, movement: values.movement });
@@ -1574,8 +1584,14 @@ function DiscoverView(p: DiscoverProps) {
          expanded={activeDoorId === door.id} resultHeadingRef={activeDoorId === door.id ? resultHeadingRef : undefined}
          scenarioCategory={p.journey!.context.scenarioCategory} scenario={p.journey!.context.scenario}
          exploring={p.isRunning}
+         onAddToPlan={door => {
+           p.setOneHour(false);
+           setPlannerRequest(current => ({ id: door.id, sequence: (current?.sequence || 0) + 1 }));
+           document.getElementById("day-plan")?.scrollIntoView({ behavior: "smooth", block: "start" });
+         }}
          onExploreDeeper={p.openNext} onLab={p.onLab} feedback={p.feedback[door.id]} setFeedback={p.setFeedback} />)}</div>
       <DayPlanner key={p.journey.doors.map(door => door.id).join("|")} recommendations={p.journey.doors} city={p.journey.city} mode={p.journey.mode || "demo"}
+        requestedItem={plannerRequest}
         startTime={p.context.startTime || "10:00"} endTime={p.context.endTime || "17:00"}
         location={p.city} budget={p.context.budget} novelty="Balanced"
         onRefresh={p.onBuildDay}
@@ -1674,13 +1690,16 @@ function DiscoverView(p: DiscoverProps) {
 }
 
 function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, onCloseDoor, expanded, resultHeadingRef,
-  scenarioCategory, scenario, onExploreDeeper, onLab, feedback, setFeedback, exploring }: {
+  scenarioCategory, scenario, onExploreDeeper, onLab, onAddToPlan, feedback, setFeedback, exploring }: {
   door: Door; city: string; anchors: string[]; saved: boolean; toggleSave: (door: Door, city: string, anchors: string[]) => void;
   onOpenDoor: (door: Door) => void; onCloseDoor: () => void; expanded: boolean;
   resultHeadingRef?: RefObject<HTMLHeadingElement | null>; exploring?: boolean;
   scenarioCategory?: ScenarioCategory; scenario?: string; onExploreDeeper: (door: Door) => void;
   onLab: (door: Door) => void; feedback?: string; setFeedback: (id: string, reason: string) => void; mode: "demo" | "live";
+  onAddToPlan: (door: Door) => void;
 }) {
+  const destination = destinationActions(door, mode);
+  const wildcard = door.tier === "Unexpected" && (mode !== "live" || door.unexpectedCrossCategory === true);
   const expansionId = `door-result-${door.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
   const scenarioText = scenario?.trim() || "";
   const localGuidance = scenarioText ? scenarioGuidance({ scenario: scenarioText }) : [];
@@ -1689,13 +1708,13 @@ function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, on
       aria-expanded={expanded} aria-controls={expansionId} aria-label={`${expanded ? "Collapse" : "Open"} ${door.tier.toLowerCase()} door: ${door.title}`}>
       <span className="preview-number">{door.tier === "Familiar" ? "01" : door.tier === "Adjacent" ? "02" : "03"}</span>
       <DoorArtwork open={expanded} className="recommendation-door-art" />
-      <span className="preview-invite">{expanded ? "CLOSE DETAILS" : door.tier === "Unexpected" ? "OPEN THE WILDCARD" : "OPEN THIS DOOR"} <ArrowDownRight size={14} /></span>
+      <span className="preview-invite">{expanded ? "CLOSE DETAILS" : wildcard ? "OPEN THE WILDCARD" : "OPEN THIS DOOR"} <ArrowDownRight size={14} /></span>
     </button>
-    <div className="door-top"><div className="door-kind"><Compass size={13} /> {door.tier === "Familiar" ? "A familiar interest" : door.tier === "Adjacent" ? "A related idea" : "Something different"} · {door.category}</div><h3>{door.title}</h3><div className="door-location">{mode === "live" ? door.kind : "An activity you can try at your own pace"}</div></div>
+    <div className="door-top"><div className="door-kind"><Compass size={13} /> {door.tier === "Familiar" ? "A familiar interest" : door.tier === "Adjacent" ? "A related idea" : wildcard ? "Something different" : "Another direction"} · {door.category}</div><h3>{door.title}</h3><div className="door-location">{mode === "live" ? door.kind : "An activity you can try at your own pace"}</div></div>
     {!expanded && <div className="door-body door-summary"><p>{door.why}</p></div>}
     <div className="door-actions"><button className={`icon-action ${saved ? "saved" : ""}`} type="button" onClick={() => toggleSave(door, city, anchors)} aria-label={saved ? `Remove ${door.title} from My Doors` : `Save ${door.title}`}><Bookmark size={15} fill={saved ? "currentColor" : "none"} /> {saved ? "Saved" : "Save"}</button>
       <button className="secondary-btn" type="button" data-sound="none" aria-expanded={expanded} aria-controls={expansionId}
-        onClick={() => expanded ? onCloseDoor() : onOpenDoor(door)}>{expanded ? "Close details" : door.tier === "Unexpected" ? "Open the wildcard" : "Open this door"} <ArrowDownRight size={14} /></button>
+        onClick={() => expanded ? onCloseDoor() : onOpenDoor(door)}>{expanded ? "Close details" : wildcard ? "Open the wildcard" : "Open this door"} <ArrowDownRight size={14} /></button>
     </div>
     <section className="door-result-expanded" id={expansionId} hidden={!expanded} aria-labelledby={`${expansionId}-heading`}
       onKeyDown={event => { if (event.key === "Escape") { event.stopPropagation(); onCloseDoor(); } }}>
@@ -1705,13 +1724,22 @@ function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, on
       </div>
       <h4 id={`${expansionId}-heading`} tabIndex={-1} ref={resultHeadingRef}>{door.title}</h4>
       <p className="expanded-kind">{door.category}</p>
+      <div className="expanded-reasons" aria-label="Discovery connection">
+        <div><h5>Your starting interest</h5><p>{door.source || anchors.join(", ") || "Starting interest unavailable"}</p></div>
+        <div><h5>Your discovery</h5><p>{door.title} · {door.category}</p></div>
+        <div><h5>Why it connects</h5><p>{connectionSummary(door, mode)}</p>
+          {mode === "live" && door.tier === "Unexpected" && <p>{door.unexpectedCrossCategory
+            ? "A different cultural category from your starting interests—not a measured surprise score."
+            : "Another direction to try. The available results do not establish a cross-category surprise."}</p>}
+        </div>
+      </div>
       <div className="expanded-reasons">
-        <div><h5>Why you might enjoy it</h5><p>{door.why}</p></div>
+        {mode !== "live" && <div><h5>Why you might enjoy it</h5><p>{door.why}</p></div>}
         <div><h5>Try this first</h5><p>{door.now}</p></div>
       </div>
-      <a className="door-map-link" href={mapsSearch(door.category, city)} target="_blank" rel="noopener noreferrer">
-        <MapPin size={14} /> Find {({ Music: "record shops", Art: "art galleries", Books: "libraries", Film: "cinemas", Food: "food markets", Design: "design museums", Outdoors: "parks", Experiences: "community centers", Other: "museums" } as Record<string, string>)[door.category] || "places"} nearby <span>Opens Google Maps</span>
-      </a>
+      {destination.map && <a className="door-map-link" href={destination.map} target="_blank" rel="noopener noreferrer"><MapPin size={14} /> View returned location on Google Maps <span>Confirm access and opening hours before visiting</span></a>}
+      {destination.website && <a className="door-map-link" href={destination.website} target="_blank" rel="noopener noreferrer">Visit website supplied with this result <ArrowRight size={14} /></a>}
+      {!destination.map && <p className="helper">No visitable location is confirmed for this result. Explore it as a cultural idea or an activity.</p>}
       {scenarioText && <section className="scenario-result" aria-label="Local personal considerations">
         <div><span>Make it work for you</span><p>You told us: {scenarioText}</p></div>
         <ul>{localGuidance.map((suggestion, index) => <li key={`${suggestion}-${index}`}>{suggestion}</li>)}</ul>
@@ -1731,6 +1759,7 @@ function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, on
         {mode === "live" && door.explainability != null && <details className="qloo-explainability"><summary>Qloo explainability returned</summary><pre>{JSON.stringify(publicTrace(door.explainability), null, 2)}</pre></details>}
       </details>
       <div className="expanded-next-actions">
+        <button className="secondary-btn" type="button" onClick={() => onAddToPlan(door)}>Add to Build My Day</button>
         <button className="primary-btn" type="button" disabled={exploring} onClick={() => onExploreDeeper(door)}>{exploring ? "Finding more ideas…" : "Explore more ideas"} <ArrowRight size={15} /></button>
         <button className="secondary-btn" type="button" onClick={() => onLab(door)}>Branch in Discovery Lab <ArrowRight size={14} /></button>
         <button className="icon-action" type="button" onClick={() => setFeedback(door.id, feedback ? "" : "choose")} aria-label={`Give feedback on ${door.title}`}><HeartCrack size={15} /> Not for me</button>

@@ -61,7 +61,7 @@ export function TrustView({
     <div className="trust-hero">
       <span className="eyebrow">Open Door · Trust &amp; privacy</span>
       <h1>Clear about what happens to your data.</h1>
-      <p>Guest journeys, feedback, opened-door history, and Discovery Lab checkpoints stay in this browser. Optional Replit-managed sign-in syncs saved doors, reward progress, and only the four discovery preferences you explicitly choose to save. Live discovery sends only the inputs needed to retrieve Qloo results.</p>
+      <p>Guest journeys, feedback, opened-door history, Discovery Lab checkpoints, and explicitly saved guest preferences stay in this browser. Optional Replit-managed sign-in syncs saved doors, reward progress, and only the four discovery preferences you explicitly choose to save. Live discovery sends only the inputs needed to retrieve Qloo results.</p>
     </div>
 
     <div className="trust-grid">

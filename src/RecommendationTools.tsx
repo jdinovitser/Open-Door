@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { destinationActions } from "./discoveryEvidence";
 import { ArrowDown, ArrowUp, MapPin, Printer, Download, CalendarDays, Check, Clock3 } from "lucide-react";
 import { MascotArt } from "./MascotArt";
 import { downloadWordDocument, type DocumentSection } from "./documentExport";
@@ -14,6 +15,8 @@ export type Recommendation = {
   now: string;
   evidence: string;
   entityType?: string;
+  coordinates?: { latitude: number; longitude: number } | null;
+  websiteUrl?: string;
 };
 
 type Props = {
@@ -39,18 +42,26 @@ export function mapsSearch(category: string, location: string) {
 const mapLinkLabel = (category: string, location: string) =>
   `Find ${mapPlaceType(category)} near ${location} on Google Maps`;
 
-function recommendationSections(recommendations: Recommendation[], city: string): DocumentSection[] {
+function recommendationSections(recommendations: Recommendation[], city: string, mode: "demo" | "live"): DocumentSection[] {
   return recommendations.map(item => ({
     heading: item.title,
     paragraphs: [`${item.tier} · ${item.category} · ${item.kind}`,
       `Why you might like it: ${item.why}`, `Try this: ${item.now}`],
-    link: { label: mapLinkLabel(item.category, city), url: mapsSearch(item.category, city) },
+    link: recommendationMap(item, city, mode),
   }));
 }
 const sourceNote = (mode: "demo" | "live") => mode === "live"
   ? "Recommendations use Qloo results; they are not verified places."
   : "Demo recommendations are examples, not live results or real places.";
-const verificationNote = "Maps links search by category; they do not confirm a specific place. Check details, prices, hours, availability, accessibility, and travel before you go.";
+const verificationNote = "Maps links use returned coordinates when available; otherwise they are category searches, not the location of the recommended entity. Check details, prices, hours, availability, accessibility, and travel before you go.";
+
+function recommendationMap(item: Recommendation, city: string, mode: "demo" | "live") {
+  const { map } = destinationActions(item, mode);
+  return {
+    url: map || mapsSearch(item.category, city),
+    label: map ? "View returned location on Google Maps" : `${mapLinkLabel(item.category, city)} (category search, not this result)`,
+  };
+}
 
 export function RecommendationTools({ recommendations, city, mode }: Props) {
   const [notice, setNotice] = useState("");
@@ -62,7 +73,7 @@ export function RecommendationTools({ recommendations, city, mode }: Props) {
       await downloadWordDocument({
         filename: "open-door-recommendations.docx", title: "Your recommendations",
          subtitle: `${city} · ${recommendations.length} ideas`,
-        sections: recommendationSections(recommendations, city),
+        sections: recommendationSections(recommendations, city, mode),
         footnote: `${sourceNote(mode)} ${verificationNote}`,
       });
       setNotice("Your Word document has been downloaded.");
@@ -84,7 +95,7 @@ export function RecommendationTools({ recommendations, city, mode }: Props) {
       {recommendations.map(item => <article className="print-recommendation" key={item.id}>
         <span className="eyebrow">{item.tier} · {item.category}</span><h2>{item.title}</h2><p>{item.kind}</p>
         <h3>Why you might like it</h3><p>{item.why}</p><h3>Try this</h3><p>{item.now}</p>
-        <a href={mapsSearch(item.category, city)} target="_blank" rel="noopener noreferrer">{mapLinkLabel(item.category, city)}</a>
+        <a href={recommendationMap(item, city, mode).url} target="_blank" rel="noopener noreferrer">{recommendationMap(item, city, mode).label}</a>
       </article>)}
       <p className="print-disclaimer">{verificationNote}</p>
     </section>
@@ -92,6 +103,7 @@ export function RecommendationTools({ recommendations, city, mode }: Props) {
 }
 
 type PlannerProps = {
+  requestedItem?: { id: string; sequence: number } | null;
   recommendations: Recommendation[];
   city: string;
   mode: "demo" | "live";
@@ -118,6 +130,11 @@ export function DayPlanner(props: PlannerProps) {
   const [novelty, setNovelty] = useState(props.novelty);
   const [buffer, setBuffer] = useState(15);
   const [plan, setPlan] = useState<PlanItem[]>([]);
+  useEffect(() => {
+    const id = props.requestedItem?.id;
+    if (!id || !props.recommendations.some(item => item.id === id)) return;
+    setPlan(current => current.some(item => item.id === id) ? current : [...current, { id, duration: 45, checked: false }]);
+  }, [props.requestedItem]);
   const [error, setError] = useState("");
   const [exporting, setExporting] = useState(false);
   const [exportNotice, setExportNotice] = useState("");
@@ -186,7 +203,7 @@ export function DayPlanner(props: PlannerProps) {
             heading: `${index + 1}. ${door.title}`,
             paragraphs: [`${timeLabel(begins)}–${timeLabel(ends)} · ${item.duration} minutes${item.checked ? " · completed" : ""}`,
                `Why you might like it: ${door.why}`, `Try this: ${door.now}`],
-             link: { label: mapLinkLabel(door.category, location), url: mapsSearch(door.category, location) },
+            link: recommendationMap(door, location, props.mode),
           })),
         ],
          footnote: `${sourceNote(props.mode)} ${verificationNote}`,
@@ -225,7 +242,7 @@ export function DayPlanner(props: PlannerProps) {
     </div>
     {!!scheduled.length && <ol className="planner-schedule" aria-label="Editable day schedule">{scheduled.map(({ item, door, begins, ends }, index) => <li className="planner-item" key={door.id}>
       <div className="planner-item-time">{fits ? `${timeLabel(begins)}–${timeLabel(ends)}` : "Needs more room"}<small>Activity block · no travel estimate</small></div>
-      <div className="planner-item-content"><label className="planner-check"><input type="checkbox" checked={item.checked} onChange={event => setPlan(current => current.map(row => row.id === item.id ? { ...row, checked: event.target.checked } : row))} /><span>{door.title}</span></label><p>{door.now}</p><a href={mapsSearch(door.category, location)} target="_blank" rel="noopener noreferrer"><MapPin size={14} /> {mapLinkLabel(door.category, location)}</a>
+      <div className="planner-item-content"><label className="planner-check"><input type="checkbox" checked={item.checked} onChange={event => setPlan(current => current.map(row => row.id === item.id ? { ...row, checked: event.target.checked } : row))} /><span>{door.title}</span></label><p>{door.now}</p><a href={recommendationMap(door, location, props.mode).url} target="_blank" rel="noopener noreferrer"><MapPin size={14} /> {recommendationMap(door, location, props.mode).label}</a>
         <div className="planner-item-actions"><label>Duration <select aria-label={`Duration for ${door.title}`} value={item.duration} onChange={event => adjust(plan.map(row => row.id === item.id ? { ...row, duration: Number(event.target.value) } : row))}><option value={15}>15 min</option><option value={30}>30 min</option><option value={45}>45 min</option><option value={60}>60 min</option><option value={90}>90 min</option><option value={120}>120 min</option></select></label>
           <button type="button" className="text-button" aria-label={`Move ${door.title} earlier`} disabled={index === 0} onClick={() => move(door.id, -1)}><ArrowUp size={14} /> Earlier</button>
           <button type="button" className="text-button" aria-label={`Move ${door.title} later`} disabled={index === displayed.length - 1} onClick={() => move(door.id, 1)}><ArrowDown size={14} /> Later</button>
