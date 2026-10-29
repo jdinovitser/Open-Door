@@ -16,7 +16,7 @@ type ProductHeaderProps = {
   controls?: ReactNode;
 };
 
-type AvenueProps = { active: "individual" | "company" };
+type AvenueProps = { active: "individual" | "company"; children?: ReactNode };
 
 function ProductAccountControls() {
   const { isSignedIn, isLoaded } = useUser();
@@ -71,15 +71,22 @@ export function ProductHeader({ view, onNavigate, savedCount = 0, signedIn = fal
   </header>;
 }
 
-export function ProductAvenues({ active }: AvenueProps) {
-  const lab = typeof window !== "undefined" && (window.location.pathname.includes("lab") || new URLSearchParams(window.location.search).get("view") === "lab");
+export function ProductAvenues({ active, children }: AvenueProps) {
   return <nav className="product-avenues" aria-label="Ways to use Open Door">
     <span className="product-avenues-intro">One guide, two ways in</span>
-    <a href={lab ? "/lab" : "/?explore=1"} className={`product-avenue ${active === "individual" ? "is-active" : ""}`} aria-current={active === "individual" ? "page" : undefined}>
-      <span className="product-avenue-index">01</span><span>Explore for yourself</span>
-    </a>
-    <a href={lab ? "/lab?audience=company#company-tools" : "/?explore=1&audience=company#company-tools"} className={`product-avenue ${active === "company" ? "is-active" : ""}`} aria-current={active === "company" ? "page" : undefined}>
-      <span className="product-avenue-index">02</span><span>Help others explore</span>
-    </a>
+    <div className={`product-avenue-path product-personal-path ${active === "individual" ? "is-active" : ""}`}>
+      <a href="/?explore=1" className={`product-avenue ${active === "individual" ? "is-active" : ""}`} aria-current={active === "individual" ? "page" : undefined}>
+        <span className="product-avenue-index">01 —</span><span>Explore for yourself</span>
+      </a>
+      {children && <div className="product-personal-experiences">
+        <span className="product-personal-label">Personal · Choose your experience</span>
+        {children}
+      </div>}
+    </div>
+    <div className={`product-avenue-path product-company-path ${active === "company" ? "is-active" : ""}`}>
+      <a href="/?explore=1&audience=company#company-tools" className={`product-avenue ${active === "company" ? "is-active" : ""}`} aria-current={active === "company" ? "page" : undefined}>
+        <span className="product-avenue-index">02 —</span><span>Help others explore</span>
+      </a>
+    </div>
   </nav>;
 }

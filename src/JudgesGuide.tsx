@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowUpRight, Clock3, Copy, Info } from "lucide-react";
 import type { AgentStatus } from "./agentApi";
 import "./JudgesGuide.css";
+import FEATURES from "./judges-features.json";
 
 const STEPS = [
   {
@@ -37,7 +38,7 @@ const STEPS = [
     title: "Find a Taste Bridge",
     time: "2:15–3:15",
     actions: [
-      "Choose Taste Bridge in the discovery experience tabs. Enter Nina Simone / Music for one person and Spirited Away / Film for another. You can edit, add, or remove people within the two-to-five-person limit.",
+      "Under “01 — Explore for yourself,” choose Taste Bridge. Enter Nina Simone / Music for one person and Spirited Away / Film for another. You can edit, add, or remove people within the two-to-five-person limit.",
       "Choose Find our bridge. Review Shared Ground, The Bridge, and The Wild Card where supported results are available. Inspect which resolved interests contributed, then save or explore a result.",
     ],
     notice: "These are real Qloo requests using the selected shared or personal connection. Combined interests condition retrieval; they do not prove pairwise affinity or that everyone will like the result. Participant names stay in this browser session.",
@@ -46,7 +47,7 @@ const STEPS = [
     title: "Ask What If?",
     time: "3:15–4:15",
     actions: [
-      "Open What If? Explorer. Start with the current discovery, a saved item, or new interests.",
+      "Under “01 — Explore for yourself,” open What If? Explorer. Start with the current discovery, a saved item, or new interests.",
       "Describe a change, review the recognized conditions, and apply or edit them. Try a different exploration depth or city, then generate alternatives.",
       "Compare original and alternative discoveries. Change the scenario again, save an alternative, or return to the original without overwriting your preferences.",
     ],
@@ -56,7 +57,7 @@ const STEPS = [
     title: "Challenge a recommendation",
     time: "4:15–5:15",
     actions: [
-      "Open Discovery Debate and select a current or saved recommendation, or generate one from named interests.",
+      "Under “01 — Explore for yourself,” open Discovery Debate and select a current or saved recommendation, or generate one from named interests.",
       "Ask what evidence supports it, challenge the connection, then request something more unexpected. Follow up on the newly selected result.",
       "Inspect the conversation’s source references. Save a revised discovery or continue into the existing discovery experience.",
     ],
@@ -113,7 +114,7 @@ export default function JudgesGuide({ status, statusError }: { status: AgentStat
     <header className="judge-hero">
       <span className="eyebrow">Open Door · about eight minutes · live responses may take longer</span>
       <h1 id="judges-title">Judge’s Guide</h1>
-      <p>One Qloo-powered product, four ways to discover: explore for yourself, connect people through Taste Bridge, change circumstances with What If? Explorer, and challenge recommendations in Discovery Debate. Then compare independent paths in Discovery Lab.</p>
+      <p><strong>One guide, two ways in.</strong> Under <strong>01 — Explore for yourself</strong>, choose Solo Discovery, Taste Bridge, What If? Explorer, or Discovery Debate—four complementary personal discovery experiences. <strong>02 — Help others explore</strong> is the separate group, destination, and occasion-oriented path. Discovery Lab adds checkpoints, independent branches, and comparison.</p>
       <div className="judge-actions">
         <a className="primary-btn" href="/" target="_blank" rel="noopener noreferrer">Open app in a new tab <ArrowUpRight size={16} /></a>
         <a className="secondary-btn" href="/Open-Door-Judges-Guide.pdf" target="_blank" rel="noopener noreferrer">Download Judge’s Guide PDF</a>
@@ -121,6 +122,18 @@ export default function JudgesGuide({ status, statusError }: { status: AgentStat
       </div>
       <p className="judge-copy-status" role="status">{copyStatus}</p>
     </header>
+    <section aria-labelledby="judge-new-features">
+      <h2 id="judge-new-features">Three new ways to make discovery personal</h2>
+      <p>These are working discovery features, not just navigation tabs. Each uses the selected shared Demo or personal Qloo connection and connects back to saving and continuing a discovery.</p>
+      {FEATURES.map(feature => <section className="judge-step" key={feature.name}>
+        <h3>{feature.name}</h3>
+        <p>{feature.benefit}</p>
+        <p><strong>Try it: </strong>{feature.try}</p>
+        <p><strong>Look for: </strong>{feature.lookFor}</p>
+        <p className="judge-notice"><strong>Under the hood: </strong>{feature.technical}</p>
+        <a className="secondary-btn" href={feature.url}>Try {feature.name} <ArrowUpRight size={14} /></a>
+      </section>)}
+    </section>
     <section className="judge-company" id="company-walkthrough" aria-labelledby="judge-company-title">
       <details>
       <summary>Optional: helping others explore and the partnership vision</summary>

@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Taste Bridge",
+    "url": "/?view=taste-bridge",
+    "benefit": "Turn different interests into a shared starting point. Two to five people can contribute named artists, films, books, or other supported interests without needing the same taste.",
+    "try": "Add Nina Simone / Music and Spirited Away / Film for two people. Choose Find our bridge. Inspect Shared Ground, The Bridge, and The Wild Card, then save a discovery or explore it further.",
+    "lookFor": "Participant attribution connects the submitted interests to their resolved Qloo entities. The three result roles offer different ways into the returned discoveries; a role can be absent if the evidence does not support it.",
+    "technical": "Qloo Search resolves the named interests and Insights retrieves using their combined anchors. This is group-conditioned retrieval—not proof that each participant likes every result. Names stay in browser-session memory."
+  },
+  {
+    "name": "What If? Explorer",
+    "url": "/?view=what-if",
+    "benefit": "Try a different version of your day without losing the original. Start from a current journey, a saved door, or new named interests, and compare alternatives beside an unchanged starting snapshot.",
+    "try": "Choose Use this starting point. Enter “I only have two hours. I want something completely different.” Review and apply recognized changes, edit the controls if needed, then choose Explore this what-if.",
+    "lookFor": "The result explains what actually changed. Compare original and alternative discoveries; change the scenario again, save a result, or restore the original scenario. An unchanged result is shown honestly rather than called a new match.",
+    "technical": "Supported phrases map to editable controls through disclosed rules. Cultural routing changes trigger Qloo retrieval; time, budget, and movement are local planning context, not verified availability, price, health, or accessibility filters."
+  },
+  {
+    "name": "Discovery Debate",
+    "url": "/?view=debate",
+    "benefit": "Question a recommendation instead of accepting a black-box answer. Ask for its evidence, disagree with the direction, or request a more unexpected alternative, then continue the conversation about a returned discovery.",
+    "try": "Select a current or saved recommendation, or generate one. Ask what evidence supports it and send the challenge. Next choose Retrieve something more unexpected and send it. Select a returned candidate to debate, save, or explore.",
+    "lookFor": "The interpretation preview explains the action before submission. Transcript turns identify the recommendation being discussed. Evidence-only replies and new retrievals are visibly different, so judges can follow what actually happened.",
+    "technical": "Evidence replies read recorded result metadata locally. Alternative requests use Qloo with the selected entity, supported feedback, and seen-entity exclusions. Unsupported wording asks for an explicit action; this is a rule-based evidence conversation, not unrestricted AI chat."
+  }
+]

@@ -1,6 +1,6 @@
 # Open Door — updated three-minute demo
 
-**Status:** narration and recording plan only. No new video is recorded by this document.
+**Status:** recorded as `generated-artifacts/demo-complete/Open-Door-Complete-Demo-Allison.mp4` (1080p, approximately 2:59). The recording uses real Qloo retrieval and guest saves. The rewards section is an explicitly labeled preview using supplied artwork, not a signed-in account; voice input is shown as a control, not live microphone transcription.
 
 **Voice:** Allison; natural, upbeat American English, professional and welcoming. Aim for about **155 spoken words per minute**, a little brisker than the previous draft, while retaining clear pronunciation. Set the narration pace during synthesis rather than accelerating the entire video. Keep the full door animation at normal speed.
 

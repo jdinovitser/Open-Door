@@ -262,6 +262,8 @@ const labLiveProvider = createLiveProvider();
 
 export default function App({ companyProfile }: { companyProfile?: CompanyProfile } = {}) {
   const [invitation] = useState(() => readPublicOccasion(window.location.search));
+  const [companyAudience, setCompanyAudience] = useState(() => new URLSearchParams(window.location.search).get("audience") === "company");
+  const companyPathActive = !!companyProfile || companyAudience;
   const storageScope = companyProfile ? companyContextScope(companyProfile.id, invitation) : "opendoor";
   const journeyKey = `${storageScope}.journey`;
   const feedbackKey = `${storageScope}.feedback`;
@@ -288,7 +290,7 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
     }
     const route = view === "judges" ? "/judges" : view === "progress" ? "/progress" : view === "lab" ? "/lab" : view === "trust" ? "/trust" : view === "saved" || view === "how" || view === "taste-bridge" || view === "what-if" || view === "debate" ? `/?view=${view}` : null;
     if (route && `${window.location.pathname}${window.location.search}` !== route) window.history.replaceState(null, "", route);
-    else if (!route && (["/judges", "/progress", "/lab", "/trust"].includes(window.location.pathname) || new URLSearchParams(window.location.search).has("view"))) window.history.replaceState(null, "", "/");
+    else if (!route && (["/judges", "/progress", "/lab", "/trust"].includes(window.location.pathname) || new URLSearchParams(window.location.search).has("view"))) window.history.replaceState(null, "", "/?explore=1");
   }, [view, companyProfile, invitation]);
   const [personalizationEnabled, setPersonalizationEnabled] = useState(() =>
     readStore<boolean>("opendoor.privacy.personalization", true),
@@ -1295,7 +1297,29 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
         <span>Sound {sound.enabled ? "on" : "off"}</span>
       </button>
     </>} />
-    <ProductAvenues active={companyProfile || new URLSearchParams(window.location.search).get("audience") === "company" ? "company" : "individual"} />
+    <ProductAvenues active={companyPathActive ? "company" : "individual"}>
+      <nav className="experience-tabs" aria-label="Personal discovery experiences">
+        {([
+          ["discover", "Solo Discovery"],
+          ["taste-bridge", "Taste Bridge"],
+          ["what-if", "What If? Explorer"],
+          ["debate", "Discovery Debate"],
+        ] as const).map(([experience, label]) => companyProfile
+          ? <a key={experience} href={experience === "discover" ? "/?explore=1" : `/?explore=1&view=${experience}`}>{label}</a>
+          : <button key={experience} type="button" aria-current={!companyPathActive && view === experience ? "page" : undefined}
+            onClick={() => {
+              // Leave organizer context before selecting a personal experience, without
+              // unmounting the other experiences and losing their in-progress drafts.
+              window.history.replaceState(null, "", experience === "discover" ? "/?explore=1" : `/?view=${experience}`);
+              setCompanyAudience(false);
+              setEntryPhase("entered");
+              if (experience === "taste-bridge") setBridgeVisited(true);
+              if (experience === "what-if") setWhatIfVisited(true);
+              if (experience === "debate") setDebateVisited(true);
+              setView(experience);
+            }}>{label}</button>)}
+      </nav>
+    </ProductAvenues>
     {sound.notice && <p className="sound-notice" role="status">{sound.notice}</p>}
     <main className="page" id="main-content" tabIndex={-1}>
       {companyProfile && <CompanyBanner profile={companyProfile} location={city} occasion={occasion}
@@ -1311,12 +1335,6 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
       {accountSaveNotice && isSignedIn && <p className={`account-sync-notice${accountSaveStatus === "error" ? " is-error" : ""}`} role={accountSaveStatus === "error" ? "alert" : "status"}>
         {accountSaveNotice}{accountSaveStatus === "error" && <button type="button" onClick={() => setAccountSyncAttempt(attempt => attempt + 1)}>Retry account sync</button>}
       </p>}
-      <nav className="experience-tabs" aria-label="Discovery experiences">
-        <button type="button" aria-current={view === "discover" ? "page" : undefined} onClick={() => setView("discover")}>Solo discovery</button>
-        <button type="button" aria-current={view === "taste-bridge" ? "page" : undefined} onClick={() => { setBridgeVisited(true); setView("taste-bridge"); }}>Taste Bridge</button>
-        <button type="button" aria-current={view === "what-if" ? "page" : undefined} onClick={() => { setWhatIfVisited(true); setView("what-if"); }}>What If? Explorer</button>
-        <button type="button" aria-current={view === "debate" ? "page" : undefined} onClick={() => { setDebateVisited(true); setView("debate"); }}>Discovery Debate</button>
-      </nav>
       {bridgeVisited && <div hidden={view !== "taste-bridge"}>
         <TasteBridge active={view === "taste-bridge"} status={agentStatus} statusError={statusError} source={qlooSource} initialLocation={city} disabled={isRunning}
           onSelectConnection={(mode, source) => {

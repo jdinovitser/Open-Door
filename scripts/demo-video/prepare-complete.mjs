@@ -1,0 +1,17 @@
+import {readFileSync,writeFileSync,mkdirSync,copyFileSync} from "node:fs";
+const out="generated-artifacts/demo-complete";
+mkdirSync(`${out}/allison-voice`,{recursive:true});
+mkdirSync(`${out}/raw`,{recursive:true});
+const rows=readFileSync("docs/DEMO_SCRIPT_UPDATED.md","utf8").split("\n").filter(l=>/^\| \d:/.test(l)).map(l=>l.split("|").slice(1,-1).map(v=>v.trim()));
+const ids=["01-welcome","02-solo","03-doors","04-bridge","05-what-if","06-debate","07-others","08-lab","09-planner","10-progress","11-trust","12-goodbye"];
+const titles=["One product. Two ways to explore.","Solo discovery · start with what you love","Three doors. Which would you open?","Taste Bridge · discover something together","What If? Explorer · keep your options open","Discovery Debate · challenge the connection","Help others explore · their day, their choices","Discovery Lab · branch, compare, return","Turn curiosity into a flexible day","Your doors. Your progress.","Trust is part of the experience.","Open up what’s possible."];
+const sec=s=>s.split(":").reduce((a,b)=>a*60+Number(b),0);
+const plan=rows.map((r,i)=>({id:ids[i],duration:sec(r[0].split("–")[1])-sec(r[0].split("–")[0]),title:titles[i],kicker:`OPEN DOOR / ${String(i+1).padStart(2,"0")}`,label:i===9?"Guest saves + supplied reward artwork preview · no signed-in account shown":i===1?"Actual app recording · voice control shown, not live transcription":i===10?"Privacy controls · browser and account data are separate":i===2?"Actual live Qloo result · complete animation at normal speed":"Actual app recording · completed live Qloo responses",voice:r[2].replace(/[“”]/g,"").replace(/\[[^\]]*\]/g,"").trim(),artwork:"attached_assets/door_mascot_appear_1792627604179.gif"}));
+plan[0].metadata="Current Open Door recording. Real live Qloo retrieval for solo discovery, Taste Bridge, What If, Debate alternatives and Lab. Guest saves and real document export. Rewards illustrated with supplied artwork, not a signed-in account. Voice control shown, no microphone capture. AI-generated Allison narration.";
+plan[0].chimeSeconds=[36,142,151];
+plan[2].voicePauseSeconds=6;
+plan[2].pauseAfterCaption=2;
+plan.at(-1).tagline="Your interests.\nYour circumstances.\nYour kind of day.";
+writeFileSync(`${out}/plan.json`,JSON.stringify(plan,null,2));
+for(const n of ["music.mp3","door-chime.mp3"])copyFileSync(`generated-artifacts/demo-story/${n}`,`${out}/${n}`);
+console.log(plan.map(x=>({id:x.id,duration:x.duration})));

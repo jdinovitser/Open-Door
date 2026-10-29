@@ -73,7 +73,7 @@ for (const [index, scene] of plan.entries()) {
   console.log(`${renderOnly && !renderOnly.includes(scene.id) ? "Reusing" : "Rendering"} ${scene.id}`);
   const voice = `${voiceDirectory}/${scene.id}.mp3`;
   const voiceDuration = duration(voice);
-  const speed = Math.max(variant === "allison" ? 1 : variant === "upbeat" ? 0.96 : 0.84, Math.min(variant === "upbeat" ? 1.4 : 1.18, voiceDuration / (scene.duration - 2)));
+  const speed = Math.max(variant === "allison" ? 1 : variant === "upbeat" ? 0.96 : 0.84, Math.min(Number(process.env.OPEN_DOOR_VOICE_MAX_SPEED) || (variant === "upbeat" ? 1.4 : 1.18), voiceDuration / (scene.duration - 2)));
   const spokenDuration = voiceDuration / speed;
   if (spokenDuration > scene.duration - 0.9) throw new Error(`${scene.id}: narration is too long for its scene.`);
   const captionChunks = chunks(scene.voice);
@@ -82,7 +82,8 @@ for (const [index, scene] of plan.entries()) {
   let captionStart = 0.8;
   const lines = [];
   captionChunks.forEach((value, i) => {
-    const end = captionStart + spokenDuration * weights[i] / sum;
+    if (i === scene.pauseAfterCaption) captionStart += (scene.voicePauseSeconds || 0) / speed;
+    const end = captionStart + (spokenDuration - (scene.voicePauseSeconds || 0) / speed) * weights[i] / sum;
     lines.push(`Dialogue: 0,${stamp(captionStart, true)},${stamp(end, true)},Default,,0,0,0,,${value.replaceAll("\n", "\\N")}`);
     srt.push(`${srt.length + 1}\n${stamp(offset + captionStart)} --> ${stamp(offset + end)}\n${value}\n`);
     captionStart = end;
@@ -110,7 +111,7 @@ ${lines.join("\n")}\n`);
       "-stream_loop", "-1", "-i", scene.artwork || "attached_assets/a051ea45-aa64-4a38-86da-f3032d124566_1792509667580.gif", "-i", voice);
     voiceIndex = 2;
     base = `[1:v]scale=1000:562:flags=lanczos,setsar=1[mascot];[0:v][mascot]overlay=x=900:y=260:shortest=1,${draw(kickerFile, 110, 155, 22, "0x947233", bold)},${draw(text(scene.id, "headline", scene.headline), 110, 290, 76, "0x173e33", serif)},${draw(text(scene.id, "subhead", "Open Door\nDiscover a day that feels like you."), 115, 725, 30)},${draw(labelFile, 110, 930, 21, "0x66746B")}[base]`;
-  } else if (index === 0) {
+  } else if (index === 0 && !captures[scene.id]) {
     inputArgs.push("-loop", "1", "-framerate", "24", "-i", `${out}/arrival.jpg`, "-i", voice);
     voiceIndex = 1;
     base = `[0:v]scale=1920:1080:force_original_aspect_ratio=increase,crop=1920:1080,zoompan=z='1+on*0.00009':x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':d=1:s=1920x1080:fps=24,drawbox=x=0:y=0:w=1030:h=1080:color=0x102d25@0.76:t=fill,${draw(kickerFile, 110, 155, 23, "0xE5C487", bold)},${draw(text(scene.id, "headline", "A new address.\nA personal\nbeginning."), 110, 290, 83, "white", serif)},${draw(text(scene.id, "subhead", "Open Door\nFind your place. Find your people."), 115, 690, 31, "0xF2E9D8")},${draw(labelFile, 110, 930, 21, "0xE5C487")}[base]`;
