@@ -30,6 +30,13 @@
 .judge-step li { padding-left:4px; overflow-wrap:anywhere; }
 .judge-notice { margin:20px 0 0; padding-top:16px; border-top:1px solid var(--line); color:#5c6f61; font-size:13px; line-height:1.75; }
 .judge-notice strong { color:var(--forest-dark); }
+.judge-beyond-core { margin:20px 0; padding:22px 24px; border:1px solid #d9d9bb; border-radius:16px; background:#f6f3e6; }
+.judge-beyond-core h2 { margin:0 0 7px; color:var(--forest-dark); font:600 clamp(20px,3vw,25px)/1.25 'DM Sans',sans-serif; letter-spacing:-.035em; }
+.judge-beyond-core > p { margin:0; color:#536a59; font-size:13px; line-height:1.7; }
+.judge-beyond-items { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:15px 0; padding:0; list-style:none; }
+.judge-beyond-items li { min-width:0; padding:13px 14px; border:1px solid #d4dfcf; border-radius:11px; background:#edf3e9; color:#53665b; font-size:12px; line-height:1.6; }
+.judge-beyond-items strong { margin-right:5px; color:var(--forest-dark); font-size:13px; line-height:1.35; }
+.judge-beyond-core .judge-beyond-closing { padding-top:11px; border-top:1px solid #d9d9bb; color:#617168; font-size:12px; }
 .judge-takeaway { margin:26px 0; padding:24px 28px; border:1px solid #cbdacf; border-radius:16px; background:#eaf1e8; }
 .judge-takeaway h2 { margin:0 0 10px; color:var(--forest-dark); font:600 22px 'DM Sans',sans-serif; letter-spacing:-.03em; }
 .judge-takeaway p { margin:0; color:#536a59; font-size:15px; line-height:1.8; }
@@ -47,5 +54,8 @@
   .judge-step-heading { gap:11px; }
   .judge-step { padding:21px 18px; }
   .judge-step ol { font-size:13px; }
+  .judge-beyond-core { padding:20px 18px; }
+  .judge-beyond-items { grid-template-columns:1fr; gap:8px; }
+  .judge-beyond-items li { padding:12px 13px; }
   .judge-takeaway { padding:22px; }
 }

@@ -110,6 +110,14 @@ export default function JudgesGuide({ status, statusError }: { status: AgentStat
       setCopyStatus("The link could not be copied. You can share this page’s address from your browser.");
     }
   }
+  const renderStep = (step: typeof STEPS[number], index: number) => <li className="judge-step" id={`judge-step-${index + 1}`} key={step.title}>
+    <div className="judge-step-heading">
+      <span className="judge-step-number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+      <div><span className="judge-time"><Clock3 size={12} /> {step.time}</span><h2>{step.title}</h2></div>
+    </div>
+    <ol>{step.actions.map(action => <li key={action}>{action}</li>)}</ol>
+    <p className="judge-notice"><strong>What to notice: </strong>{step.notice}</p>
+  </li>;
   return <article className="judges-guide" aria-labelledby="judges-title">
     <header className="judge-hero">
       <span className="eyebrow">Open Door · about eight minutes · live responses may take longer</span>
@@ -166,14 +174,20 @@ export default function JudgesGuide({ status, statusError }: { status: AgentStat
            : "The live steps below require a configured server and successful Qloo requests. Do not assume Live is available until its status is confirmed."} No account is required to explore. Guest saves and Lab histories stay in this browser; signed-in saved doors can sync across devices.</p>
     </section>
     <ol className="judge-steps">
-      {STEPS.map((step, index) => <li className="judge-step" id={`judge-step-${index + 1}`} key={step.title}>
-        <div className="judge-step-heading">
-          <span className="judge-step-number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
-          <div><span className="judge-time"><Clock3 size={12} /> {step.time}</span><h2>{step.title}</h2></div>
-        </div>
-        <ol>{step.actions.map(action => <li key={action}>{action}</li>)}</ol>
-        <p className="judge-notice"><strong>What to notice: </strong>{step.notice}</p>
-      </li>)}
+      {STEPS.slice(0, 3).map((step, index) => renderStep(step, index))}
+    </ol>
+    <section className="judge-beyond-core" aria-labelledby="judge-beyond-core">
+      <h2 id="judge-beyond-core">Beyond the Core Discovery</h2>
+      <p>Open Door offers additional ways to explore cultural connections, compare perspectives, and shape discovery journeys:</p>
+      <ul className="judge-beyond-items">
+        <li><strong>Taste Bridge</strong><span>— Compare the cultural interests of two to five people to uncover shared ground, unexpected connections, and experiences to explore together.</span></li>
+        <li><strong>What If? Explorer</strong><span>— Change circumstances and planning considerations to compare alternative discovery journeys while preserving the original.</span></li>
+        <li><strong>Discovery Debate</strong><span>— Question recommendations, ask why a discovery connects to your interests, request supporting evidence, or explore alternatives.</span></li>
+      </ul>
+      <p className="judge-beyond-closing">All three experiences build on Open Door's Qloo-grounded discovery foundation.</p>
+    </section>
+    <ol className="judge-steps" start={4}>
+      {STEPS.slice(3).map((step, index) => renderStep(step, index + 3))}
     </ol>
     <nav className="judge-actions" aria-label="Try the new discovery experiences">
       <a className="secondary-btn" href="/?view=taste-bridge">Try Taste Bridge</a>
