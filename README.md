@@ -6,6 +6,8 @@
 
 Live Qloo discovery has been verified in this workspace. Before submission, check the latest published build and completed Devpost entry separately. The shared **Demo** connection uses real Qloo requests; **Try prepared examples** is a separate authored sample path.
 
+This README is the current implementation overview. Supporting documents cover [integration and live-evidence boundaries](docs/HACKATHON_INTEGRATIONS.md), [judging evidence](docs/JUDGING_CRITERIA.md), [final submission checks](docs/SUBMISSION_READINESS.md), and the [current threat model](threat_model.md); they supersede earlier prototype assessments.
+
 **Find your way into a new place.**
 
 Open Door is a cultural discovery web app that turns personal interests into a starting point for exploring unfamiliar experiences. Its live discovery path uses Qloo Search and Insights to connect interests across cultural domains when configured. It is designed around a simple progression: what someone already loves, a visible cultural thread, and a few possible doors to open next.
@@ -49,6 +51,8 @@ The shared **Demo** connection has been used successfully for live Qloo discover
 ## What makes it agentic
 
 The live path is an explicit structured tool orchestration: interpret the user's stated intent, resolve typed anchors with Qloo Search (or reuse the exact Qloo entity ID when a previously returned door is opened), query multiple entity types through Qloo Insights, evaluate returned candidates, balance the three route labels, and build an evidence graph. No external LLM is used. If a Qloo request fails or returns no candidate, the live journey fails visibly or remains partial; it never silently substitutes sample results.
+
+This is custom orchestration, not a conventional agent framework. Explicit feedback changes subsequent result-type routing, entity IDs preserve continuity between requests, and Discovery Lab explores independent branches from a frozen checkpoint. Those observable tool/state transitions—not a claim of autonomous AI reasoning—are the basis for the agentic-tool description.
 
 ## Architecture
 

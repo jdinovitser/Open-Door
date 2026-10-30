@@ -10,7 +10,7 @@ Open Door offers three starting directions, explains the connection, and lets th
 
 In Live Mode, Qloo resolves named interests into entities and returns cross-category Insights conditioned on those entities. Open Door organizes that returned evidence into understandable choices. Without Qloo, this live cultural-retrieval path is absent; only the explicitly authored demonstration remains.
 
-This is different from asking a generative model to invent a plausible cultural relationship. There is no LLM in the current implementation. Open Door supplies the orchestration, route labels and interface; Qloo supplies the retrieved cultural entities and recommendation evidence. A real-key demonstration is still needed to validate that distinction end-to-end.
+This is different from asking a generative model to invent a plausible cultural relationship. There is no LLM in the current implementation. Open Door supplies custom structured orchestration, route labels and interface; Qloo supplies retrieved cultural entities and recommendation evidence. Successful live Search, Insights, entity-led continuation, and independent Discovery Lab requests have been verified in this workspace. The latest published build still requires its own final check.
 
 ## Why doors
 
@@ -22,11 +22,13 @@ These are editorial navigation labels, not Qloo scores or psychological assessme
 
 ## What we can credibly claim now
 
-There is a working authored Demo, a server-side Qloo integration implementation, structured multi-step orchestration, explicit feedback and continuation, local save/delete controls, and visible provenance. There is no live-Qloo verification in this workspace yet, no published submission link, and no user-outcome study.
+The public app is at https://open-door.replit.app/ and the source is at https://github.com/jdinovitser/Open-Door. The shared **Demo** connection uses real Qloo retrieval; prepared examples are separately authored content. Personal exploration includes Solo Discovery, Taste Bridge, What If? Explorer, and Discovery Debate; Help others explore addresses group, destination, and occasion planning. Discovery Lab adds checkpoints, independent branches, and comparisons. Optional Clerk accounts sync selected doors, preferences, and reward progress through PostgreSQL, while full journeys and Lab history remain browser-local.
+
+The agentic-tool description refers to observable tool sequencing, feedback-driven routing, entity continuity, and independent branches—not an LLM or conventional agent framework. No user-outcome study or contest acceptance is claimed.
 
 ## Business hypothesis—not traction
 
-A possible next market is a discovery module for relocation/community-onboarding or travel products. The hypothesis is that a small number of explainable, interest-led choices can help people take a useful next step. This has not been validated, monetized or adopted by customers. Test usefulness and repeat exploration before adding partnerships, accounts or payment features.
+A possible next market is a discovery module for hospitality, destination celebrations, neighborhood exploration, or business travel. Partnership pages and sponsored-placement mockups illustrate a model of free user access supported by paying businesses; they are not evidence of paying partners, revenue, or customer adoption. External partner API/MCP access and payment features remain future work. Test usefulness and repeat exploration before claiming validated demand.
 
 ## One-sentence pitch
 

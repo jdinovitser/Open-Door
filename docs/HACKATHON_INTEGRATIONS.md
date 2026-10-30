@@ -1,11 +1,13 @@
 # Open Door — hackathon integrations and provenance
 
+Implementation status updated **October 30, 2026**. See the [README](../README.md) for current capabilities and setup. Competition details below were reviewed on October 20, 2026; this update does not constitute a fresh rules review.
+
 ## Competition requirements checked
 
 Checked the current Qloo Agentic Hackathon rules and Qloo's official API documentation on October 20, 2026. See [the four official criteria and evidence](JUDGING_CRITERIA.md) and [current submission gates](SUBMISSION_READINESS.md). Videos are not required; a fully published demo and public open-source repository are required.
 
 - The competition accepts a project that integrates Qloo into an agentic tool, uses an agent framework, or adds Qloo to an existing agent. It does not name a mandatory LLM provider.
-- The submission requires a working demo and a public code repository with an open-source license. This project now includes the MIT License; the workspace still has no configured public Git remote.
+- The submission requires a working demo and a public code repository with an open-source license. The app is at https://open-door.replit.app/ and the MIT-licensed repository is at https://github.com/jdinovitser/Open-Door. Recheck anonymous access and the final published revision before submission.
 - The published deadline is October 30, 2026 at 11:45 p.m. Eastern.
 - Qloo's hackathon API keys are requested through the official [access form](https://forms.gle/zz12orkLHTAneLGz6). The docs say manual provisioning can take a few business days.
 
@@ -28,17 +30,19 @@ The server-side live path uses direct HTTP requests; no Qloo SDK or unofficial e
 | Explore a cultural result type | `GET https://hackathon.api.qloo.com/v2/insights/` | Uses required `filter.type`, one `signal.interests.entities` value for each resolved Qloo entity, and `feature.explainability=true`. |
 | Apply a location | `GET /v2/insights/` | Adds `signal.location.query` only for `place` and `destination` result types. It is not sent as a general-purpose location filter for every entity type. |
 
-The only credential expected by the server is `QLOO_API_KEY`, stored as a Replit Secret. It is never sent to the browser, returned by `/api/status`, or included in trace data. The integration uses the hackathon host because Qloo's guide says hackathon keys are scoped to `hackathon.api.qloo.com`.
+The shared **Demo** connection uses server-side `QLOO_API_KEY`. **Connect your own** accepts a user's Qloo key over the app's same-origin connection endpoint and holds it only in server-process memory for up to one hour. An HttpOnly, SameSite=Strict cookie holds a random identifier, not the key; HTTPS also enables Secure. Keys are not returned in status/trace data or written to browser/account storage or logs. Disconnect, expiry, or restart removes the personal connection; it never silently falls back to the shared key. Both connection modes use the fixed hackathon host.
 
 ### What has and has not been verified
 
-The live integration code and mocked contract tests are present. **This workspace did not have a Qloo key when this document was written, so no live Qloo request has yet been made or verified.** The app must remain in Demo Mode until a key is provisioned and a live response succeeds. A configured key alone does not make a journey “Live”; the UI should label a journey Live only after the server returns a Qloo-backed result.
+**Live Qloo discovery has been verified in this workspace**, including successful Search anchor resolution, multiple Insights requests, continuation from a returned entity, and independent live Discovery Lab branches. Recorded requests returned HTTP 200 with live-result provenance. The [demo capture notes](DEMO_SCRIPT_UPDATED.md) describe the recorded flow.
+
+Mocked contract tests are separate evidence for controlled behavior and error handling, not proof of live service availability. A configured key alone does not make a journey live; each live journey requires a successful Qloo-backed response. Previously verified requests do not establish that every later published build or future request will succeed. Recheck the final public build before submission.
 
 If Qloo returns no entity match, no Insights candidates, or an API error, the live request fails visibly or returns only the real partial results. It never substitutes the authored demo results into a live journey.
 
 ## Agent orchestration and other contest technologies
 
-Open Door uses explicit, inspectable tool orchestration rather than a third-party LLM:
+Open Door uses explicit, inspectable **custom structured tool orchestration**, not an LLM or conventional agent framework:
 
 1. Read the user's stated intent, depth, location, and constraints.
 2. Resolve each typed anchor with Qloo Search, or reuse the exact Qloo entity ID when the user opens a previously returned door.
@@ -47,8 +51,9 @@ Open Door uses explicit, inspectable tool orchestration rather than a third-part
 5. Use the user's explicit feedback to adjust subsequent Qloo result-type queries; for example, “Too expensive” or “Wrong time” steers follow-up routes away from place and destination entity types, without claiming prices or schedules.
 6. Label the result route as familiar, adjacent, or unexpected; include Qloo provenance, the request type, and returned explainability where present.
 7. Build a journey and a graph from the actual user inputs, Search matches or user-selected prior entities, Insights results, and returned coordinates.
+8. In Discovery Lab, freeze a checkpoint, continue independent branches through the selected Qloo connection, and compare their recorded requests and results. Restoring a recorded branch is not a new retrieval.
 
-These are Open Door's real orchestration steps, not claims about hidden reasoning. The app does not use an external LLM, model SDK, web search provider, map provider, or additional contest partner technology in this integration. The current competition rules do not require a particular model provider.
+These are Open Door's real orchestration steps, not claims about hidden reasoning. It does not use an external LLM, model SDK, web search provider, or map-data API in this integration. Google Maps links are outbound links, not verified map-provider retrieval. No external-facing MCP server is implemented; partner API/MCP access is a roadmap idea. The organizer decides whether this bounded tool workflow meets the agentic-tool requirement.
 
 ## Provenance and limits
 
@@ -64,13 +69,15 @@ These are Open Door's real orchestration steps, not claims about hidden reasonin
 
 Qloo entity metadata does not verify live opening hours, event schedules, cost, availability, accessibility, or travel time. The app must not present those as confirmed facts. A map can use coordinates only when they are present in an actual Qloo response; it must not fabricate a point from a city name.
 
-Build My Day passes the selected location to supported place/destination Insights queries and maps novelty to Open Door's explicit depth choice. Start/end times and budget are retained as user context, not undocumented Qloo parameters; none of these inputs verify a result's hours, price, or availability. Demo Mode reshapes authored samples only. The separate group scenario uses fictional participants and remains explicitly labeled as demo data.
+Build My Day passes the selected location to supported place/destination Insights queries and maps novelty to Open Door's explicit depth choice. Start/end times and budget are retained as user context, not undocumented Qloo parameters; none of these inputs verify a result's hours, price, or availability. Prepared examples reshape authored samples only. Taste Bridge can use the selected live Qloo connection for combined interests; this is not evidence of pairwise affinity or universal group preference. What If? interpretation and Discovery Debate replies use disclosed deterministic rules, separate from live cultural retrieval.
 
-## Demo fallback
+## Shared Demo versus prepared examples
 
-Demo Mode uses the existing deterministic sample paths. They are authored examples, not Qloo results, not external facts, and not real venue listings. The dedicated `/demo` route is intended to open a prepared sample journey when live access is not configured.
+The shared **Demo** connection uses real Qloo requests, without requiring a user-supplied key. **Connect your own** uses the personal connection for the browsing session. Discovery Lab and the personal experiences reuse the selected connection.
 
-The `/api/status` endpoint reports Qloo configuration and the public tool/limit policy; it does not expose the key. The live route is `POST /api/agent/discover`. When no key is configured, that route returns `QLOO_NOT_CONFIGURED` rather than silently switching to sample data. `/demo` always starts an authored sample without calling Qloo; Live requires an explicit selection and request.
+**Try prepared examples** and `/demo` use deterministic authored sample paths. They are not Qloo results, external facts, or real venue listings. Prepared examples are an explicit choice, never a silent fallback from a failed live request.
+
+The `/api/status` endpoint reports Qloo configuration and the public tool/limit policy; it does not expose the key. The live route is `POST /api/agent/discover`. A missing, invalid, expired, or unavailable selected connection fails explicitly rather than silently switching to sample data or another credential. `/demo` always starts an authored sample without calling Qloo.
 
 ## Run and test
 

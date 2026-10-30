@@ -1,59 +1,57 @@
-# Devpost draft — not submitted
-
-Do not describe this as a completed entry. Add the real public URLs and real-Qloo test findings before submission. Do not paste placeholder URLs into Devpost.
-
-## Title and tagline
-
-**Open Door**  
-Start with what you love. Find your way into a new place.
-
 ## Inspiration
 
-Arriving somewhere new does not mean starting without taste. A favorite film, artist, book or food can be a useful starting point—but it is not always obvious what to explore next. We wanted a discovery experience that makes the connecting thread visible and gives people a manageable choice rather than another long list.
+We all know the question: “What should we do?” The harder part is finding an answer that fits the people, the occasion, and the things they actually love. Planning a solo afternoon, a day with a friend, a first week somewhere new, or an experience for guests should not start with an overwhelming list.
+
+Open Door turns personal interests into a welcoming next step. Qloo supplies the cultural grounding; people keep the choice.
 
 ## What it does
 
-Open Door presents familiar, adjacent and unexpected cultural directions. People choose interests, intent and exploration depth; open a door for its explanation; save or reject a direction; and continue from a returned entity. The interface separates retrieved evidence from its own route labels and explicitly identifies authored Demo content.
+One guide, two ways in: **Explore for yourself** or **Help others explore**.
 
-The current build includes a prepared demonstration, a Live Qloo request flow, returned-evidence inspection, feedback-driven routing, second-step exploration, local saved doors, a shareable story, and a Trust page with storage/deletion controls.
+Personal exploration has four complementary experiences: **Solo Discovery** opens familiar, adjacent, and unexpected cultural directions; **Taste Bridge** brings two to five people's interests into a shared discovery request; **What If? Explorer** compares alternatives when circumstances change without losing the original; and **Discovery Debate** lets people question a recommendation's recorded evidence and request another direction.
+
+The three animated doors reveal readable recommendations with reasons, practical next steps, helpful tips, and a hidden-gem interaction. Users can type or use supported browser voice input, add individual considerations, build a day plan, follow Google Maps links, print, and download recommendations. **Discovery Lab** adds frozen checkpoints, independent exploration branches, and side-by-side comparisons.
+
+Guests can keep local saves. Optional sign-in syncs chosen doors, opt-in preferences, and personal reward progress, with Brave, Explorer, and Door Collector tracks. Trust controls explain storage, provenance, export, and deletion. Full journey and Lab histories remain browser-local.
+
+Help others explore supports group, destination, and occasion planning. Business-model pages and clearly labeled partnership mockups show how free user discovery could eventually be supported by business partnerships—not an existing paid advertising network.
+
+Try the [public app](https://open-door.replit.app/), [Judge’s Guide](https://open-door.replit.app/judges), and [guide PDF](https://open-door.replit.app/Open-Door-Judges-Guide.pdf).
 
 ## How we built it
 
-React and TypeScript provide the interface. An Express server holds the Qloo credential and streams structured progress/result events. The custom orchestrator validates a bounded request, resolves anchors through Qloo Search, selects cross-category Insights requests, evaluates returned candidates, and produces provenance-bearing doors. Explicit feedback changes the next result-type route. Continuing from a returned entity feeds that entity ID into the next request.
+React, TypeScript, and Vite power the interface; Express runs the server-side Qloo integration. The shared **Demo** connection makes real Qloo requests. **Connect your own** uses a personal Qloo key held temporarily in server-process memory. Prepared examples remain a separate, explicitly authored path.
 
-The integration uses the official hackathon host, `/search` and `/v2/insights/`. No browser-side Qloo key, generative-model call, autonomous web browsing or arbitrary tool execution is used. Tests cover contracts and error behavior with fixtures; they do not substitute for a real service check.
+Our **custom structured orchestrator** validates inputs, resolves named interests through Qloo Search, carries resolved entity IDs into multiple Insights requests, evaluates returned candidates, removes duplicates, and attaches provenance. Explicit feedback changes subsequent result-type routing. Opening a returned entity preserves its exact Qloo ID for the next request; Lab branches continue independently from a shared checkpoint and compare recorded outcomes.
 
-## What makes it Qloo-powered
+This is a bounded, stateful tool workflow, not an LLM or conventional agent framework. Scenario interpretation and debate replies use disclosed deterministic rules; Qloo supplies cultural retrieval, not invented conversational evidence. Successful live Search, Insights, continuation, and independent Lab requests have been verified in this workspace. Fixture tests separately cover contracts and failure handling.
 
-The Live path depends on Qloo entity resolution and cross-domain cultural retrieval. Open Door does not generate cultural matches from an LLM. The app supplies orchestration, labels and interaction; Qloo supplies returned cultural entities and recommendation evidence. The authored Demo remains clearly separate.
+Optional Clerk authentication and PostgreSQL storage provide account-owned saves, preferences, progress, and lifecycle controls. Inquiry submissions have a separate server-verified admin access boundary. The [MIT-licensed source](https://github.com/jdinovitser/Open-Door) includes setup and architecture documentation.
 
-**Before submission:** replace this readiness note with an accurate account of the successful real-key test. Do not claim a successful integration before one has occurred.
+## Challenges we ran into
 
-## Challenges and limitations
+Making cultural discovery useful required more than retrieving a list. We needed to preserve entity continuity, make branching understandable, reduce interaction friction, and explain why a direction was offered without inventing what Qloo had proved.
 
-Provenance is as important as presentation. We separated sample content, Qloo evidence and user choices; bounded upstream responses; and avoided treating route labels as affinity scores. The project does not verify opening hours, prices, travel time, accessibility of venues or current availability. Build My Day is a sequence of possibilities, not a verified itinerary. Optional Replit-managed Clerk accounts now sync explicitly saved doors and personal reward progress across devices; full journey and Discovery Lab histories remain browser-local. Rewards are personal interaction tallies, not Qloo scores or verified real-world achievements.
+We separated user inputs, returned Qloo evidence, Open Door routing, and authored examples. Failed live requests never silently become sample results. Group-conditioned retrieval is not proof that everyone will agree; route tiers are editorial labels, not measured affinity. Age, health, budget, movement, and time provide individual planning context—not verified venue suitability, medical advice, opening hours, prices, or availability.
 
-## What is next
+## Accomplishments that we're proud of
 
-Validate the real Qloo flow on the public app, complete interactive accessibility/browser regression checks, and test whether newcomers find the results useful. Any claimed user impact, performance gains or customer adoption must come from evidence, not this draft.
+We built a working cultural-discovery workflow whose live recommendations depend on Qloo, with feedback-driven routing, returned-entity continuation, and independent branch exploration—not just a static recommendation screen.
 
-## Built with
+We expanded that core into four personal experiences, planning for others, and Discovery Lab while retaining recognizable mascot artwork and the three-door interaction. Maps links, planning, downloads, hidden gems, saved progress, and optional accounts help turn a recommendation into something a person can return to.
 
-Qloo API, React, TypeScript, Express, Vite, Lucide.
+The public walkthrough and illustrated guide make the implementation inspectable, including its limits. Partnership mockups show a possible expansion without presenting hypothetical partners as real customers.
 
-## Testing instructions to attach
+## What we learned
 
-1. Open the final public demo URL in a private window. No account or payment should be required.
-2. Use the prepared Demo for a labeled, deterministic overview. Open a door and inspect its sample disclosure.
-3. Switch to Live, enter a small set of resolvable interests, and run discovery. Confirm a real response and returned entity IDs in Under the Door.
-4. Reject a direction, explore again, and inspect the applied-feedback notice.
-5. Continue from a returned entity and inspect the next request/result evidence.
-6. Save/unsave a door, review a story before sharing, and use Trust to delete local data.
+Cultural intelligence matters most when it connects what someone loves to an actionable next choice. Qloo gives that choice a retrieved cultural basis; explicit controls, feedback, and clear evidence make it understandable.
 
-## Links and assets still to supply
+We also learned that trust is part of usability. People should be able to distinguish a live result from a prepared example, a cultural connection from a practical assumption, and an account save from browser-local history.
 
-- Public fully published demo URL.
-- Public GitHub, GitLab or Bitbucket repository URL; MIT visible in About.
-- Completed entrant/team information and eligibility confirmation.
-- Optional screenshots: opening, three doors, live evidence/continuation, Trust. Never caption a Demo screenshot as Live.
-- A video is **not required** by the official event page checked October 20, 2026. If one is made, it must match the current app.
+## What's next for Open Door
+
+Test usefulness and repeat exploration with real users; continue accessibility and cross-browser testing; and add verified practical data where available. Venue hours, pricing, accessibility, travel time, and availability require separate sources.
+
+Explore hospitality and destination-celebration partnerships, measure whether placements help users, and develop external partner API/MCP access only with appropriate authorization, attribution, and privacy controls. These are future opportunities, not claims of revenue or adoption.
+
+**Your interests. Your circumstances. Your kind of day. Open Door—open up what’s possible.**
