@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Plus, X } from "lucide-react";
 import { MascotArt } from "../MascotArt";
 import QlooConnectionPanel from "../QlooConnectionPanel";
@@ -9,6 +9,7 @@ import { useDiscoveryDebate } from "./useDiscoveryDebate";
 import "./taste-bridge.css";
 import "./what-if.css";
 import "./debate.css";
+import ConnectionEvidence from "../ConnectionEvidence";
 
 type Props = {
   active: boolean; candidates: DebateCandidate[]; status: AgentStatus | null; statusError: string;
@@ -16,10 +17,12 @@ type Props = {
   savedIds: Set<string>; onSave: (candidate: DebateCandidate) => void; onExplore: (candidate: DebateCandidate) => void;
   onSelectConnection: (mode: "demo" | "live", source: QlooConnectionSource) => void;
   renderDoor: (door: LiveDoor, journey: LiveJourney) => ReactNode;
+  incoming?: DebateCandidate | null;
+  onPreserve?: (original: DebateCandidate, alternative: LiveJourney) => void;
 };
 const namedInterest = () => ({ id: crypto.randomUUID(), label: "", category: "Other" });
 
-export default function DiscoveryDebate({ active, candidates, status, statusError, source, initialLocation, disabled, savedIds, onSave, onExplore, onSelectConnection, renderDoor }: Props) {
+export default function DiscoveryDebate({ active, candidates, status, statusError, source, initialLocation, disabled, savedIds, onSave, onExplore, onSelectConnection, renderDoor, incoming, onPreserve }: Props) {
   const [candidateId, setCandidateId] = useState(() => candidates[0]?.id || "new");
   const [interests, setInterests] = useState(() => [namedInterest()]);
   const [location, setLocation] = useState(initialLocation);
@@ -27,6 +30,13 @@ export default function DiscoveryDebate({ active, candidates, status, statusErro
   const [actionChoice, setActionChoice] = useState<"auto" | DebateAction>("auto");
   const [validation, setValidation] = useState("");
   const debate = useDiscoveryDebate(source, active);
+  const received = useRef("");
+  useEffect(() => {
+    if (!active || !incoming || received.current === incoming.id) return;
+    received.current = incoming.id;
+    if (debate.session && !window.confirm("Start a debate about this discovery? Your current private debate transcript will be replaced; the original discovery stays unchanged.")) return;
+    setCandidateId(incoming.id); debate.start(incoming); setQuestion(""); setValidation(""); setActionChoice("auto");
+  }, [active, incoming]);
   const blocked = debate.busy || !!disabled;
   const recognized = interpretDebateQuestion(question);
   const action = actionChoice === "auto" ? recognized : actionChoice;
@@ -94,6 +104,7 @@ export default function DiscoveryDebate({ active, candidates, status, statusErro
         {selected.requestIsHistorical === false && <p className="helper">This saved item does not retain its full historical query. Its continuation settings come from current controls, not a reconstructed history.</p>}
         <h3>Resolved contributing inputs</h3>{contributions.length ? <ul>{contributions.map(anchor => <li key={`${anchor.label}-${anchor.entityId}`}>{anchor.label} → {anchor.entityName}<br /><small>{anchor.entityId}{anchor.exactNameMatch ? "" : " · approximate match; review"}</small></li>)}</ul> : <p className="helper">No resolved-input attribution is available for this snapshot. A source label alone is not verified attribution.</p>}
         <details><summary>Original session starting point</summary><p>{debate.session.original.door.title}</p><ul>{debate.session.original.request.anchors.map((anchor, index) => <li key={index}>{anchor.label} · {anchor.category}</li>)}</ul><p className="helper">Original interests stay in this local history. A continuation uses the selected recommendation as its next seed, not an invented direct relationship to every original interest.</p></details>
+        <ConnectionEvidence door={selected.door} mode={selected.mode} anchors={selected.request.anchors.map(anchor => anchor.label)} />
         {selectedEvidence && <details className="debate-evidence"><summary>Recorded explainability excerpt</summary><pre>{selectedEvidence}</pre><p className="helper">Bounded excerpt; sensitive-key fields and oversized/nested portions may be omitted. This is not a personal-preference guarantee.</p></details>}
         <div className="bridge-form-actions"><button type="button" className="secondary-btn" onClick={() => onSave(selected)}>{savedIds.has(selected.door.id) ? "Remove selected from My Doors" : "Save selected recommendation"}</button>
           <button type="button" className="primary-btn" disabled={blocked} onClick={() => onExplore(selected)}>Explore selected in Open Door</button>
@@ -118,6 +129,13 @@ export default function DiscoveryDebate({ active, candidates, status, statusErro
       </section>
     </div>}
     {debate.returned && debate.returned.journey.doors.length > 0 && <section className="debate-results" aria-label="Debate returned recommendations"><span className="eyebrow">Actual returned alternatives · {debate.returned.source} connection</span><h2>Choose the next recommendation to question.</h2>
+      {debate.session && <section className="debate-comparison" aria-label="Original and alternative comparison">
+        <div><span className="eyebrow">Original · preserved</span><h3>{debate.session.original.door.title}</h3><p>{debate.session.original.door.category} · {debate.session.original.request.location}</p><p>{debate.session.original.request.anchors.map(anchor => anchor.label).join(", ")}</p>
+          <ConnectionEvidence door={debate.session.original.door} mode={debate.session.original.mode} /></div>
+        <div><span className="eyebrow">Alternative · returned by Qloo</span><h3>{debate.returned.journey.doors.map(door => door.title).join(", ")}</h3><p>{debate.returned.request.intent} · {debate.returned.request.depth}</p>
+          <p>Seeded by {debate.returned.request.anchors.map(anchor => anchor.label).join(", ")}. Previously seen entities were excluded; new results are not a guarantee of a better fit.</p></div>
+        {onPreserve && <button type="button" className="secondary-btn" disabled={blocked} onClick={() => onPreserve(debate.session!.original, debate.returned!.journey)}>Preserve both paths in Discovery Lab</button>}
+      </section>}
       {debate.returned.journey.notices?.map((notice, index) => <p className="helper" key={index}>{notice}</p>)}
       {debate.returned.journey.doors.map(door => <article key={door.id}><button type="button" className="secondary-btn" disabled={blocked || selected?.door.entityId === door.entityId} onClick={() => debate.select(debateCandidateFromJourney(debate.returned!.journey, door, debate.returned!.request, debate.returned!.source))}>{selected?.door.entityId === door.entityId ? `Currently debating ${door.title}` : `Debate ${door.title}`}</button>{renderDoor(door, debate.returned!.journey)}</article>)}
     </section>}

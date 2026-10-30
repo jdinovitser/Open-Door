@@ -62,8 +62,10 @@ test("shared Demo opens a real-provider Lab path in one click and automatically 
   expect(first.current.mode).toBe("live");
   expect(first.checkpoints).toHaveLength(1);
   expect(first.branches).toHaveLength(1);
+  await page.locator(".lab-edit-plan > summary").click();
   await page.getByLabel("Budget", { exact: true }).fill("Under $30");
   await wildBranch(page);
+  await page.locator(".lab-detailed-comparison > summary").click();
   await expect(page.locator(".lab-compare-branch")).toHaveCount(2);
   const second = await stored(page);
   expect(second.branches[0].snapshot.candidates).toEqual(first.branches[0].snapshot.candidates);

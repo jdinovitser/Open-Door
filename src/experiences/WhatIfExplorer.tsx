@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Plus, X } from "lucide-react";
 import { MascotArt } from "../MascotArt";
 import QlooConnectionPanel from "../QlooConnectionPanel";
@@ -14,11 +14,13 @@ type Props = {
   source: QlooConnectionSource; initialLocation: string; disabled?: boolean;
   onSelectConnection: (mode: "demo" | "live", source: QlooConnectionSource) => void;
   renderDoor: (door: LiveDoor, journey: LiveJourney) => ReactNode;
+  incoming?: WhatIfStart | null;
+  onPreserve?: (original: WhatIfStart, alternative: LiveJourney) => void;
 };
 const blankInterest = () => ({ id: crypto.randomUUID(), label: "", category: "Other" });
 const DEFAULT_CONTROLS: WhatIfControls = { location: "", intent: "Try something new", depth: "A little further", budget: "Flexible", time: "A free Saturday", movement: "Open to anything" };
 
-export default function WhatIfExplorer({ active, sources, status, statusError, source, initialLocation, disabled, onSelectConnection, renderDoor }: Props) {
+export default function WhatIfExplorer({ active, sources, status, statusError, source, initialLocation, disabled, onSelectConnection, renderDoor, incoming, onPreserve }: Props) {
   const [sourceId, setSourceId] = useState(() => sources[0]?.id || "new");
   const [interests, setInterests] = useState(() => [blankInterest()]);
   const [original, setOriginal] = useState<WhatIfStart | null>(null);
@@ -26,6 +28,15 @@ export default function WhatIfExplorer({ active, sources, status, statusError, s
   const [scenario, setScenario] = useState("");
   const [attempted, setAttempted] = useState(false);
   const explorer = useWhatIf(source, active);
+  const received = useRef("");
+  useEffect(() => {
+    if (!active || !incoming || received.current === incoming.id) return;
+    received.current = incoming.id;
+    if (original && !window.confirm("Use this discovery as your new What If? starting point? The current what-if comparison will be replaced; discoveries in other experiences stay unchanged.")) return;
+    const snapshot = snapshotStart(incoming);
+    setSourceId(incoming.id); setOriginal(snapshot); setControls(controlsFor(snapshot.request));
+    setScenario(""); setAttempted(false); explorer.clear();
+  }, [active, incoming]); // A handoff is consumed once; later edits remain private.
   const interpretation = interpretWhatIf(scenario);
   const maxAnchors = status?.policy?.limits.anchorsPerRequest ?? 5;
   const blocked = explorer.busy || !!disabled;
@@ -118,7 +129,8 @@ export default function WhatIfExplorer({ active, sources, status, statusError, s
           {!explorer.run && !explorer.busy && !explorer.error && <div className="bridge-state"><MascotArt scene="map" /><h2>A different version is waiting.</h2><p>Change one or more controls, then explore. Your original stays beside the alternatives.</p></div>}
           {explorer.run && <><div className="what-if-summary"><span className="eyebrow">Live Qloo · {explorer.run.source} connection</span><h2>What actually changed</h2>
             <p className="helper">This comparison describes the submitted scenario, not later edits above.</p>
-            {explorer.run.privateScenario && <details><summary>Private scenario used for this version</summary><p className="what-if-private">{explorer.run.privateScenario}</p><p className="helper">This prose was not sent to the API or saved with a door.</p></details>}
+          {onPreserve && <button type="button" className="secondary-btn" disabled={blocked} onClick={() => onPreserve(explorer.run!.original, explorer.run!.journey)}>Preserve both paths in Discovery Lab</button>}
+          {explorer.run.privateScenario && <details><summary>Private scenario used for this version</summary><p className="what-if-private">{explorer.run.privateScenario}</p><p className="helper">This prose was not sent to the API or saved with a door.</p></details>}
             {changes.length ? <ul className="what-if-changes">{changes.map(item => <li key={item.field}><strong>{item.field}</strong>: {item.before} → {item.after}<span className="what-if-scope">{item.scope === "routing" ? "Qloo-affecting routing input; actual results can still be unchanged." : "Recorded planning context only; does not filter Qloo cultural matches."}</span></li>)}</ul> : <p>No discovery controls changed from the starting snapshot. This is a fresh retrieval, not a changed scenario.</p>}
             {comparison?.comparable ? <p>{comparison.added} newly returned · {comparison.retained} retained · {comparison.missing} original results not returned. This compares entity IDs, not quality or suitability. Changes in returned results do not prove which input caused them.</p> : <p>No comparable original live entity set is available. These are new Qloo-returned alternatives, not a measured improvement over the starting point.</p>}
             {!changes.some(item => item.scope === "routing") && <p>Only planning context changed, or no controls changed. Qloo may return the same cultural matches. We do not claim budget, time, or movement changed affinity.</p>}

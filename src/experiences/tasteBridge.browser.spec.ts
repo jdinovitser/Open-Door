@@ -44,6 +44,95 @@ async function fillPeople(page: Page, shared = false) {
   await page.getByLabel("Person 2 category 1", { exact: true }).selectOption(shared ? "Music" : "Film");
 }
 
+test("bridge evidence, live challenge handoff, and Lab comparison preserve both paths on desktop and mobile", async ({ page }) => {
+  const requests: Record<string, unknown>[] = [];
+  await page.route("**/api/agent/discover", route => {
+    const input = route.request().postDataJSON();
+    requests.push(input);
+    const response = JSON.parse(result(input));
+    if (requests.length > 1) for (const [index, door] of response.journey.doors.entries()) {
+      door.id = `qloo-alternative-${index}`; door.entityId = `alternative-${index}`; door.title = `New direction ${index + 1}`;
+    }
+    return route.fulfill({ contentType: "application/x-ndjson", body: JSON.stringify(response) + "\n" });
+  });
+  await setup(page); await fillPeople(page);
+  await page.getByRole("button", { name: "Find our bridge", exact: true }).click();
+  const card = page.getByRole("region", { name: "The Bridge", exact: true }).locator(".door-card");
+  await card.locator(".door-preview").click();
+  const evidence = card.locator(".connection-evidence");
+  await expect(evidence).not.toHaveAttribute("open", "");
+  await evidence.locator(":scope > summary").click();
+  await expect(evidence).toContainText("Qloo-grounded information");
+  await expect(evidence).toContainText("rule-based, not AI-generated");
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  }
+  await card.getByRole("button", { name: "Question or redirect this discovery", exact: true }).click();
+  const debate = page.locator(".discovery-debate");
+  await expect(debate.locator(".debate-selected h2")).toHaveText("Returned direction 2");
+  await debate.getByRole("button", { name: "Retrieve something more unexpected", exact: true }).click();
+  await debate.getByRole("button", { name: "Send challenge", exact: true }).click();
+  const comparison = page.getByRole("region", { name: "Original and alternative comparison" });
+  await expect(comparison).toContainText("Returned direction 2");
+  await expect(comparison).toContainText("New direction 1");
+  expect(requests).toHaveLength(2);
+  expect(requests[1].resolvedEntities).toEqual([{ label: "Returned direction 2", category: "Music", entityId: "result-1", entityType: "artist" }]);
+  expect(requests[1].feedback).toContain("Too familiar");
+  expect(JSON.stringify(requests[1])).not.toContain("Private");
+  await comparison.getByRole("button", { name: "Preserve both paths in Discovery Lab", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Compare branches", exact: true })).toBeVisible();
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("opendoor.lab.v1") || "{}"));
+  expect(stored.branches).toHaveLength(2);
+  expect(stored.branches[0].snapshot.candidates[0].title).toBe("Returned direction 2");
+  expect(stored.branches[1].snapshot.candidates[0].title).toBe("New direction 1");
+  expect(JSON.stringify(stored)).not.toContain("Private");
+  expect(requests).toHaveLength(2); // Importing evidence is not another query.
+  await page.reload();
+  await expect(page.locator(".lab-sibling-card")).toHaveCount(2);
+});
+
+test("bridge What If handoff captures the original and preserves a returned alternative", async ({ page }) => {
+  let count = 0;
+  await page.route("**/api/agent/discover", route => {
+    const response = JSON.parse(result(route.request().postDataJSON()));
+    count++;
+    if (count > 1) for (const door of response.journey.doors) {
+      door.id += "-paris"; door.entityId += "-paris"; door.title += " in Paris";
+    }
+    return route.fulfill({ contentType: "application/x-ndjson", body: JSON.stringify(response) + "\n" });
+  });
+  await setup(page); await fillPeople(page);
+  await page.getByRole("button", { name: "Find our bridge", exact: true }).click();
+  const card = page.getByRole("region", { name: "The Bridge", exact: true }).locator(".door-card");
+  await card.locator(".door-preview").click();
+  await card.getByRole("button", { name: "Try a What If? · keep this original", exact: true }).click();
+  await expect(page.getByRole("complementary", { name: "Original starting point" })).toContainText("Returned direction 2");
+  await page.getByLabel(/^Alternative city/).fill("Paris");
+  await page.getByRole("button", { name: "Explore this what-if", exact: true }).click();
+  await expect(page.locator(".what-if-comparison")).toContainText("in Paris");
+  await page.getByRole("button", { name: "Preserve both paths in Discovery Lab", exact: true }).click();
+  await expect(page.locator(".lab-sibling-card")).toHaveCount(2);
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("opendoor.lab.v1") || "{}"));
+  expect(stored.branches[0].snapshot.candidates.map((door: { title: string }) => door.title)).not.toContain("Returned direction 2 in Paris");
+  expect(stored.branches[1].snapshot.settings.location).toBe("Paris");
+  expect(count).toBe(2);
+});
+
+test("a group journey uses the same returned results in Discover without another Qloo request", async ({ page }) => {
+  let count = 0;
+  await page.route("**/api/agent/discover", route => { count++; return route.fulfill({ contentType: "application/x-ndjson", body: result(route.request().postDataJSON()) }); });
+  await setup(page); await fillPeople(page);
+  await page.getByRole("button", { name: "Find our bridge", exact: true }).click();
+  await page.getByRole("button", { name: "Plan this journey together", exact: true }).click();
+  await expect(page.locator("#journey-result")).toBeVisible();
+  const current = await page.evaluate(() => JSON.parse(localStorage.getItem("opendoor.journey") || "{}"));
+  expect(current.anchors).toEqual(["Nina Simone", "Spirited Away"]);
+  expect(current.doors.map((door: { entityId: string }) => door.entityId)).toEqual(["result-0", "result-1", "result-2"]);
+  expect(JSON.stringify(current)).not.toContain("Private");
+  expect(count).toBe(1);
+});
+
 test("different interests: real request shape, truthful attribution, live saves, existing card and continuation", async ({ page }) => {
   const requests: { input: Input; source: string | undefined }[] = [];
   await page.route("**/api/agent/discover", route => {

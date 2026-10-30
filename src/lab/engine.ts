@@ -30,6 +30,22 @@ export function seedLab(state: LabState, seed: LabSeed): LabState {
     feedback: seed.feedback, mode: seed.mode,
   }) };
 }
+// Import existing evidence as two independently resumable paths. This performs
+// no provider request and retains all prior checkpoints/branches.
+export function preserveComparison(state: LabState, original: LabSeed, alternative: LabSeed, ids: string[], now: string): LabState {
+  if (ids.length !== 5 || new Set(ids).size !== 5) throw new Error("Comparison needs five unique identifiers.");
+  if (state.branches.length > 98) throw new Error("Remove unused branches or export this Lab before preserving two more paths.");
+  let next = seedLab(state, original);
+  next = saveCheckpoint(next, "Before reconsidering · original discovery", ids[0], now);
+  for (const [index, seed] of [original, alternative].entries()) {
+    next = createBranch(next, ids[0], "thread", ids[index + 1], now);
+    const imported = seedLab(emptyLab(), seed).current!;
+    next = replaceCurrent(next, { ...imported, candidates: [], history: [], shownIds: [] }, now);
+    next = recordResults(next, { mode: seed.mode, discoveries: seed.discoveries, notices: [] }, ids[index + 3], now);
+    next = renameItem(next, "branch", ids[index + 1], index === 0 ? "Original · preserved" : "Alternative · reconsidered");
+  }
+  return next;
+}
 export function replaceCurrent(state: LabState, snapshot: Snapshot, now = new Date().toISOString()): LabState {
   const current = copy(snapshot);
   return {

@@ -3,7 +3,7 @@ import type { DiscoveryRequest, LiveJourney } from "../agentApi";
 export const WHAT_IF_INTENTS = ["Find my people", "Go deeper", "Try something new"] as const;
 export const WHAT_IF_DEPTHS = ["Close to home", "A little further", "Surprise me", "Take me somewhere unexpected"] as const;
 export type WhatIfControls = { location: string; intent: string; depth: string; budget: string; time: string; movement: string };
-export type WhatIfReference = { id: string; title: string; category: string; tier?: string; entityId?: string };
+export type WhatIfReference = { id: string; title: string; category: string; tier?: string; entityId?: string; entityType?: string };
 export type WhatIfStart = {
   id: string; origin: "journey" | "result" | "saved" | "new"; label: string;
   mode: "live" | "demo" | "new"; request: DiscoveryRequest; doors: WhatIfReference[];

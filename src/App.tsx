@@ -29,6 +29,8 @@ import { DayPlanner, RecommendationTools } from "./RecommendationTools";
 import PreferencesMemory, { type PreferenceValues } from "./PreferencesMemory";
 import HiddenGem from "./HiddenGem";
 import { connectionSummary, destinationActions } from "./discoveryEvidence";
+import ConnectionEvidence from "./ConnectionEvidence";
+import { referenceToLab, requestFromJourney, whatIfFromJourney, type HandoffJourney } from "./experiences/journeyHandoff";
 import CompanyBanner from "./company/CompanyBanner";
 import type { CompanyProfile } from "./company/profiles";
 import { ProductHeader, ProductAvenues, type ProductView } from "./ProductHeader";
@@ -343,6 +345,8 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
   const [whatIfVisited, setWhatIfVisited] = useState(view === "what-if");
   const [whatIfExpandedId, setWhatIfExpandedId] = useState("");
   const [debateVisited, setDebateVisited] = useState(view === "debate");
+  const [incomingDebate, setIncomingDebate] = useState<DebateCandidate | null>(null);
+  const [incomingWhatIf, setIncomingWhatIf] = useState<WhatIfStart | null>(null);
   const [debateExpandedId, setDebateExpandedId] = useState("");
   const [entryPhase, setEntryPhase] = useState<"closed" | "opening" | "welcoming" | "entered">(companyProfile || new URLSearchParams(window.location.search).get("explore") === "1" ? "entered" : "closed");
   const entryRunDemoRef = useRef(false);
@@ -1263,7 +1267,43 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
     return <DoorCard door={door} city={sourceJourney.city} anchors={sourceJourney.anchors} mode="live" instanceId={instanceId}
       saved={savedIds.has(door.id)} toggleSave={(selected, location, chosenAnchors) => toggleSave(selected, location, chosenAnchors, "live")}
       expanded={expandedId === door.id} onOpenDoor={selected => setExpanded(selected.id)} onCloseDoor={() => setExpanded("")}
-      onExploreDeeper={continueDiscovery} exploring={isRunning} />;
+      onExploreDeeper={continueDiscovery} exploring={isRunning}
+      onChallenge={() => challengeJourney(sourceJourney, item)}
+      onWhatIf={() => reimagineJourney(sourceJourney)}
+      onLab={() => openExperienceInLab(sourceJourney, item.id)} />;
+  }
+
+  function challengeJourney(sourceJourney: HandoffJourney, door: Door | LiveDoor) {
+    setIncomingDebate({ id: `handoff:${crypto.randomUUID()}`, label: door.title, door, mode: "live",
+      request: requestFromJourney(sourceJourney, true), resolvedAnchors: sourceJourney.resolvedAnchors || [],
+      connection: qlooSource, requestIsHistorical: true });
+    setDebateVisited(true);
+    setView("debate"); window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  function reimagineJourney(sourceJourney: HandoffJourney) {
+    setIncomingWhatIf(whatIfFromJourney(sourceJourney, `handoff:${crypto.randomUUID()}`));
+    setWhatIfVisited(true);
+    setView("what-if"); window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  function protectLabDraft() {
+    return !lab.state.current || !!lab.state.activeBranchId || !!lab.state.activeCheckpointId ||
+      window.confirm("Keep your current Lab starting point as a checkpoint before importing this discovery?");
+  }
+  function openExperienceInLab(sourceJourney: LiveJourney, selectedId?: string) {
+    if (!protectLabDraft()) return;
+    if (lab.state.current && !lab.state.activeBranchId && !lab.state.activeCheckpointId && !lab.checkpoint("Before importing discovery")) return;
+    if (lab.start(journeyToLab(sourceJourney, selectedId))) {
+      setView("lab"); window.scrollTo({ top: 0, behavior: "smooth" });
+    } else setToast("The Lab could not import this discovery. Check its storage or active request before retrying.");
+  }
+  function preservePaths(original: import("./lab/model").LabSeed, alternative: LiveJourney) {
+    if (!protectLabDraft()) return;
+    if (lab.state.current && !lab.state.activeBranchId && !lab.state.activeCheckpointId && !lab.checkpoint("Before importing comparison")) return;
+    if (lab.preserveComparison(original, journeyToLab(alternative))) {
+      setView("lab");
+      setToast("Both paths preserved in your browser. No additional Qloo request was made.");
+      window.setTimeout(() => document.getElementById("lab-comparison")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    } else setToast("The Lab could not preserve these paths. Existing checkpoints and branches are unchanged.");
   }
 
   if (import.meta.env.DEV && window.location.pathname === "/security-test") {
@@ -1337,6 +1377,17 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
       </p>}
       {bridgeVisited && <div hidden={view !== "taste-bridge"}>
         <TasteBridge active={view === "taste-bridge"} status={agentStatus} statusError={statusError} source={qlooSource} initialLocation={city} disabled={isRunning}
+          onUseJourney={result => {
+            if (journey && !window.confirm("Use this group discovery as the current Discover journey? Saved doors and Lab paths remain; your current unsaved Discover results will be replaced.")) return;
+            const next: Journey = { ...result, intent: result.intent as Intent, depth: result.depth as Depth,
+              categories: result.categories as Record<string, Category>, doors: result.doors.map(toDoor),
+              context: { ...EMPTY_CONTEXT, ...result.context } };
+            setJourney(next); setCity(result.city); setOccasion(result.occasion); setIntent(next.intent); setDepth(next.depth);
+            setAnchors(next.anchors); setCategories(next.categories); setContext(next.context); setFeedback({});
+            setJourneyMode("live"); setGroupMode(false); setView("discover"); setEntryPhase("entered");
+            setToast("Your group’s discoveries are ready to plan. Participant names have not been saved.");
+            window.setTimeout(() => document.getElementById("journey-result")?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+          }}
           onSelectConnection={(mode, source) => {
             selectQlooConnection(mode, source);
             if (mode === "demo") { setEntryPhase("entered"); setView("discover"); }
@@ -1344,7 +1395,8 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
           renderDoor={(item, bridgeJourney) => renderExperienceDoor(item, bridgeJourney, bridgeExpandedId, setBridgeExpandedId, "bridge")} />
       </div>}
       {whatIfVisited && <div hidden={view !== "what-if"}>
-        <WhatIfExplorer active={view === "what-if"} sources={whatIfSources} status={agentStatus} statusError={statusError}
+        <WhatIfExplorer active={view === "what-if"} sources={incomingWhatIf ? [incomingWhatIf, ...whatIfSources] : whatIfSources} status={agentStatus} statusError={statusError}
+          incoming={incomingWhatIf} onPreserve={(original, alternative) => preservePaths(referenceToLab(original), alternative)}
           source={qlooSource} initialLocation={city} disabled={isRunning}
           onSelectConnection={(mode, source) => {
             selectQlooConnection(mode, source);
@@ -1353,7 +1405,16 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
           renderDoor={(item, nextJourney) => renderExperienceDoor(item, nextJourney, whatIfExpandedId, setWhatIfExpandedId, "what-if")} />
       </div>}
       {debateVisited && <div hidden={view !== "debate"}>
-        <DiscoveryDebate active={view === "debate"} candidates={debateCandidates} status={agentStatus} statusError={statusError}
+        <DiscoveryDebate active={view === "debate"} candidates={incomingDebate ? [incomingDebate, ...debateCandidates] : debateCandidates} status={agentStatus} statusError={statusError}
+          incoming={incomingDebate} onPreserve={(original, alternative) => {
+            const start: WhatIfStart = { id: original.id, origin: "result", label: original.label, mode: original.mode,
+              request: original.request, doors: [{ id: original.door.id, title: original.door.title, category: original.door.category, tier: original.door.tier, entityId: original.door.entityId }] };
+            const seed = referenceToLab(start);
+            if (seed.discoveries[0]) Object.assign(seed.discoveries[0], {
+              connection: original.door.why, evidence: original.door.evidence, entityType: original.door.entityType,
+            });
+            preservePaths(seed, alternative);
+          }}
           source={qlooSource} initialLocation={city} disabled={isRunning} savedIds={savedIds}
           onSelectConnection={(mode, source) => {
             selectQlooConnection(mode, source);
@@ -1371,6 +1432,8 @@ export default function App({ companyProfile }: { companyProfile?: CompanyProfil
           renderDoor={(item, nextJourney) => renderExperienceDoor(item, nextJourney, debateExpandedId, setDebateExpandedId, "debate")} />
       </div>}
       {view === "discover" && <DiscoverView companyProfile={companyProfile}
+        onChallenge={door => { if (journey?.mode === "live") challengeJourney(journey, door); }}
+        onWhatIf={() => { if (journey?.mode === "live") reimagineJourney(journey); }}
         city={city} setCity={setCity} occasion={occasion} setOccasion={setOccasion} intent={intent} setIntent={setIntent}
         depth={depth} setDepth={setDepth} context={context} setContext={setContext} anchors={anchors} categories={categories}
         threadExploration={threadExploration} onReturnFromThread={returnFromThread}
@@ -1457,6 +1520,7 @@ type DiscoverProps = {
   selectQlooConnection: (mode: "demo" | "live", source: QlooConnectionSource) => void;
   threadExploration: ThreadExploration | null; onReturnFromThread: () => void;
   onLab: (door?: Door) => void;
+  onChallenge: (door: Door) => void; onWhatIf: () => void;
   city: string; setCity: (value: string) => void; occasion: string; setOccasion: (value: string) => void;
   intent: Intent; setIntent: (value: Intent) => void; depth: Depth; setDepth: (value: Depth) => void;
   context: Context; setContext: (value: Context) => void; anchors: string[]; categories: Record<string, Category>;
@@ -1741,7 +1805,10 @@ function DiscoverView(p: DiscoverProps) {
            setPlannerRequest(current => ({ id: door.id, sequence: (current?.sequence || 0) + 1 }));
            document.getElementById("day-plan")?.scrollIntoView({ behavior: "smooth", block: "start" });
          }}
-         onExploreDeeper={p.openNext} onLab={p.onLab} feedback={p.feedback[door.id]} setFeedback={p.setFeedback} />)}</div>
+         onExploreDeeper={p.openNext} onLab={p.onLab}
+         onChallenge={p.journey!.mode === "live" ? () => p.onChallenge(door) : undefined}
+         onWhatIf={p.journey!.mode === "live" ? p.onWhatIf : undefined}
+         feedback={p.feedback[door.id]} setFeedback={p.setFeedback} />)}</div>
       <DayPlanner key={p.journey.doors.map(door => door.id).join("|")} recommendations={p.journey.doors} city={p.journey.city} mode={p.journey.mode || "demo"}
         requestedItem={plannerRequest}
         startTime={p.context.startTime || "10:00"} endTime={p.context.endTime || "17:00"}
@@ -1842,7 +1909,7 @@ function DiscoverView(p: DiscoverProps) {
 }
 
 function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, onCloseDoor, expanded, resultHeadingRef, instanceId = "",
-  scenarioCategory, scenario, onExploreDeeper, onLab, onAddToPlan, feedback, setFeedback, exploring }: {
+  scenarioCategory, scenario, onExploreDeeper, onLab, onChallenge, onWhatIf, onAddToPlan, feedback, setFeedback, exploring }: {
   door: Door; city: string; anchors: string[]; saved: boolean; toggleSave: (door: Door, city: string, anchors: string[]) => void;
   onOpenDoor: (door: Door) => void; onCloseDoor: () => void; expanded: boolean;
   resultHeadingRef?: RefObject<HTMLHeadingElement | null>; exploring?: boolean;
@@ -1850,6 +1917,7 @@ function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, on
   scenarioCategory?: ScenarioCategory; scenario?: string; onExploreDeeper: (door: Door) => void;
   onLab?: (door: Door) => void; feedback?: string; setFeedback?: (id: string, reason: string) => void; mode: "demo" | "live";
   onAddToPlan?: (door: Door) => void;
+  onChallenge?: () => void; onWhatIf?: () => void;
 }) {
   const destination = destinationActions(door, mode);
   const wildcard = door.tier === "Unexpected" && (mode !== "live" || door.unexpectedCrossCategory === true);
@@ -1899,6 +1967,7 @@ function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, on
         {scenarioCategory === "wellbeing" && <small>These are planning suggestions, not medical advice. Check any access needs before visiting.</small>}
       </section>}
       <HiddenGem doorId={door.id} title={door.title} category={door.category} mode={mode} />
+      <ConnectionEvidence door={door} mode={mode} anchors={anchors} />
       <details className="expanded-evidence">
         <summary>{mode === "live" ? "Where this recommendation came from" : "About this example"} <ChevronDown size={14} /></summary>
         <p>{door.evidence}</p>
@@ -1912,6 +1981,8 @@ function DoorCard({ door, city, anchors, mode, saved, toggleSave, onOpenDoor, on
         {mode === "live" && door.explainability != null && <details className="qloo-explainability"><summary>Qloo explainability returned</summary><pre>{JSON.stringify(publicTrace(door.explainability), null, 2)}</pre></details>}
       </details>
       <div className="expanded-next-actions">
+        {onChallenge && <button className="secondary-btn" type="button" disabled={exploring} onClick={onChallenge}>Question or redirect this discovery</button>}
+        {onWhatIf && <button className="secondary-btn" type="button" disabled={exploring} onClick={onWhatIf}>Try a What If? · keep this original</button>}
         {onAddToPlan && <button className="secondary-btn" type="button" onClick={() => onAddToPlan(door)}>Add to Build My Day</button>}
         <button className="primary-btn" type="button" disabled={exploring} onClick={() => onExploreDeeper(door)}>{exploring ? "Finding more ideas…" : "Explore more ideas"} <ArrowRight size={15} /></button>
         {onLab && <button className="secondary-btn" type="button" onClick={() => onLab(door)}>Branch in Discovery Lab <ArrowRight size={14} /></button>}

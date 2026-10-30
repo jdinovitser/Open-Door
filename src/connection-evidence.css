@@ -1,0 +1,9 @@
+.connection-evidence { margin:14px 0; border:1px solid var(--line); border-radius:12px; background:var(--surface-soft); overflow-wrap:anywhere; }
+.connection-evidence > summary { padding:14px 16px; cursor:pointer; color:var(--ink); font-weight:650; }
+.connection-evidence-content { padding:0 16px 16px; font-size:13px; line-height:1.65; }
+.connection-evidence dl { display:grid; gap:12px; grid-template-columns:repeat(2,minmax(0,1fr)); margin:12px 0; }
+.connection-evidence dt { color:var(--muted); font-size:11px; }
+.connection-evidence dd { margin:3px 0 0; font-weight:600; }
+.connection-evidence pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:240px; overflow:auto; font-size:11px; }
+.connection-evidence details summary { cursor:pointer; }
+@media(max-width:600px) { .connection-evidence dl { grid-template-columns:minmax(0,1fr); } }

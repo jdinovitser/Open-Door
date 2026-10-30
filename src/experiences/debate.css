@@ -25,5 +25,10 @@
 .debate-results > article { padding-bottom:25px; margin-bottom:24px; border-bottom:1px solid var(--line); }
 .debate-results .door-card { max-width:680px; margin:15px 0; }
 .debate-results .door-preview { max-height:200px; }
+.debate-comparison { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px; padding:20px; margin:20px 0; border:1px solid var(--line); border-radius:16px; background:var(--surface-soft); overflow-wrap:anywhere; }
+.debate-comparison > div { min-width:0; }
+.debate-comparison > button { grid-column:1/-1; justify-self:start; }
+.debate-comparison h3 { font:500 27px/1.2 var(--serif); }
+@media(max-width:767px) { .debate-comparison { grid-template-columns:minmax(0,1fr); } }
 .discovery-debate fieldset:disabled { opacity:.75; }
 @media(max-width:767px) { .debate-layout { grid-template-columns:minmax(0,1fr); } .debate-turn.is-user { margin-left:16px; } }

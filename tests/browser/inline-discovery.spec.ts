@@ -10,11 +10,13 @@ const cases = [
 for (const item of cases) {
   test(`${item.label} is findable in main discovery and shapes local guidance and Lab`, async ({ page }) => {
     await page.goto("/demo");
+    await page.locator(".friendly-advanced > summary").click();
+    await page.locator(".personal-considerations > details > summary").click();
     const selector = page.getByRole("combobox", { name: "Personal considerations", exact: true });
     await expect(selector).toBeVisible();
     await selector.selectOption(item.id);
-    await expect(page.getByRole("textbox", { name: "Your scenario", exact: true })).not.toHaveValue("");
-    await page.getByRole("textbox", { name: "Your scenario", exact: true }).fill(item.text);
+    await expect(page.getByRole("textbox", { name: "A little about what you want (optional)", exact: true })).not.toHaveValue("");
+    await page.getByRole("textbox", { name: "A little about what you want (optional)", exact: true }).fill(item.text);
     await page.getByRole("button", { name: "Find my doors", exact: true }).click();
     await page.locator(".door-preview").first().click();
     const result = page.locator(".door-card.is-expanded .door-result-expanded");
@@ -25,8 +27,9 @@ for (const item of cases) {
     await expect(result.locator(".scenario-result ul")).toContainText(item.outcome);
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await result.getByRole("button", { name: "Branch in Discovery Lab" }).click();
-    await expect(page.getByRole("textbox", { name: "Your scenario", exact: true })).toHaveValue(item.text);
-    await expect(page.getByRole("combobox", { name: "Lab scenario", exact: true })).toHaveValue(item.id);
+    await page.locator(".lab-edit-plan > summary").click();
+    await expect(page.getByRole("textbox", { name: /^What would make this a good day/ })).toHaveValue(item.text);
+    await expect(page.getByRole("combobox", { name: "Style, age, wellbeing & other needs", exact: true })).toHaveValue(item.id);
   });
 }
 
@@ -80,8 +83,11 @@ test("live requests exclude the local scenario while returned results and Lab re
     });
   });
   await page.goto("/demo");
+  await page.locator(".friendly-advanced > summary").click();
+  await page.locator(".personal-considerations > details > summary").click();
   await page.getByRole("combobox", { name: "Personal considerations", exact: true }).selectOption("wellbeing");
-  await page.getByRole("textbox", { name: "Your scenario", exact: true }).fill(brief);
+  await page.getByRole("textbox", { name: "A little about what you want (optional)", exact: true }).fill(brief);
+  await page.locator(".friendly-connection > summary").click();
   await page.getByRole("button", { name: "Demo", exact: true }).click();
   await page.getByRole("button", { name: "Explore with Qloo", exact: true }).click();
   await expect(page.locator(".door-card h3")).toHaveText("Test cultural discovery");
@@ -107,7 +113,8 @@ test("live requests exclude the local scenario while returned results and Lab re
   await page.locator(".door-preview").click();
   await expect(page.locator(".scenario-result")).toContainText(brief);
   await page.getByRole("button", { name: "Branch in Discovery Lab" }).click();
-  await expect(page.getByRole("textbox", { name: "Your scenario", exact: true })).toHaveValue(brief);
+  await page.locator(".lab-edit-plan > summary").click();
+  await expect(page.getByRole("textbox", { name: /^What would make this a good day/ })).toHaveValue(brief);
 });
 
 test("mobile keyboard opening is immediate, full-width, and keeps the visit count idempotent", async ({ page }) => {

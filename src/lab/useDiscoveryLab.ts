@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { anchorDiscovery, createBranch, deleteBranch, emptyLab, forkDiscovery, freshLab, parseLab, recordResults, renameItem, replaceCurrent, restoreCheckpoint, resumeBranch, saveCheckpoint, seedLab } from "./engine.ts";
+import { anchorDiscovery, createBranch, deleteBranch, emptyLab, forkDiscovery, freshLab, parseLab, preserveComparison, recordResults, renameItem, replaceCurrent, restoreCheckpoint, resumeBranch, saveCheckpoint, seedLab } from "./engine.ts";
 import { STORAGE_KEY, type Discovery, type DiscoveryProvider, type Feedback, type LabSeed, type LabState, type Settings, type Strategy } from "./model.ts";
 
 const id = () => crypto.randomUUID();
@@ -107,6 +107,7 @@ export function useDiscoveryLab(demo: DiscoveryProvider, live: DiscoveryProvider
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   return {
+    preserveComparison: (original: LabSeed, alternative: LabSeed) => change(previous => preserveComparison(previous, original, alternative, Array.from({ length: 5 }, id), now())),
     state, busy, error, loadError, storageWarning, notices, start, startAndExplore, checkpoint, branch, explore, next, fork, feedback, settings, cancel, clear, exportData,
     restore: (checkpointId: string) => change(previous => restoreCheckpoint(previous, checkpointId)),
     resume: (branchId: string) => change(previous => resumeBranch(previous, branchId)),
